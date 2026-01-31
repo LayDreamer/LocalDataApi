@@ -2,7 +2,7 @@
   "openapi": "3.0.4",
   "info": {
     "title": "Web API",
-    "description": "An API to manage users",
+    "description": "API接口文档",
     "version": "v1"
   },
   "paths": {
@@ -49,15 +49,25 @@
         "tags": [
           "BLFParameter"
         ],
-        "parameters": [
-          {
-            "name": "number",
-            "in": "query",
-            "schema": {
-              "type": "string"
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBLFParameterRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBLFParameterRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetBLFParameterRequest"
+              }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -184,184 +194,6 @@
         }
       }
     },
-    "/api/users/list": {
-      "post": {
-        "tags": [
-          "User"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/User"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/detail": {
-      "post": {
-        "tags": [
-          "User"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/create": {
-      "post": {
-        "tags": [
-          "User"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/User"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/users/update": {
-      "post": {
-        "tags": [
-          "User"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/User"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/users/delete": {
-      "post": {
-        "tags": [
-          "User"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/WeatherForecast": {
       "get": {
         "tags": [
@@ -411,6 +243,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "WorkOrderNumber": {
+            "type": "string",
+            "nullable": true
+          },
           "BLFNumber": {
             "type": "string",
             "nullable": true
@@ -439,11 +275,6 @@
             "type": "string",
             "nullable": true
           },
-          "CurrentFlowRateId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
           "CurrentFlowRateCurve": {
             "type": "array",
             "items": {
@@ -451,7 +282,7 @@
             },
             "nullable": true
           },
-          "StartingVoltage": {
+          "StartingCurrent": {
             "type": "string",
             "nullable": true
           },
@@ -463,7 +294,7 @@
             "type": "string",
             "nullable": true
           },
-          "PressureFlowRate": {
+          "PressureFlowRateCurve": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PressureFlowRate"
@@ -515,6 +346,19 @@
         },
         "additionalProperties": false
       },
+      "GetBLFParameterRequest": {
+        "required": [
+          "Number"
+        ],
+        "type": "object",
+        "properties": {
+          "Number": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PressureFlowRate": {
         "type": "object",
         "properties": {
@@ -529,33 +373,6 @@
           "FlowRate": {
             "type": "number",
             "format": "float"
-          }
-        },
-        "additionalProperties": false
-      },
-      "User": {
-        "required": [
-          "UserName"
-        ],
-        "type": "object",
-        "properties": {
-          "Id": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "UserName": {
-            "maxLength": 50,
-            "minLength": 1,
-            "type": "string"
-          },
-          "Email": {
-            "maxLength": 100,
-            "type": "string",
-            "nullable": true
-          },
-          "CreateDate": {
-            "type": "string",
-            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -588,9 +405,6 @@
   "tags": [
     {
       "name": "BLFParameter"
-    },
-    {
-      "name": "User"
     },
     {
       "name": "WeatherForecast"

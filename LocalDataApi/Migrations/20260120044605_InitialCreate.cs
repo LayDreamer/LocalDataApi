@@ -16,6 +16,7 @@ namespace LocalDataApi.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    WorkOrderNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BLFNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CoilResistance = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     InsulationResistance = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -23,8 +24,7 @@ namespace LocalDataApi.Migrations
                     WithstandVoltageStrength = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     InternalLeakage = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ExternalLeakage = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CurrentFlowRateId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    StartingVoltage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    StartingCurrent = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     MaximumFlowRate = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Hysteresis = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ClosedLoopFluctuation1 = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -37,21 +37,6 @@ namespace LocalDataApi.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_BLFParameters", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "LocalUsers",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    CreateDate = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_LocalUsers", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -108,9 +93,6 @@ namespace LocalDataApi.Migrations
         {
             migrationBuilder.DropTable(
                 name: "CurrentFlowRates");
-
-            migrationBuilder.DropTable(
-                name: "LocalUsers");
 
             migrationBuilder.DropTable(
                 name: "PressureFlowRates");

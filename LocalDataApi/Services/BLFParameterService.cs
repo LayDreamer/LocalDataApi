@@ -1,8 +1,8 @@
 ﻿using LocalDataApi.Data;
+using LocalDataApi.Dto;
 using LocalDataApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace LocalDataApi.Services
 {
     public class BLFParameterService
@@ -18,19 +18,21 @@ namespace LocalDataApi.Services
         {
             return await _context.BLFParameters
                         .Include(p => p.CurrentFlowRateCurve)
-                        .Include(p => p.PressureFlowRate)
+                        .Include(p => p.PressureFlowRateCurve)
                         .AsNoTracking() // 如果只是读取数据，添加这个提高性能
+                        .AsSplitQuery() // 拆分查询
                         .ToListAsync();
         }
 
         //按编号查询
-        public async Task<BLFParameter?> GetBLFParameter(string number)
+        public async Task<BLFParameter?> GetBLFParameter(GetBLFParameterRequest getBLFParameter)
         {
             var currentParam = await _context.BLFParameters
                      .Include(p => p.CurrentFlowRateCurve)
-                     .Include(p => p.PressureFlowRate)
+                     .Include(p => p.PressureFlowRateCurve)
                      .AsNoTracking()
-                     .FirstOrDefaultAsync(e => e.BLFNumber == number);
+                     .AsSplitQuery() // 拆分查询
+                     .FirstOrDefaultAsync(e => e.BLFNumber == getBLFParameter.Number);
             return currentParam;
         }
 
@@ -45,7 +47,7 @@ namespace LocalDataApi.Services
             blfParameter.CreateDate = DateTime.Now;
             _context.BLFParameters.Add(blfParameter);
             await _context.SaveChangesAsync();
-            return ;
+            return;
         }
 
         //更新
@@ -53,13 +55,15 @@ namespace LocalDataApi.Services
         {
             var currentParam = await _context.BLFParameters
                     .Include(p => p.CurrentFlowRateCurve)
-                    .Include(p => p.PressureFlowRate).FirstOrDefaultAsync(e => e.BLFNumber == blfParameter.BLFNumber);
+                    .Include(p => p.PressureFlowRateCurve)
+                    .AsSplitQuery()
+                    .FirstOrDefaultAsync(e => e.BLFNumber == blfParameter.BLFNumber);
 
             if (currentParam == null)
             {
                 throw new InvalidOperationException($"比例阀编码：{blfParameter.BLFNumber} 相关数据不存在！");
-            }         
-
+            }
+            
             //局部更新非空字段
             _context.Entry(currentParam).SetScalarValuesIgnoreNull(blfParameter);
 
@@ -68,10 +72,9 @@ namespace LocalDataApi.Services
             {
                 currentParam.CurrentFlowRateCurve = blfParameter.CurrentFlowRateCurve;
             }
-            if (blfParameter.PressureFlowRate != null && blfParameter.PressureFlowRate.Count > 0)
+            if (blfParameter.PressureFlowRateCurve != null && blfParameter.PressureFlowRateCurve.Count > 0)
             {
-
-                currentParam.PressureFlowRate = blfParameter.PressureFlowRate;
+                currentParam.PressureFlowRateCurve = blfParameter.PressureFlowRateCurve;
             }
             currentParam.ModifyDate = DateTime.Now;
             await _context.SaveChangesAsync();
@@ -86,7 +89,9 @@ namespace LocalDataApi.Services
             {
                 var currentParam = await _context.BLFParameters
                     .Include(p => p.CurrentFlowRateCurve)
-                    .Include(p => p.PressureFlowRate).FirstOrDefaultAsync(e => e.BLFNumber == number);
+                    .Include(p => p.PressureFlowRateCurve)
+                    .AsSplitQuery()
+                    .FirstOrDefaultAsync(e => e.BLFNumber == number);
                 if (currentParam == null)
                 {
                     error.Add(number);
@@ -97,19 +102,19 @@ namespace LocalDataApi.Services
                     {
                         _context.CurrentFlowRates.RemoveRange(currentParam.CurrentFlowRateCurve);
                     }
-                    if (currentParam.PressureFlowRate != null && currentParam.PressureFlowRate.Count > 0)
+                    if (currentParam.PressureFlowRateCurve != null && currentParam.PressureFlowRateCurve.Count > 0)
                     {
-                        _context.PressureFlowRates.RemoveRange(currentParam.PressureFlowRate);
+                        _context.PressureFlowRates.RemoveRange(currentParam.PressureFlowRateCurve);
                     }
                     _context.BLFParameters.Remove(currentParam);
                     await _context.SaveChangesAsync();
                 }
             }
 
-            if(error.Count > 0)
+            if (error.Count > 0)
             {
                 throw new InvalidOperationException($"比例阀编码：{string.Join(",", error)} 相关数据不存在！");
-            }   
+            }
             return;
         }
     }

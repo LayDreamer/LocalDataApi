@@ -49,9 +49,6 @@ namespace LocalDataApi.Migrations
                     b.Property<DateTime>("CreateDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("CurrentFlowRateId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("ExternalLeakage")
                         .HasColumnType("nvarchar(max)");
 
@@ -73,10 +70,13 @@ namespace LocalDataApi.Migrations
                     b.Property<DateTime>("ModifyDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("StartingVoltage")
+                    b.Property<string>("StartingCurrent")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WithstandVoltageStrength")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("WorkOrderNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -128,31 +128,6 @@ namespace LocalDataApi.Migrations
                     b.ToTable("PressureFlowRates");
                 });
 
-            modelBuilder.Entity("LocalDataApi.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreateDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("LocalUsers", (string)null);
-                });
-
             modelBuilder.Entity("LocalDataApi.Models.CurrentFlowRate", b =>
                 {
                     b.HasOne("LocalDataApi.Models.BLFParameter", null)
@@ -163,7 +138,7 @@ namespace LocalDataApi.Migrations
             modelBuilder.Entity("LocalDataApi.Models.PressureFlowRate", b =>
                 {
                     b.HasOne("LocalDataApi.Models.BLFParameter", null)
-                        .WithMany("PressureFlowRate")
+                        .WithMany("PressureFlowRateCurve")
                         .HasForeignKey("BLFParameterId");
                 });
 
@@ -171,7 +146,7 @@ namespace LocalDataApi.Migrations
                 {
                     b.Navigation("CurrentFlowRateCurve");
 
-                    b.Navigation("PressureFlowRate");
+                    b.Navigation("PressureFlowRateCurve");
                 });
 #pragma warning restore 612, 618
         }

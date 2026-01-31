@@ -1,14 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using LocalDataApi.Models;
 
-namespace LocalDataApi.Models
+namespace LocalDataApi.Dto
 {
-    public class BLFParameter
+    public class BLFParameterCreateDto
     {
-        public Guid Id { get; set; }
-
-        //工单号
-        public string? WorkOrderNumber { get; set; }
-        //比例阀编号
         public string? BLFNumber { get; set; }
         //线圈电阻
         public string? CoilResistance { get; set; }
@@ -23,15 +18,15 @@ namespace LocalDataApi.Models
         //外泄漏
         public string? ExternalLeakage { get; set; }
         //电流流量曲线
-        public List<CurrentFlowRate>? CurrentFlowRateCurve { get; set; }
-        //起始电流
-        public string? StartingCurrent { get; set; }
+        public List<CurrentFlowRateCreateDto>? CurrentFlowRateCurve { get; set; }
+        //起始电压
+        public string? StartingVoltage { get; set; }
         //最大流量
         public string? MaximumFlowRate { get; set; }
         //滞回
         public string? Hysteresis { get; set; }
         //压力流量曲线
-        public List<PressureFlowRate>? PressureFlowRateCurve { get; set; }
+        public List<PressureFlowRateCreateDto>? PressureFlowRate { get; set; }
         //闭环波动0.5%
         public string? ClosedLoopFluctuation1 { get; set; }
         //闭环波动25%
@@ -43,25 +38,4 @@ namespace LocalDataApi.Models
         public DateTime CreateDate { get; set; }
         public DateTime ModifyDate { get; set; }
     }
-
-    /// <summary>
-    /// 电流流量
-    /// </summary>
-    public class CurrentFlowRate
-    {
-        public Guid Id { get; set; }
-        public float Current { get; set; }
-        public float FlowRate { get; set; }
-    }
-
-    /// <summary>
-    /// 压力流量
-    /// </summary>
-    public class PressureFlowRate
-    {
-        public Guid Id { get; set; }
-        public float Pressure { get; set; }
-        public float FlowRate { get; set; }
-    }
-
 }

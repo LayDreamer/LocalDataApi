@@ -6,9 +6,9 @@ namespace LocalDataApi.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
+            // 为所有查询配置默认行为
+            //ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
         }
-
-        public DbSet<User> Users { get; set; }
         public DbSet<BLFParameter> BLFParameters { get; set; }
 
         public DbSet<CurrentFlowRate> CurrentFlowRates { get; set; }
@@ -16,8 +16,6 @@ namespace LocalDataApi.Data
         public DbSet<PressureFlowRate> PressureFlowRates { get; set; }  
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // 配置表名（可选）
-            modelBuilder.Entity<User>().ToTable("LocalUsers");
             // 配置BLFParameter实体
             modelBuilder.Entity<BLFParameter>(entity =>
             {
@@ -37,5 +35,13 @@ namespace LocalDataApi.Data
             });
             base.OnModelCreating(modelBuilder);
         }
+
+        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        //{
+        //    optionsBuilder
+        //        .UseSqlServer()
+        //        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+        //        .ConfigureWarnings(w => w.Default(WarningBehavior.Throw));
+        //}
     }
 }
