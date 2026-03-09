@@ -1,0 +1,10 @@
+{
+  "$schema": "https://aka.ms/vs/debugger-managed-favorites-schema",
+  "types": {
+    "SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinUserListRequest": {
+      "favorites": [
+        "AccessToken"
+      ]
+    }
+  }
+}

@@ -1,19 +1,26 @@
-using LocalDataApi.Data;
+ï»¿using LocalDataApi.Data;
+using LocalDataApi.Models;
 using LocalDataApi.Services;
+using LocalDataApi.WeChatWork;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
+using SKIT.FlurlHttpClient.Wechat.Work;
+using SKIT.FlurlHttpClient.Wechat.Work.Settings;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ÅäÖÃÊı¾İ¿âÁ¬½Ó
+// ========== 1. é…ç½®æ—¥å¿—ï¼ˆç”¨äºè°ƒè¯• SDK å†…éƒ¨è¯·æ±‚ï¼‰ ==========
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(); // å°†æ—¥å¿—è¾“å‡ºåˆ°æ§åˆ¶å°
+
+// é…ç½®æ•°æ®åº“è¿æ¥
 builder.Services.AddDbContext<AppDbContext>
     (options =>
     {
         options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-        // ÔÚ¿ª·¢»·¾³ÆôÓÃÃô¸ĞÊı¾İÈÕÖ¾£¬±ãÓÚµ÷ÊÔ
+        // åœ¨å¼€å‘ç¯å¢ƒå¯ç”¨æ•æ„Ÿæ•°æ®æ—¥å¿—ï¼Œä¾¿äºè°ƒè¯•
         if (builder.Environment.IsDevelopment())
         {
             options.EnableSensitiveDataLogging();
@@ -21,15 +28,39 @@ builder.Services.AddDbContext<AppDbContext>
     });
 builder.Services.AddScoped<BLFParameterService>();
 
-/// ÅäÖÃ¿ØÖÆÆ÷ºÍJSONÑ¡Ïî
+// ========== 3. ä¼ä¸šå¾®ä¿¡å®¢æˆ·ç«¯é…ç½® ==========
+// 3.1 è¯»å–é…ç½®å¹¶éªŒè¯ï¼ˆå¦‚æœå€¼ä¸ºç©ºï¼Œå¯æå‰æŠ›å‡ºå¼‚å¸¸æˆ–æ—¥å¿—ï¼‰
+var wechatWorkSection = builder.Configuration.GetSection("WechatWork");
+if (!wechatWorkSection.Exists())
+{
+    throw new InvalidOperationException("é…ç½®æ–‡ä»¶ä¸­ç¼ºå°‘ WechatWork èŠ‚ã€‚");
+}
+var wechatWorkOptions = wechatWorkSection.Get<WechatWorkClientOptions>();
+if (wechatWorkOptions == null || string.IsNullOrEmpty(wechatWorkOptions.CorpId) || wechatWorkOptions.AgentId == null || string.IsNullOrEmpty(wechatWorkOptions.AgentSecret))
+{
+    throw new InvalidOperationException("ä¼ä¸šå¾®ä¿¡é…ç½®ç¼ºå¤±æˆ–ä¸å®Œæ•´ï¼Œè¯·æ£€æŸ¥ appsettings.json ä¸­çš„ WechatWork èŠ‚ã€‚");
+}
+// æ³¨å†Œ IHttpClientFactoryï¼ˆå¿…é¡»ï¼ï¼‰
+builder.Services.AddHttpClient();
+// 3.2 æ³¨å†Œä¼ä¸šå¾®ä¿¡å®¢æˆ·ç«¯ï¼ˆå•ä¾‹ï¼Œå¹¶ä¼ å…¥æ—¥å¿—å·¥å‚ä»¥ä¾¿ SDK è¾“å‡ºå†…éƒ¨æ—¥å¿—ï¼‰
+builder.Services.AddSingleton(new WechatWorkClient(new WechatWorkClientOptions
+{
+    CorpId = wechatWorkOptions.CorpId,
+    AgentId = wechatWorkOptions.AgentId,
+    AgentSecret = wechatWorkOptions.AgentSecret
+}));
+//// 3.3 æ³¨å†Œè‡ªå®šä¹‰æœåŠ¡
+builder.Services.AddScoped<WeChatWorkService>();
+
+/// é…ç½®æ§åˆ¶å™¨å’ŒJSONé€‰é¡¹
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy = null; // ±£³ÖÊôĞÔÃû²»±ä
-        options.JsonSerializerOptions.WriteIndented = true;// ÃÀ»¯JSONÊä³ö
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;  // ºöÂÔ¿ÕÖµÊôĞÔ
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // ä¿æŒå±æ€§åä¸å˜
+        options.JsonSerializerOptions.WriteIndented = true;// ç¾åŒ–JSONè¾“å‡º
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;  // å¿½ç•¥ç©ºå€¼å±æ€§
         //options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;   // ´¦ÀíÑ­»·ÒıÓÃ
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;   // å¤„ç†å¾ªç¯å¼•ç”¨
     });
 builder.Services.AddOpenApi();
 
@@ -41,7 +72,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Web API",
         Version = "v1",
-        Description = "API½Ó¿ÚÎÄµµ"
+        Description = "APIæ¥å£æ–‡æ¡£"
     });
 });
 
@@ -61,7 +92,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ÔÚ¿ª·¢»·¾³ÖĞÆôÓÃSwaggerÖĞ¼ä¼ş
+// åœ¨å¼€å‘ç¯å¢ƒä¸­å¯ç”¨Swaggerä¸­é—´ä»¶
 if (app.Environment.IsDevelopment()||true)
 {
     app.MapOpenApi();
@@ -71,11 +102,11 @@ if (app.Environment.IsDevelopment()||true)
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Web API V1");
-        // ÉèÖÃSwagger UIÒ³Ãæ±êÌâ
-        c.DocumentTitle = "APIÔÚÏßÎÄµµ";
-        // Õ¹¿ªÉî¶È£ºNone(²»Õ¹¿ª)¡¢List(Õ¹¿ª²Ù×÷ÁĞ±í)¡¢Full(Õ¹¿ªËùÓĞ)
+        // è®¾ç½®Swagger UIé¡µé¢æ ‡é¢˜
+        c.DocumentTitle = "APIåœ¨çº¿æ–‡æ¡£";
+        // å±•å¼€æ·±åº¦ï¼šNone(ä¸å±•å¼€)ã€List(å±•å¼€æ“ä½œåˆ—è¡¨)ã€Full(å±•å¼€æ‰€æœ‰)
         c.DocExpansion(DocExpansion.None);
-        // ÏÔÊ¾ÇëÇó³ÖĞøÊ±¼ä£¨ºÁÃë£©
+        // æ˜¾ç¤ºè¯·æ±‚æŒç»­æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
         c.DisplayRequestDuration();
         c.RoutePrefix = string.Empty; // Make Swagger UI available at the root
     });
@@ -88,10 +119,10 @@ app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
-//// ÆôÓÃ¾²Ì¬ÎÄ¼ş·şÎñ£¨¿ÉÑ¡£©
+//// å¯ç”¨é™æ€æ–‡ä»¶æœåŠ¡ï¼ˆå¯é€‰ï¼‰
 //app.UseDefaultFiles();
 //app.UseStaticFiles();
-//// ÆôÓÃÂ·ÓÉºÍ¿ØÖÆÆ÷Ó³Éä
+//// å¯ç”¨è·¯ç”±å’Œæ§åˆ¶å™¨æ˜ å°„
 //app.UseRouting();
 
 app.MapControllers();

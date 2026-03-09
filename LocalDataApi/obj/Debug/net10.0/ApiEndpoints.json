@@ -94,6 +94,190 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetChainGroup",
+    "RelativePath": "api/WechatWork/chainGroup",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "chainId",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetChainGroup",
+    "RelativePath": "api/WechatWork/chainGroupInfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "chainId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "groupId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetChains",
+    "RelativePath": "api/WechatWork/chains",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "CreateSmartSheet",
+    "RelativePath": "api/WechatWork/createSmartSheet",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "title",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "userIds",
+        "Type": "System.Collections.Generic.List\u00601[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "CreateSmartSheetAndNotify",
+    "RelativePath": "api/WechatWork/createSmartSheetAndNotify",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "LocalDataApi.Dto.CreateAndNotifyDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetDepartments",
+    "RelativePath": "api/WechatWork/departments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetLinkedUserInfo",
+    "RelativePath": "api/WechatWork/linkedUserInfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "chainId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "groupId",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "SendMessage",
+    "RelativePath": "api/WechatWork/send",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "LocalDataApi.Dto.SendMessageDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "SendCardMessage",
+    "RelativePath": "api/WechatWork/sendCardMessage",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "LocalDataApi.Dto.SendMessageDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "SendMessageToSupplier",
+    "RelativePath": "api/WechatWork/sendSupplier",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "corpId",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "userId",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.WechatWorkController",
+    "Method": "GetUsers",
+    "RelativePath": "api/WechatWork/users",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "departmentRequest",
+        "Type": "LocalDataApi.Dto.DepartmentRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "LocalDataApi.Controllers.WeatherForecastController",
     "Method": "Get",
     "RelativePath": "WeatherForecast",
@@ -113,5 +297,36 @@
       }
     ],
     "EndpointName": "GetWeatherForecast"
+  },
+  {
+    "ContainingType": "WeChatController",
+    "Method": "Callback",
+    "RelativePath": "wechat/callback",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "code",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "state",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "WeChatController",
+    "Method": "Login",
+    "RelativePath": "wechat/login",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
   }
 ]

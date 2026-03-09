@@ -66,6 +66,48 @@
           }
         }
       },
+      "BouncyCastle.Cryptography/2.6.2": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Flurl/4.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/Flurl.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/Flurl.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Flurl.Http/4.0.2": {
+        "type": "package",
+        "dependencies": {
+          "Flurl": "4.0.0"
+        },
+        "compile": {
+          "lib/net6.0/Flurl.Http.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/Flurl.Http.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Humanizer.Core/2.14.1": {
         "type": "package",
         "compile": {
@@ -1200,12 +1242,47 @@
       "Newtonsoft.Json/13.0.3": {
         "type": "package",
         "compile": {
-          "lib/net6.0/_._": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
             "related": ".xml"
           }
         },
         "runtime": {
           "lib/net6.0/Newtonsoft.Json.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "SKIT.FlurlHttpClient.Common/3.1.1": {
+        "type": "package",
+        "dependencies": {
+          "Flurl": "4.0.0",
+          "Flurl.Http": "4.0.2",
+          "Newtonsoft.Json": "13.0.3"
+        },
+        "compile": {
+          "lib/net8.0/SKIT.FlurlHttpClient.Common.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/SKIT.FlurlHttpClient.Common.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "SKIT.FlurlHttpClient.Wechat.Work/3.14.0": {
+        "type": "package",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "2.6.2",
+          "SKIT.FlurlHttpClient.Common": "3.1.1"
+        },
+        "compile": {
+          "lib/net6.0/SKIT.FlurlHttpClient.Wechat.Work.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/SKIT.FlurlHttpClient.Wechat.Work.dll": {
             "related": ".xml"
           }
         }
@@ -1676,6 +1753,63 @@
         "lib/net8.0/Azure.Identity.xml",
         "lib/netstandard2.0/Azure.Identity.dll",
         "lib/netstandard2.0/Azure.Identity.xml"
+      ]
+    },
+    "BouncyCastle.Cryptography/2.6.2": {
+      "sha512": "7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w==",
+      "type": "package",
+      "path": "bouncycastle.cryptography/2.6.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "bouncycastle.cryptography.2.6.2.nupkg.sha512",
+        "bouncycastle.cryptography.nuspec",
+        "lib/net461/BouncyCastle.Cryptography.dll",
+        "lib/net461/BouncyCastle.Cryptography.xml",
+        "lib/net6.0/BouncyCastle.Cryptography.dll",
+        "lib/net6.0/BouncyCastle.Cryptography.xml",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.dll",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.xml",
+        "packageIcon.png"
+      ]
+    },
+    "Flurl/4.0.0": {
+      "sha512": "rpts69yYgvJqg6PPgqShBQEZ4aNzWQqWpWppcT0oDWxDCIsBqiod4pj6LQZdhk+1OozLFagemldMRACdHF3CsA==",
+      "type": "package",
+      "path": "flurl/4.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "flurl.4.0.0.nupkg.sha512",
+        "flurl.nuspec",
+        "icon.png",
+        "lib/net461/Flurl.dll",
+        "lib/net461/Flurl.xml",
+        "lib/net472/Flurl.dll",
+        "lib/net472/Flurl.xml",
+        "lib/netstandard2.0/Flurl.dll",
+        "lib/netstandard2.0/Flurl.xml"
+      ]
+    },
+    "Flurl.Http/4.0.2": {
+      "sha512": "9vCqFFyceA11yplkFD8AbCFFTvG1Lrw3tpsgOpL5sLUc28p6zcvGszNleuT6nDymRvtt5eS+rqUX+bRztg1fhA==",
+      "type": "package",
+      "path": "flurl.http/4.0.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "flurl.http.4.0.2.nupkg.sha512",
+        "flurl.http.nuspec",
+        "icon.png",
+        "lib/net461/Flurl.Http.dll",
+        "lib/net461/Flurl.Http.xml",
+        "lib/net6.0/Flurl.Http.dll",
+        "lib/net6.0/Flurl.Http.xml",
+        "lib/netstandard2.0/Flurl.Http.dll",
+        "lib/netstandard2.0/Flurl.Http.xml"
       ]
     },
     "Humanizer.Core/2.14.1": {
@@ -3688,6 +3822,48 @@
         "packageIcon.png"
       ]
     },
+    "SKIT.FlurlHttpClient.Common/3.1.1": {
+      "sha512": "ZCcSa2+ZrZKwAXvYBdMmzio/SgPFwqB6xjyRvWjjv+P8V5QRk41tMNfjXreKwWsRhj25/mAdKZLc5YfOsofQUQ==",
+      "type": "package",
+      "path": "skit.flurlhttpclient.common/3.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LOGO.png",
+        "README.md",
+        "lib/net462/SKIT.FlurlHttpClient.Common.dll",
+        "lib/net462/SKIT.FlurlHttpClient.Common.xml",
+        "lib/net6.0/SKIT.FlurlHttpClient.Common.dll",
+        "lib/net6.0/SKIT.FlurlHttpClient.Common.xml",
+        "lib/net8.0/SKIT.FlurlHttpClient.Common.dll",
+        "lib/net8.0/SKIT.FlurlHttpClient.Common.xml",
+        "lib/netcoreapp3.1/SKIT.FlurlHttpClient.Common.dll",
+        "lib/netcoreapp3.1/SKIT.FlurlHttpClient.Common.xml",
+        "lib/netstandard2.0/SKIT.FlurlHttpClient.Common.dll",
+        "lib/netstandard2.0/SKIT.FlurlHttpClient.Common.xml",
+        "skit.flurlhttpclient.common.3.1.1.nupkg.sha512",
+        "skit.flurlhttpclient.common.nuspec"
+      ]
+    },
+    "SKIT.FlurlHttpClient.Wechat.Work/3.14.0": {
+      "sha512": "CcftfgE2w7Pw0l2HslqDYNpRgkVqskSZZm1YFevkK6xcrxSqixc/y6QO+e1b2X7S7Uir7CBfW4C1ymOvQ1T9Lw==",
+      "type": "package",
+      "path": "skit.flurlhttpclient.wechat.work/3.14.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LOGO.png",
+        "README.md",
+        "lib/net462/SKIT.FlurlHttpClient.Wechat.Work.dll",
+        "lib/net462/SKIT.FlurlHttpClient.Wechat.Work.xml",
+        "lib/net6.0/SKIT.FlurlHttpClient.Wechat.Work.dll",
+        "lib/net6.0/SKIT.FlurlHttpClient.Wechat.Work.xml",
+        "lib/netstandard2.0/SKIT.FlurlHttpClient.Wechat.Work.dll",
+        "lib/netstandard2.0/SKIT.FlurlHttpClient.Wechat.Work.xml",
+        "skit.flurlhttpclient.wechat.work.3.14.0.nupkg.sha512",
+        "skit.flurlhttpclient.wechat.work.nuspec"
+      ]
+    },
     "Swashbuckle.AspNetCore/10.1.0": {
       "sha512": "CvOffaJKStoP0hdfCIX4V/9wuwRkSOJd+PehGo/Y5ALh0WYliLwuMlyh1BbgG7uQtJNe1k5P7QIhIaFfZ/aJAw==",
       "type": "package",
@@ -4265,6 +4441,7 @@
       "Microsoft.AspNetCore.OpenApi >= 10.0.1",
       "Microsoft.EntityFrameworkCore.Design >= 10.0.1",
       "Microsoft.EntityFrameworkCore.SqlServer >= 10.0.1",
+      "SKIT.FlurlHttpClient.Wechat.Work >= 3.14.0",
       "Swashbuckle.AspNetCore >= 10.1.0"
     ]
   },
@@ -4339,6 +4516,10 @@
           "Microsoft.EntityFrameworkCore.SqlServer": {
             "target": "Package",
             "version": "[10.0.1, )"
+          },
+          "SKIT.FlurlHttpClient.Wechat.Work": {
+            "target": "Package",
+            "version": "[3.14.0, )"
           },
           "Swashbuckle.AspNetCore": {
             "target": "Package",

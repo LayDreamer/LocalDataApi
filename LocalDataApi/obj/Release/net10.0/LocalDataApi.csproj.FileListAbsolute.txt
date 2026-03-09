@@ -439,3 +439,8 @@ D:\work2026\github work\LocalDataApi\LocalDataApi\obj\Release\net10.0\refint\Loc
 D:\work2026\github work\LocalDataApi\LocalDataApi\obj\Release\net10.0\LocalDataApi.pdb
 D:\work2026\github work\LocalDataApi\LocalDataApi\obj\Release\net10.0\LocalDataApi.genruntimeconfig.cache
 D:\work2026\github work\LocalDataApi\LocalDataApi\obj\Release\net10.0\ref\LocalDataApi.dll
+D:\work2026\github work\LocalDataApi\LocalDataApi\bin\Release\net10.0\BouncyCastle.Cryptography.dll
+D:\work2026\github work\LocalDataApi\LocalDataApi\bin\Release\net10.0\Flurl.dll
+D:\work2026\github work\LocalDataApi\LocalDataApi\bin\Release\net10.0\Flurl.Http.dll
+D:\work2026\github work\LocalDataApi\LocalDataApi\bin\Release\net10.0\SKIT.FlurlHttpClient.Common.dll
+D:\work2026\github work\LocalDataApi\LocalDataApi\bin\Release\net10.0\SKIT.FlurlHttpClient.Wechat.Work.dll
