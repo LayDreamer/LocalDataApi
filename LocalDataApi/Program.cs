@@ -50,7 +50,7 @@ builder.Services.AddSingleton(new WechatWorkClient(new WechatWorkClientOptions
     AgentSecret = wechatWorkOptions.AgentSecret
 }));
 //// 3.3 注册自定义服务
-builder.Services.AddScoped<WeChatWorkService>();
+builder.Services.AddSingleton<WeChatWorkService>();
 
 /// 配置控制器和JSON选项
 builder.Services.AddControllers()

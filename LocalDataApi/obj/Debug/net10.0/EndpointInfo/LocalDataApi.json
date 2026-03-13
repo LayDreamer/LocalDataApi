@@ -194,49 +194,27 @@
         }
       }
     },
-    "/WeatherForecast": {
+    "/api/Wechat/authorize-url": {
       "get": {
         "tags": [
-          "WeatherForecast"
+          "Wechat"
         ],
-        "operationId": "GetWeatherForecast",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WeatherForecast"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WeatherForecast"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/WeatherForecast"
-                  }
-                }
-              }
+        "parameters": [
+          {
+            "name": "redirectUri",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "STATE"
             }
           }
-        }
-      }
-    },
-    "/wechat/login": {
-      "get": {
-        "tags": [
-          "WeChat"
         ],
         "responses": {
           "200": {
@@ -245,10 +223,10 @@
         }
       }
     },
-    "/wechat/callback": {
+    "/api/Wechat/callback": {
       "get": {
         "tags": [
-          "WeChat"
+          "Wechat"
         ],
         "parameters": [
           {
@@ -261,6 +239,28 @@
           {
             "name": "state",
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Wechat/user/{userId}": {
+      "get": {
+        "tags": [
+          "Wechat"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -308,125 +308,6 @@
       "get": {
         "tags": [
           "WechatWork"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/WechatWork/chains": {
-      "post": {
-        "tags": [
-          "WechatWork"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/WechatWork/chainGroup": {
-      "post": {
-        "tags": [
-          "WechatWork"
-        ],
-        "parameters": [
-          {
-            "name": "chainId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/WechatWork/chainGroupInfo": {
-      "post": {
-        "tags": [
-          "WechatWork"
-        ],
-        "parameters": [
-          {
-            "name": "chainId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "groupId",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/WechatWork/linkedUserInfo": {
-      "post": {
-        "tags": [
-          "WechatWork"
-        ],
-        "parameters": [
-          {
-            "name": "chainId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "groupId",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/WechatWork/sendSupplier": {
-      "post": {
-        "tags": [
-          "WechatWork"
-        ],
-        "parameters": [
-          {
-            "name": "corpId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -502,43 +383,81 @@
         "tags": [
           "WechatWork"
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSmartSheetDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSmartSheetDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSmartSheetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/WechatWork/addSmartSheetRecord": {
+      "post": {
+        "tags": [
+          "WechatWork"
+        ],
         "parameters": [
           {
-            "name": "title",
+            "name": "docId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sheetId",
             "in": "query",
             "schema": {
               "type": "string"
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "text/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/WechatWork/getSmartSheetRecord": {
+      "post": {
+        "tags": [
+          "WechatWork"
+        ],
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sheetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           }
-        },
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -696,6 +615,23 @@
         },
         "additionalProperties": false
       },
+      "CreateSmartSheetDto": {
+        "type": "object",
+        "properties": {
+          "Title": {
+            "type": "string",
+            "nullable": true
+          },
+          "AdminUserIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "CurrentFlowRate": {
         "type": "object",
         "properties": {
@@ -787,29 +723,6 @@
         },
         "additionalProperties": false
       },
-      "WeatherForecast": {
-        "type": "object",
-        "properties": {
-          "Date": {
-            "type": "string",
-            "format": "date"
-          },
-          "TemperatureC": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "TemperatureF": {
-            "type": "integer",
-            "format": "int32",
-            "readOnly": true
-          },
-          "Summary": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "WechatWorkMessageType": {
         "enum": [
           0,
@@ -829,10 +742,7 @@
       "name": "BLFParameter"
     },
     {
-      "name": "WeatherForecast"
-    },
-    {
-      "name": "WeChat"
+      "name": "Wechat"
     },
     {
       "name": "WechatWork"

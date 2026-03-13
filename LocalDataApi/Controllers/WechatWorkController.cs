@@ -6,7 +6,6 @@ using SKIT.FlurlHttpClient.Wechat.Work;
 using SKIT.FlurlHttpClient.Wechat.Work.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinServiceGetLoginInfoResponse.Types.Authorization.Types;
 
 namespace LocalDataApi.Controllers
 {
@@ -68,112 +67,6 @@ namespace LocalDataApi.Controllers
             });
         }
 
-        [HttpPost("chains")]
-        public async Task<IActionResult> GetChains()
-        {
-            var response = await _wechatWorkService.GetChainsAsync();
-            if (response.IsSuccessful())
-            {
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "关联企业列表查询成功！",
-                    Data = response.ChainList,
-                });
-            }
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = response.ErrorMessage
-            });
-            
-        }
-        [HttpPost("chainGroup")]
-        public async Task<IActionResult> GetChainGroup(string chainId)
-        {
-            var response = await _wechatWorkService.GetChainGroupAsync(chainId);
-            if (response.IsSuccessful())
-            {
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "关联企业根目录查询成功！",
-                    Data = response.GroupList,
-                });
-            }
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = response.ErrorMessage
-            });
-
-        }
-        [HttpPost("chainGroupInfo")]
-        public async Task<IActionResult> GetChainGroup(string chainId,int?groupId)
-        {
-            var response = await _wechatWorkService.GetChainGroupInfoListAsync(chainId,groupId);
-            if (response.IsSuccessful())
-            {
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "关联企业分组查询成功！",
-                    Data = response.GroupCorpList,
-                });
-            }
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = response.ErrorMessage
-            });
-
-        }
-
-        [HttpPost("linkedUserInfo")]
-        public async Task<IActionResult> GetLinkedUserInfo(string chainId, int? groupId)
-        {
-            var response = await _wechatWorkService.GetLinkedCorpUserListAsync(chainId, groupId);
-            if (response.IsSuccessful())
-            {
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "关联企业员工列表查询成功！",
-                    Data = response.CorpUserList,
-                });
-            }
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = response.ErrorMessage
-            });
-
-        }
-
-
-
-        [HttpPost("sendSupplier")]
-        public async Task<IActionResult> SendMessageToSupplier(string corpId, string userId)
-        {
-            
-            var response = await _wechatWorkService.SendTextMessageToLinkedCorpUserAsync(corpId,userId,"您好，这是来自上游企业的一条测试消息。");
-            if (response.IsSuccessful())
-            {
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "发送成功！",
-                    Data = response.InvalidCorpUserIdList,
-                });
-            }
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = response.ErrorMessage
-            });
-
-        }
-
         [HttpPost("send")]
         public async Task<IActionResult> SendMessage(SendMessageDto dto)
         {
@@ -183,7 +76,7 @@ namespace LocalDataApi.Controllers
                 var response = await _wechatWorkService.SendMessageAsync(
                     users: dto.Users,
                     content: dto.Content,
-                    msgType:dto.MsgType
+                    msgType: dto.MsgType
                 );
 
                 if (response.IsSuccessful())
@@ -219,9 +112,9 @@ namespace LocalDataApi.Controllers
                 // 可以在这里添加业务逻辑，比如验证、日志等
                 var response = await _wechatWorkService.SendMessageAsCardAsync(
                     users: dto.Users,
-                    title : dto.Title,
-                    description : dto.Description, // 卡片描述
-                    url:dto.Url
+                    title: dto.Title,
+                    description: dto.Description, // 卡片描述
+                    url: dto.Url
                 //url : "https://doc.weixin.qq.com/smartsheet/s3_AZcA3AYLALECN3AVCeR8AT1qu2tpw?scode=ADYAtQdGAGoovltNZDAZcA3AYLALE&version=5.0.6.6028&platform=win&tab=db_qj1WYl"
                 );
 
@@ -250,10 +143,45 @@ namespace LocalDataApi.Controllers
             }
         }
 
+
         [HttpPost("createSmartSheet")]
-        public async Task<IActionResult> CreateSmartSheet(string title,List<string>userIds)
+        public async Task<IActionResult> CreateSmartSheet(CreateSmartSheetDto createDto)
         {
-            var response = await _wechatWorkService.CreateSmartSheetAsync(title, userIds);
+            var response = await _wechatWorkService.CreateDocumentAsync(createDto.Title, createDto.AdminUserIds);
+            if (response.IsSuccessful())
+            {
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "智能表创建成功！",
+                    Data = response,
+                });
+            }
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = response.ErrorMessage
+            });
+        }
+
+
+        [HttpPost("addSmartSheetRecord")]
+        public async Task<IActionResult> AddSmartSheetRecord(string docId, string? sheetId)
+        {
+            var records = new List<IDictionary<string, object>>
+                            {
+                                new Dictionary<string, object>
+                                {
+                                    { "姓名", "孙磊" },
+                                },
+                                //, new Dictionary<string, object>
+                                //{
+                                //    { "文本", "首付" },
+                                //    {"数字", 12 },
+                                //    {"日期",DateTime.Now}
+                                //}
+                            };
+            var response = await _wechatWorkService.AddSmartSheetRecordsAsync(docId, sheetId, records);
             if (response.IsSuccessful())
             {
                 return Ok(new ApiResponse<object>
@@ -270,13 +198,34 @@ namespace LocalDataApi.Controllers
             });
         }
 
+        [HttpPost("getSmartSheetRecord")]
+        public async Task<IActionResult> getSmartSheetRecord(string docId, string? sheetId)
+        {
+          
+            var response = await _wechatWorkService.GetSmartSheetRecordsAsync(docId, sheetId);
+            if (response.IsSuccessful())
+            {
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = response,
+                });
+            }
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = response.ErrorMessage
+            });
+        }
+
         [HttpPost("createSmartSheetAndNotify")]
         public async Task<IActionResult> CreateSmartSheetAndNotify(CreateAndNotifyDto dto)
         {
             try
             {
                 // 1. 创建智能表格
-                var createResponse = await _wechatWorkService.CreateSmartSheetAsync(dto.Title, dto.AdminUserIds);
+                var createResponse = await _wechatWorkService.CreateDocumentAsync(dto.Title, dto.AdminUserIds);
                 if (!createResponse.IsSuccessful())
                 {
                     return BadRequest(new ApiResponse<object>
@@ -318,5 +267,110 @@ namespace LocalDataApi.Controllers
                 return StatusCode(500, new { Success = false, Message = ex.Message });
             }
         }
+
+        //[HttpPost("chains")]
+        //public async Task<IActionResult> GetChains()
+        //{
+        //    var response = await _wechatWorkService.GetChainsAsync();
+        //    if (response.IsSuccessful())
+        //    {
+        //        return Ok(new ApiResponse<object>
+        //        {
+        //            Success = true,
+        //            Message = "关联企业列表查询成功！",
+        //            Data = response.ChainList,
+        //        });
+        //    }
+        //    return BadRequest(new ApiResponse<object>
+        //    {
+        //        Success = false,
+        //        Message = response.ErrorMessage
+        //    });
+
+        //}
+        //[HttpPost("chainGroup")]
+        //public async Task<IActionResult> GetChainGroup(string chainId)
+        //{
+        //    var response = await _wechatWorkService.GetChainGroupAsync(chainId);
+        //    if (response.IsSuccessful())
+        //    {
+        //        return Ok(new ApiResponse<object>
+        //        {
+        //            Success = true,
+        //            Message = "关联企业根目录查询成功！",
+        //            Data = response.GroupList,
+        //        });
+        //    }
+        //    return BadRequest(new ApiResponse<object>
+        //    {
+        //        Success = false,
+        //        Message = response.ErrorMessage
+        //    });
+
+        //}
+        //[HttpPost("chainGroupInfo")]
+        //public async Task<IActionResult> GetChainGroup(string chainId, int? groupId)
+        //{
+        //    var response = await _wechatWorkService.GetChainGroupInfoListAsync(chainId, groupId);
+        //    if (response.IsSuccessful())
+        //    {
+        //        return Ok(new ApiResponse<object>
+        //        {
+        //            Success = true,
+        //            Message = "关联企业分组查询成功！",
+        //            Data = response.GroupCorpList,
+        //        });
+        //    }
+        //    return BadRequest(new ApiResponse<object>
+        //    {
+        //        Success = false,
+        //        Message = response.ErrorMessage
+        //    });
+
+        //}
+
+        //[HttpPost("linkedUserInfo")]
+        //public async Task<IActionResult> GetLinkedUserInfo(string chainId, int? groupId)
+        //{
+        //    var response = await _wechatWorkService.GetLinkedCorpUserListAsync(chainId, groupId);
+        //    if (response.IsSuccessful())
+        //    {
+        //        return Ok(new ApiResponse<object>
+        //        {
+        //            Success = true,
+        //            Message = "关联企业员工列表查询成功！",
+        //            Data = response.CorpUserList,
+        //        });
+        //    }
+        //    return BadRequest(new ApiResponse<object>
+        //    {
+        //        Success = false,
+        //        Message = response.ErrorMessage
+        //    });
+
+        //}
+
+
+        //[HttpPost("sendSupplier")]
+        //public async Task<IActionResult> SendMessageToSupplier(string corpId, string userId)
+        //{
+
+        //    var response = await _wechatWorkService.SendTextMessageToLinkedCorpUserAsync(corpId, userId, "您好，这是来自上游企业的一条测试消息。");
+        //    if (response.IsSuccessful())
+        //    {
+        //        return Ok(new ApiResponse<object>
+        //        {
+        //            Success = true,
+        //            Message = "发送成功！",
+        //            Data = response.InvalidCorpUserIdList,
+        //        });
+        //    }
+        //    return BadRequest(new ApiResponse<object>
+        //    {
+        //        Success = false,
+        //        Message = response.ErrorMessage
+        //    });
+
+        //}
     }
 }
