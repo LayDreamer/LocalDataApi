@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LocalDataApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+91c6d0676450e547562f5342e4f2a5a1b04c38f8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3720b7ef7d638ba4e52959add237a08c36840c95")]
 [assembly: System.Reflection.AssemblyProductAttribute("LocalDataApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LocalDataApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

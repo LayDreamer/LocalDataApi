@@ -8,6 +8,7 @@ using SKIT.FlurlHttpClient.Wechat.Work;
 using SKIT.FlurlHttpClient.Wechat.Work.Settings;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Text.Json.Serialization;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services.AddDbContext<AppDbContext>
         }
     });
 builder.Services.AddScoped<BLFParameterService>();
+builder.Services.AddScoped<PMCService>();
 
 // ========== 3. 企业微信客户端配置 ==========
 // 3.1 读取配置并验证（如果值为空，可提前抛出异常或日志）

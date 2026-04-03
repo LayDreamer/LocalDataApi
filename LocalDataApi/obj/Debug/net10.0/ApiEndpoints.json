@@ -94,6 +94,138 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "AddPMCDeliveryReview",
+    "RelativePath": "api/PMC/AddPMCDeliveryReview",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "review",
+        "Type": "LocalDataApi.Models.PMCDeliveryReview",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "AddPMCSalesControlList",
+    "RelativePath": "api/PMC/AddPMCSalesControlList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "CheckIsExistInAssemblyList",
+    "RelativePath": "api/PMC/CheckAssemblyList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetPMCProductData",
+    "RelativePath": "api/PMC/GetPMCProductData",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetPMCSalesControlList",
+    "RelativePath": "api/PMC/GetPMCSalesControlList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetPMCDeliveryReviewList",
+    "RelativePath": "api/PMC/PMCDeliveryReviewList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetProductDataAssemblyList",
+    "RelativePath": "api/PMC/ProductDataAssemblyList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetPMCProductInfo",
+    "RelativePath": "api/PMC/ProductListInfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "LocalDataApi.Controllers.PMCController",
+    "Method": "GetSchedulingAnalysisList",
+    "RelativePath": "api/PMC/SchedulingAnalysisList",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "requestDto",
+        "Type": "LocalDataApi.Dto.PMCRequestDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "LocalDataApi.Controllers.WechatController",
     "Method": "GetAuthorizeUrl",
     "RelativePath": "api/Wechat/authorize-url",

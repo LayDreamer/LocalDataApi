@@ -194,6 +194,247 @@
         }
       }
     },
+    "/api/PMC/ProductListInfo": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/ProductDataAssemblyList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/CheckAssemblyList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/PMCDeliveryReviewList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/AddPMCDeliveryReview": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCDeliveryReview"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCDeliveryReview"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCDeliveryReview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/AddPMCSalesControlList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/GetPMCSalesControlList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/GetPMCProductData": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/PMC/SchedulingAnalysisList": {
+      "post": {
+        "tags": [
+          "PMC"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PMCRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Wechat/authorize-url": {
       "get": {
         "tags": [
@@ -673,6 +914,138 @@
         },
         "additionalProperties": false
       },
+      "PMCDeliveryReview": {
+        "type": "object",
+        "properties": {
+          "编号": {
+            "type": "string",
+            "nullable": true
+          },
+          "用户编号": {
+            "type": "string",
+            "nullable": true
+          },
+          "用户铭": {
+            "type": "string",
+            "nullable": true
+          },
+          "修改状态": {
+            "type": "string",
+            "nullable": true
+          },
+          "创建时间": {
+            "type": "string",
+            "nullable": true
+          },
+          "锁定用户": {
+            "type": "string",
+            "nullable": true
+          },
+          "审核过程": {
+            "type": "string",
+            "nullable": true
+          },
+          "打印": {
+            "type": "string",
+            "nullable": true
+          },
+          "合同号": {
+            "type": "string",
+            "nullable": true
+          },
+          "排产编号": {
+            "type": "string",
+            "nullable": true
+          },
+          "层": {
+            "type": "string",
+            "nullable": true
+          },
+          "货号": {
+            "type": "string",
+            "nullable": true
+          },
+          "中文品名": {
+            "type": "string",
+            "nullable": true
+          },
+          "中文规格": {
+            "type": "string",
+            "nullable": true
+          },
+          "分析单号": {
+            "type": "string",
+            "nullable": true
+          },
+          "来源编号": {
+            "type": "string",
+            "nullable": true
+          },
+          "来源": {
+            "type": "string",
+            "nullable": true
+          },
+          "工单单号": {
+            "type": "string",
+            "nullable": true
+          },
+          "线圈货号": {
+            "type": "string",
+            "nullable": true
+          },
+          "电压": {
+            "type": "string",
+            "nullable": true
+          },
+          "交货日期": {
+            "type": "string",
+            "nullable": true
+          },
+          "排产用户": {
+            "type": "string",
+            "nullable": true
+          },
+          "状态": {
+            "type": "string",
+            "nullable": true
+          },
+          "物料货号": {
+            "type": "string",
+            "nullable": true
+          },
+          "备注": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PMCRequestDto": {
+        "type": "object",
+        "properties": {
+          "合同号": {
+            "type": "string",
+            "nullable": true
+          },
+          "排产编号": {
+            "type": "string",
+            "nullable": true
+          },
+          "分析单号": {
+            "type": "string",
+            "nullable": true
+          },
+          "货号": {
+            "type": "string",
+            "nullable": true
+          },
+          "线圈货号": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PressureFlowRate": {
         "type": "object",
         "properties": {
@@ -740,6 +1113,9 @@
   "tags": [
     {
       "name": "BLFParameter"
+    },
+    {
+      "name": "PMC"
     },
     {
       "name": "Wechat"
