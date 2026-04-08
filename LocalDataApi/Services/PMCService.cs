@@ -1,14 +1,8 @@
-﻿using LocalDataApi.Data;
+using LocalDataApi.Data;
 using LocalDataApi.Dto;
 using LocalDataApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using System.Reflection.Metadata.Ecma335;
-using System.Text.Json;
-using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
-using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinBatchGetResultResponse.Types;
-using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinExternalPayGetMerchantResponse.Types;
-using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinKfSyncMessageResponse.Types.Message.Types.MergedMessage.Types;
 
 namespace LocalDataApi.Services
 {

@@ -1,4 +1,4 @@
-﻿using LocalDataApi.Dto;
+using LocalDataApi.Dto;
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using Microsoft.AspNetCore.Mvc;

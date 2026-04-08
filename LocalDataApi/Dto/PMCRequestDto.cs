@@ -1,4 +1,4 @@
-﻿namespace LocalDataApi.Dto
+namespace LocalDataApi.Dto
 {
     public class PMCRequestDto
     {
