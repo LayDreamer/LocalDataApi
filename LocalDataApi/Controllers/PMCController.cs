@@ -1,4 +1,5 @@
 using LocalDataApi.Dto;
+using LocalDataApi.Exceptions;
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -9,9 +10,9 @@ namespace LocalDataApi.Controllers
     [Route("api/[controller]")]
     public class PMCController : ControllerBase
     {
-        private readonly PMCService _pmcService;
+        private readonly IPMCService _pmcService;
 
-        public PMCController(PMCService pmcService)
+        public PMCController(IPMCService pmcService)
         {
             _pmcService = pmcService;
         }
@@ -57,7 +58,7 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (InvalidOperationException ex) // 当 FirstAsync 找不到数据时抛出
+            catch (InvalidOperationException)
             {
                 return NotFound(new ApiResponse<object>
                 {
@@ -65,7 +66,7 @@ namespace LocalDataApi.Controllers
                     Message = $"未找到货号 {requestDto.货号} 对应的产品资料装配信息"
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return StatusCode(500, new ApiResponse<object>
                 {
@@ -194,6 +195,15 @@ namespace LocalDataApi.Controllers
         [HttpPost("GetPMCSalesControlList")]
         public async Task<IActionResult> GetPMCSalesControlList(PMCRequestDto requestDto)
         {
+            if (string.IsNullOrWhiteSpace(requestDto.货号))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "货号不能为空！"
+                });
+            }
+
             try
             {
                 var reviewList = await _pmcService.GetPMCSalesControlList(requestDto.货号);
@@ -204,7 +214,7 @@ namespace LocalDataApi.Controllers
                     Data = reviewList // 空列表也正常返回
                 });
             }
-            catch (Exception e)
+            catch (ServiceException e)
             {
                 return BadRequest(new ApiResponse<object>
                 {
@@ -212,10 +222,27 @@ namespace LocalDataApi.Controllers
                     Message = $"错误提示：{e.Message}"
                 });
             }
+            catch (Exception)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误"
+                });
+            }
         }
         [HttpPost("GetPMCProductData")]
         public async Task<IActionResult> GetPMCProductData(PMCRequestDto requestDto)
         {
+            if (string.IsNullOrWhiteSpace(requestDto.货号))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "货号不能为空！"
+                });
+            }
+
             try
             {
                 var productData = await _pmcService.GetProductData(requestDto.货号);
@@ -226,12 +253,20 @@ namespace LocalDataApi.Controllers
                     Data = productData // 空列表也正常返回
                 });
             }
-            catch (Exception e)
+            catch (ServiceException e)
             {
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
                     Message = $"错误提示：{e.Message}"
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误"
                 });
             }
         }

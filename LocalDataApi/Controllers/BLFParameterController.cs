@@ -1,4 +1,5 @@
 ﻿using LocalDataApi.Dto;
+using LocalDataApi.Exceptions;
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +11,9 @@ namespace LocalDataApi.Controllers
     //[Route("[controller]")]
     public class BLFParameterController : ControllerBase
     {
-        private readonly BLFParameterService _blfService;
+        private readonly IBLFParameterService _blfService;
 
-        public BLFParameterController(BLFParameterService blfService)
+        public BLFParameterController(IBLFParameterService blfService)
         {
             _blfService = blfService;
         }
@@ -40,15 +41,15 @@ namespace LocalDataApi.Controllers
 
 
         [HttpPost("detail")]
-        public async Task<ActionResult<BLFParameter>> GetBLFParameter([FromBody] GetBLFParameterRequest getBLFParameter)
+        public async Task<IActionResult> GetBLFParameter([FromBody] GetBLFParameterRequest getBLFParameter)
         {
             var blfParameter = await _blfService.GetBLFParameter(getBLFParameter);
             if (blfParameter == null)
             {
-                return Ok(new ApiResponse<object>
+                return NotFound(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"未找到比例阀编号:{getBLFParameter}相关数据！",
+                    Message = $"未找到比例阀编号: {getBLFParameter.Number} 相关数据！",
                 });
             }
             return Ok(new ApiResponse<object>
@@ -73,12 +74,28 @@ namespace LocalDataApi.Controllers
                     Data = new { create = blfParameter }
                 });
             }
-            catch (Exception e)
+            catch (ValidationException e)
             {
-                return Ok(new ApiResponse<object>
+                return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"创建失败:{e.Message}",
+                    Message = $"创建失败: {e.Message}",
+                });
+            }
+            catch (ServiceException e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"创建失败: {e.Message}",
+                });
+            }
+            catch (Exception e)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误。"
                 });
             }
         }
@@ -96,12 +113,36 @@ namespace LocalDataApi.Controllers
                     Data = new { update = blfParameter }
                 });
             }
-            catch (Exception e)
+            catch (ValidationException e)
             {
-                return Ok(new ApiResponse<object>
+                return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"更新失败:{e.Message}",
+                    Message = $"更新失败: {e.Message}",
+                });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"更新失败: {e.Message}",
+                });
+            }
+            catch (ServiceException e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"更新失败: {e.Message}",
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误。"
                 });
             }
         }
@@ -119,14 +160,37 @@ namespace LocalDataApi.Controllers
                     Data = new { deleted = numbers }
                 });
             }
-            catch (Exception e)
+            catch (ValidationException e)
             {
-                return Ok(new ApiResponse<object>
+                return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = $"删除失败:{e.Message}",
+                    Message = $"删除失败: {e.Message}",
                 });
-               // return BadRequest(new { error = $"删除失败:{e.Message}" });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"删除失败: {e.Message}",
+                });
+            }
+            catch (ServiceException e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"删除失败: {e.Message}",
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误。"
+                });
             }
         }
     }

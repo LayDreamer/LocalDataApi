@@ -1,12 +1,13 @@
 using LocalDataApi.Data;
 using LocalDataApi.Dto;
+using LocalDataApi.Exceptions;
 using LocalDataApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 
 namespace LocalDataApi.Services
 {
-    public class PMCService
+    public class PMCService : IPMCService
     {
         private readonly AppDbContext _context;
         public PMCService(AppDbContext context)
@@ -116,8 +117,12 @@ namespace LocalDataApi.Services
         }
 
         //查询PMC产品销控表
-        public async Task<List<PMCSalesControl>> GetPMCSalesControlList(string number)
+        public async Task<List<PMCSalesControl>> GetPMCSalesControlList(string? number)
         {
+            if (string.IsNullOrWhiteSpace(number))
+            {
+                return new List<PMCSalesControl>();
+            }
             return await _context.产品销控表
                .Where(e => e.货号 == number)
                .AsNoTracking()
@@ -545,9 +550,13 @@ namespace LocalDataApi.Services
         }
 
         // 获取产品资料装配清单
-        public async Task<List<ProductDataAssemblyList>> GetProductDataAssemblyList(string itemNo)
+        public async Task<List<ProductDataAssemblyList>> GetProductDataAssemblyList(string? itemNo)
         {
             // 1. 预处理：如果 itemNo 包含括号，取第一个括号之前的内容
+            if (string.IsNullOrWhiteSpace(itemNo))
+            {
+                return new List<ProductDataAssemblyList>();
+            }
             string processedItemNo = itemNo;
             int bracketIndex = itemNo.IndexOf('(');
             if (bracketIndex > 0)
@@ -585,8 +594,12 @@ namespace LocalDataApi.Services
         }
 
         // 获取产品资料
-        public async Task<ProductData> GetProductData(string itemNo)
+        public async Task<ProductData?> GetProductData(string? itemNo)
         {
+            if (string.IsNullOrWhiteSpace(itemNo))
+            {
+                return null;
+            }
             var productData = await _context.产品资料
                    .AsNoTracking()
                    .FirstOrDefaultAsync(e => e.货号 == itemNo);
@@ -594,7 +607,7 @@ namespace LocalDataApi.Services
         }
 
         // 校验线圈货号
-        public async Task<bool> SearchCoils(string keyword)
+        public async Task<bool> SearchCoils(string? keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {

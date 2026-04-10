@@ -27,8 +27,8 @@ builder.Services.AddDbContext<AppDbContext>
             options.EnableSensitiveDataLogging();
         }
     });
-builder.Services.AddScoped<BLFParameterService>();
-builder.Services.AddScoped<PMCService>();
+builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
+builder.Services.AddScoped<IPMCService, PMCService>();
 
 // ========== 3. 企业微信客户端配置 ==========
 // 3.1 读取配置并验证（如果值为空，可提前抛出异常或日志）
@@ -95,7 +95,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 在开发环境中启用Swagger中间件
-if (app.Environment.IsDevelopment()||true)
+if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     // Enable middleware to serve generated Swagger as a JSON endpoint
