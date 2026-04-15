@@ -15,26 +15,27 @@ namespace LocalDataApi.Data
 
         public DbSet<PressureFlowRate> PressureFlowRates { get; set; }
 
-        public DbSet<PMCProductInfo> 外销合同产品 { get; set; }        
+        public DbSet<PMCProductInfo> 外销合同产品 { get; set; }
 
         public DbSet<PMCBasicInfo> 外销合同基本信息 { get; set; }
 
         public DbSet<ProductData> 产品资料 { get; set; }
+
+        public DbSet<WarehouseGoods> 仓库货品 { get; set; }
         public DbSet<ProductDataAssembly> 产品资料装配 { get; set; }
 
         public DbSet<ProductDataAssemblyList> 产品资料装配清单 { get; set; }
-
-        public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
-
-        public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
-
-        public DbSet<PMCSalesControl> 产品销控表 { get; set; }
-
-        public DbSet<WarehouseGoods> 仓库货品 { get; set; }
         
-
         public DbSet<ERPUser> tb_control_user { get; set; }
         
+        public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
+        
+        public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
+ 
+        public DbSet<PMCSalesControl> 产品销控表 { get; set; }
+
+        public DbSet<PMCWorkOrder> 工单管理 { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -95,6 +96,10 @@ namespace LocalDataApi.Data
             });
 
             modelBuilder.Entity<WarehouseGoods>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+            modelBuilder.Entity<PMCWorkOrder>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });

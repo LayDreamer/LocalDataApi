@@ -521,6 +521,108 @@ namespace LocalDataApi.Services
             return anaylsisDtos;
         }
 
+        #region 工单管理
+
+        // 获取全部工单列表
+        public async Task<List<PMCWorkOrder>> GetPMCWorkOrderList()
+        {
+            var query = _context.工单管理
+               .AsNoTracking()
+               .AsQueryable();
+            var data = await query.ToListAsync();
+            return data;
+        }
+
+        // 更新工单管理
+        public async Task<PMCWorkOrder> UpdatePMCWorkOrder(PMCWorkOrder workOrder)
+        {
+            if (workOrder == null)
+            {
+                throw new ArgumentNullException(nameof(workOrder), "工单信息不能为空");
+            }
+
+            // 可根据业务需求增加字段非空校验，例如：
+            if (string.IsNullOrWhiteSpace(workOrder.工单单号))
+            {
+                throw new ArgumentException("工单单号不能为空");
+            }
+
+            // 根据工单单号查询是否存在
+            var existing = await _context.工单管理
+                .FirstOrDefaultAsync(x => x.工单单号 == workOrder.工单单号);
+            if (existing == null)
+            {
+                throw new ArgumentException("工单不存在");
+            }
+
+            // 更新现有实体：将传入实体的所有属性值复制到现有实体
+            _context.Entry(existing).CurrentValues.SetValues(workOrder);
+
+            // 保存到数据库
+            await _context.SaveChangesAsync();
+
+            // 返回更新后的实体
+            return existing;
+        }
+        // 创建工单管理
+        public async Task<PMCWorkOrder> AddPMCWorkOrder(PMCWorkOrder workOrder)
+        {
+            // 开始计时
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                if (workOrder == null)
+                {
+                    throw new ArgumentNullException(nameof(workOrder), "工单信息不能为空");
+                }
+
+                // 可根据业务需求增加字段非空校验，例如：
+                if (string.IsNullOrEmpty(workOrder.工单单号))
+                {
+                    throw new ArgumentException("工单单号不能为空");
+                }
+
+                // 使用AsNoTracking提高查询性能
+                var existing = await _context.工单管理
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.工单单号 == workOrder.工单单号);
+                
+                if (existing != null)
+                {
+                    // 更新现有实体：将传入实体的所有属性值复制到现有实体
+                     _context.Entry(existing).CurrentValues.SetValues(workOrder);
+                }
+                else
+                {
+                    // 新增：创建新对象并复制所有属性
+                    var newWorkOrder = new PMCWorkOrder
+                    {
+                        编号 = Guid.NewGuid().ToString(),                    
+                        工单单号 = workOrder.工单单号,                     
+                        成品品名 = workOrder.成品品名,
+                        规格 = workOrder.规格,                     
+                    };
+                    await _context.工单管理.AddAsync(newWorkOrder);
+                }
+
+                // 保存到数据库
+                await _context.SaveChangesAsync();
+
+                // 返回更新或新增后的实体
+                return workOrder;
+            }
+            finally
+            {
+                // 停止计时并记录执行时间
+                stopwatch.Stop();
+                Console.WriteLine($"AddPMCWorkOrder 方法执行时间: {stopwatch.ElapsedMilliseconds} 毫秒");
+            }
+        }
+
+        #endregion
+
+
+
 
         // 获取合同状态
         public async Task<PMCBasicInfo> GetContractStatus(string num)

@@ -21,7 +21,7 @@ namespace LocalDataApi.Controllers
         /// 获取产品信息列表
         /// </summary>
         [HttpPost("ProductListInfo")]
-        public async Task<IActionResult> GetPMCProductInfo(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCProductInfo(PMCRequestDto requestDto)
         {
             var basicInfo = await _pmcService.GetPMCProductListInfo(requestDto);
             // 无论是否有数据，都视为查询成功
@@ -37,7 +37,7 @@ namespace LocalDataApi.Controllers
         /// 根据货号获取产品资料装配清单
         /// </summary>
         [HttpPost("ProductDataAssemblyList")]
-        public async Task<IActionResult> GetProductDataAssemblyList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> GetProductDataAssemblyList(PMCRequestDto requestDto)
         {
             if (string.IsNullOrWhiteSpace(requestDto.货号))
             {
@@ -80,7 +80,7 @@ namespace LocalDataApi.Controllers
         /// 检查线圈货号是否存在于装配清单中
         /// </summary>
         [HttpPost("CheckAssemblyList")]
-        public async Task<IActionResult> CheckIsExistInAssemblyList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> CheckIsExistInAssemblyList(PMCRequestDto requestDto)
         {
             if (string.IsNullOrWhiteSpace(requestDto.线圈货号))
             {
@@ -104,7 +104,7 @@ namespace LocalDataApi.Controllers
         /// 获取交期评审列表
         /// </summary>
         [HttpPost("PMCDeliveryReviewList")]
-        public async Task<IActionResult> GetPMCDeliveryReviewList()
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCDeliveryReviewList()
         {
             try
             {
@@ -132,7 +132,7 @@ namespace LocalDataApi.Controllers
         /// 新增交期评审记录
         /// </summary>
         [HttpPost("AddPMCDeliveryReview")]
-        public async Task<IActionResult> AddPMCDeliveryReview(PMCDeliveryReview review)
+        public async Task<ActionResult<ApiResponse<object>>> AddPMCDeliveryReview(PMCDeliveryReview review)
         {
             try
             {
@@ -170,7 +170,7 @@ namespace LocalDataApi.Controllers
         /// 
         /// </summary>
         [HttpPost("AddPMCSalesControlList")]
-        public async Task<IActionResult> AddPMCSalesControlList()
+        public async Task<ActionResult<ApiResponse<object>>> AddPMCSalesControlList()
         {
             try
             {
@@ -193,7 +193,7 @@ namespace LocalDataApi.Controllers
         }
 
         [HttpPost("GetPMCSalesControlList")]
-        public async Task<IActionResult> GetPMCSalesControlList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCSalesControlList(PMCRequestDto requestDto)
         {
             if (string.IsNullOrWhiteSpace(requestDto.货号))
             {
@@ -232,7 +232,7 @@ namespace LocalDataApi.Controllers
             }
         }
         [HttpPost("GetPMCProductData")]
-        public async Task<IActionResult> GetPMCProductData(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCProductData(PMCRequestDto requestDto)
         {
             if (string.IsNullOrWhiteSpace(requestDto.货号))
             {
@@ -272,7 +272,7 @@ namespace LocalDataApi.Controllers
         }
 
         [HttpPost("SchedulingAnalysisList")]
-        public async Task<IActionResult> GetSchedulingAnalysisList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> GetSchedulingAnalysisList(PMCRequestDto requestDto)
         {
             try
             {
@@ -293,6 +293,83 @@ namespace LocalDataApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// 获取全部工单列表
+        /// </summary>
+        [HttpPost("GetPMCWorkOrderList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCWorkOrderList()
+        {
+            try
+            {
+                var workOrderList = await _pmcService.GetPMCWorkOrderList();
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "获取成功！",
+                    Data = workOrderList // 空列表也正常返回
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 更新工单
+        /// </summary>
+        [HttpPost("UpdatePMCWorkOrder")]
+        public async Task<ActionResult<ApiResponse<object>>> UpdatePMCWorkOrder(PMCWorkOrder workOrder)
+        {
+            try
+            {
+                var productData = await _pmcService.UpdatePMCWorkOrder(workOrder);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "更新成功！",
+                    Data = productData
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        [HttpPost("AddPMCWorkOrder")]
+        public async Task<ActionResult<ApiResponse<object>>> AddPMCWorkOrder(PMCWorkOrder workOrder)
+        {
+            try
+            {
+                var productData = await _pmcService.AddPMCWorkOrder(workOrder);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "添加成功！",
+                    Data = productData // 空列表也正常返回
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+       
 
     }
 }
