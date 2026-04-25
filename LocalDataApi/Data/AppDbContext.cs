@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿﻿using Microsoft.EntityFrameworkCore;
 using LocalDataApi.Models;
 namespace LocalDataApi.Data
 {
@@ -15,6 +15,8 @@ namespace LocalDataApi.Data
 
         public DbSet<PressureFlowRate> PressureFlowRates { get; set; }
 
+        public DbSet<PMCUserProductInfo> 外销合同客户产品 { get; set; }
+
         public DbSet<PMCProductInfo> 外销合同产品 { get; set; }
 
         public DbSet<PMCBasicInfo> 外销合同基本信息 { get; set; }
@@ -30,12 +32,15 @@ namespace LocalDataApi.Data
         
         public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
         
-        public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
+        // public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
+
+        public DbSet<PMCDeliveryReview> 外产_订单 { get; set; }
  
         public DbSet<PMCSalesControl> 产品销控表 { get; set; }
 
         public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
+       
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,6 +105,11 @@ namespace LocalDataApi.Data
                 entity.HasKey(e => e.编号);
             });
             modelBuilder.Entity<PMCWorkOrder>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<PMCUserProductInfo>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });

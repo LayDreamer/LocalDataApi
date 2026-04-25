@@ -18,6 +18,34 @@ namespace LocalDataApi.Controllers
         }
 
         /// <summary>
+        /// 转换交期评审列表(根据外销合同客户产品表)
+        /// </summary>
+        [HttpPost("ConvertToPMCDeliveryReviewList")]
+        public async Task<ActionResult<ApiResponse<List<PMCDeliveryReview>>>>
+            ConvertToPMCDeliveryReviewList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var userProductList = await _pmcService.ConvertToPMCDeliveryReviewList(requestDto);
+                return Ok(new ApiResponse<List<PMCDeliveryReview>>()
+                {
+                    Success = true,
+                    Message = "获取成功！",
+                    Data = userProductList // 空列表也正常返回
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<List<PMCDeliveryReview>>()
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+
+        /// <summary>
         /// 获取产品信息列表
         /// </summary>
         [HttpPost("ProductListInfo")]
@@ -104,11 +132,11 @@ namespace LocalDataApi.Controllers
         /// 获取交期评审列表
         /// </summary>
         [HttpPost("PMCDeliveryReviewList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetPMCDeliveryReviewList()
+        public async Task<ActionResult<ApiResponse<object>>> GetPMCDeliveryReviewList(PMCRequestDto requestDto)
         {
             try
             {
-                var reviewList = await _pmcService.GetPMCDeliveryReviewList();
+                var reviewList = await _pmcService.GetPMCDeliveryReviewList(requestDto);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
@@ -125,8 +153,6 @@ namespace LocalDataApi.Controllers
                 });
             }
         }
-
-
 
         /// <summary>
         /// 新增交期评审记录
@@ -160,7 +186,6 @@ namespace LocalDataApi.Controllers
                     Success = false,
                     Message = $"错误提示：{e.Message}"
                 });
-
 
             }
         }
@@ -369,7 +394,6 @@ namespace LocalDataApi.Controllers
             }
         }
 
-       
 
     }
 }

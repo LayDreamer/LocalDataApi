@@ -3,6 +3,9 @@ using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenc
 
 namespace LocalDataApi.Models
 {
+    /// <summary>
+    /// 外销合同产品
+    /// </summary>
     public class PMCProductInfo : ERPBase
     {
         public string? 合同号 { get; set; }
@@ -19,7 +22,7 @@ namespace LocalDataApi.Models
         public string? 线圈 { get; set; }
         public string? 电压 { get; set; }
         public string? 交货日期 { get; set; }
-        public string?排产用户 { get; set; }
+        public string? 排产用户 { get; set; }
         public string? 状态 { get; set; }
 
         public string? 数量 { get; set; }
@@ -30,6 +33,25 @@ namespace LocalDataApi.Models
 
         public string? 在产需求量 { get; set; }
     }
+
+    /// <summary>
+    /// 外销合同客户产品
+    /// </summary>
+    public class PMCUserProductInfo : ERPBase
+    {
+        public string? 合同号 { get; set; }
+        public string? 货号 { get; set; }
+        public string? 数量 { get; set; }
+        public string? 数量单位 { get; set; }
+        public string? 金额 { get; set; }
+        public string? 合同单价 { get; set; }
+        public string? 中文品名 { get; set; }
+        public string? 中文规格 { get; set; }
+        public string? 电压 { get; set; }       
+        public string? 序号 { get; set; } 
+        public string? 货好日期 { get; set; }     
+    }
+
 
     public class PMCBasicInfo : ERPBase
     {
@@ -46,7 +68,7 @@ namespace LocalDataApi.Models
     /// 产品资料
     /// </summary>
     public class ProductData : ERPBase
-    {    
+    {
         public string? 货号 { get; set; }
         public string? 中文品名 { get; set; }
         public string? 中文规格 { get; set; }
@@ -67,7 +89,7 @@ namespace LocalDataApi.Models
     public class ProductDataAssemblyList : ERPBase
     {
         public string? 主编号 { get; set; }
-     
+
         public string? 货号 { get; set; }
         public string? 主货号 { get; set; }
 
@@ -101,12 +123,12 @@ namespace LocalDataApi.Models
     }
 
     //信息交期评审
-    public class PMCDeliveryReview: ERPBase
+    public class PMCDeliveryReview : ERPBase
     {
         //合同号
         public string? 合同号 { get; set; }
         public string? 排产编号 { get; set; }
-        public string? 层 { get; set; }
+        // public string? 层 { get; set; }
         public string? 货号 { get; set; }
         public string? 中文品名 { get; set; }
         public string? 中文规格 { get; set; }
@@ -117,6 +139,7 @@ namespace LocalDataApi.Models
         public string? 线圈货号 { get; set; }
         public string? 电压 { get; set; }
         public string? 交货日期 { get; set; }
+        
         public string? 排产用户 { get; set; }
         public string? 状态 { get; set; } //待评审,评审通过,评审驳回
         public string? 物料货号 { get; set; }
@@ -124,10 +147,10 @@ namespace LocalDataApi.Models
     }
 
     //排产分析单
-    public class SchedulingAnalysis: ERPBase
-    {       
+    public class SchedulingAnalysis : ERPBase
+    {
         public string? 分析单号 { get; set; }
-        public string? 分析人 { get; set; }        
+        public string? 分析人 { get; set; }
         public string? 分析日期 { get; set; }
         public string? 生产方式 { get; set; }
         public string? 客户简称 { get; set; }
@@ -160,7 +183,7 @@ namespace LocalDataApi.Models
         public string? 商品属性 { get; set; }
     }
 
-   //交货计划
+    //交货计划
     public class DeliveryPlan
     {
         public string? 交货日期 { get; set; }
