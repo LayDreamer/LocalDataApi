@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.EntityFrameworkCore;
+﻿﻿﻿﻿﻿using Microsoft.EntityFrameworkCore;
 using LocalDataApi.Models;
 namespace LocalDataApi.Data
 {
@@ -40,7 +40,8 @@ namespace LocalDataApi.Data
 
         public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
-       
+       public DbSet<ProductionDemand> 在产需求量 { get; set; }
+       public DbSet<InTransitQuantity> 在途数 { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -113,6 +114,11 @@ namespace LocalDataApi.Data
             {
                 entity.HasKey(e => e.编号);
             });
+
+            // 尝试使用dbo模式前缀，确保视图名称正确
+            modelBuilder.Entity<ProductionDemand>().ToView("vw_在产需求量").HasNoKey();
+            // 配置InTransitQuantity实体映射到vw_甘特图在产量视图
+            modelBuilder.Entity<InTransitQuantity>().ToView("vw_甘特图在产量").HasNoKey();
 
             base.OnModelCreating(modelBuilder);
         }

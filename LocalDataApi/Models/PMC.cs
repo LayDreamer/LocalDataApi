@@ -1,4 +1,4 @@
-﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -73,6 +73,10 @@ namespace LocalDataApi.Models
         public string? 中文品名 { get; set; }
         public string? 中文规格 { get; set; }
         public string? 产品类别 { get; set; }
+        public string? 工序名称 { get; set; }
+        public string? 生产车间 { get; set; }
+        public string? 产品属性 { get; set; }
+        public string? 制造方式 { get; set; }//作为来源依据
         public string? 停用 { get; set; }
     }
 
@@ -120,6 +124,25 @@ namespace LocalDataApi.Models
         public string? 库存上限 { get; set; }
         public string? 库存下限 { get; set; }
         public string? 来源 { get; set; }
+    }
+
+
+    //在产需求量
+    public class ProductionDemand
+    {
+        public string? 货号 { get; set; }
+        public string? 成品货号 { get; set; }
+        public string? 排产编号 { get; set; }
+        public double? 需求量 { get; set; }
+    }
+
+    //在途数
+    public class InTransitQuantity
+    {
+        public string? 货号 { get; set; }
+        public string? 成品货号 { get; set; }
+        public string? 排产编号 { get; set; }
+        public double? 在产量 { get; set; }
     }
 
     //信息交期评审

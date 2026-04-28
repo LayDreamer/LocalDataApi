@@ -64,7 +64,7 @@ namespace LocalDataApi.Services
             var sixMonthsAgo = DateTime.Now.AddMonths(-6);
             var sixMonthsAgoStr = sixMonthsAgo.ToString("yyyy-MM-dd");
 
-            query = query.Where(e => e.合同号 == "SNZJY2603117");
+            // query = query.Where(e => e.合同号 == "SNZJY2603117");
 
             // 使用字符串比较来过滤日期
             query = query.Where(e => string.Compare(e.创建时间, sixMonthsAgoStr) >= 0);
@@ -80,6 +80,7 @@ namespace LocalDataApi.Services
             return data;
         }
 
+
         public async Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request)
         {
             // 参考 GetPMCUserProductInfoList 方法的实现
@@ -87,72 +88,58 @@ namespace LocalDataApi.Services
             return await ConvertToPMCDeliveryReviewList(userProductInfos);
         }
 
+        // 根据PMC客户产品列表转换为交期评审信息
         public async Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(List<PMCUserProductInfo> userProductInfos)
         {
             try
             {
-                List<PMCDeliveryReview> data = new();
+                // 预分配List容量，避免动态扩容
+                List<PMCDeliveryReview> data = new List<PMCDeliveryReview>(userProductInfos.Count);
                 string orderUser = "ZY1[张圆]";
                 if (userProductInfos == null || userProductInfos.Count == 0)
                 {
                     return data;
                 }
 
-                // 查询外产_订单表中状态为已评审的记录
+                // 查询外产_订单表中状态为已评审的记录，使用HashSet提高查找效率
                 var reviewedOrders = await _context.外产_订单
                     .AsNoTracking()
-                    .Where(e => e.状态 == "评审通过")    
+                    .Where(e => e.状态 == "评审通过")
                     .Select(e => e.排产编号)
                     .ToListAsync();
+                // 转换为HashSet，将查找时间复杂度从O(n)降为O(1)，并排除null
+                var reviewedOrdersSet = new HashSet<string>(reviewedOrders.Where(x => x != null)!.Cast<string>());
+                // 提取查询需要的货号列表
+                var itemNos = userProductInfos.Select(e => e.货号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                var sourceInfoDict = new Dictionary<string, string>();
+                if (itemNos.Count > 0)
+                {
+                    var sourceInfo = await _context.产品资料
+                        .AsNoTracking()
+                        .Select(e => new { e.货号, e.制造方式 })
+                        .Distinct()
+                        .ToListAsync();
+
+                    // 构建字典，便于快速查询
+                    foreach (var info in sourceInfo)
+                    {
+                        if (!string.IsNullOrEmpty(info.货号) && itemNos.Contains(info.货号))
+                        {
+                            sourceInfoDict[info.货号] = info.制造方式 ?? "";
+                        }
+                    }
+                }
 
                 // var analysisNum = await GenerateAnalysisOrderNumberAsync(orderUser);
-
-                // ===== 性能优化：批量查询所有来源数据，避免 N+1 查询 =====
-                // 构建查询条件字典（在内存中）
-                // var sourceDict = new Dictionary<(string?, string?), string>();
-
-                // 收集所有需要查询的货号和合同号组合（去重）
-                // var queryKeys = userProductInfos
-                //     .Where(item => !string.IsNullOrEmpty(item.货号) && !string.IsNullOrEmpty(item.合同号))
-                //     .Select(item => (item.货号, item.合同号))
-                //     .Distinct()
-                //     .ToHashSet();
-
-                // if (queryKeys.Count > 0)
-                // {
-                //     try
-                //     {
-                //         // 直接加载所有仓库货品数据，然后在内存中进行过滤
-                //         // 避免复杂的 SQL 生成导致的语法错误
-                //         var allWarehouseGoods = await _context.仓库货品
-                //             .AsNoTracking()
-                //             .Select(w => new { w.货号, w.订单号, w.来源 })
-                //             .ToListAsync();
-
-                //         // 在内存中进行过滤和字典构建
-                //         foreach (var warehouseItem in allWarehouseGoods)
-                //         {
-                //             var key = (warehouseItem.货号, warehouseItem.订单号);
-                //             // 只保存匹配的记录
-                //             if (queryKeys.Contains(key) && !sourceDict.ContainsKey(key))
-                //             {
-                //                 sourceDict[key] = warehouseItem.来源 ?? string.Empty;
-                //             }
-                //         }
-                //     }
-                //     catch (Exception ex)
-                //     {
-                //         Console.WriteLine($"批量查询仓库货品异常: {ex.Message}");
-                //         // 如果批量查询失败，返回空字典继续处理
-                //     }
-                // }
 
                 // ===== 在内存中处理数据转换 =====
                 foreach (var item in userProductInfos)
                 {
                     string schedulingNumber = $"{item.合同号}-{item.序号}";
-                    // 检查是否存在排产编号一致且状态为已评审的记录
-                    if (reviewedOrders.Contains(schedulingNumber))
+                    string source = sourceInfoDict.GetValueOrDefault(item.货号) ?? "";
+                    //string source="";
+                    // 检查是否存在排产编号一致且状态为已评审的记录，使用HashSet提高查找效率
+                    if (reviewedOrdersSet.Contains(schedulingNumber))
                     {
                         // 如果存在，跳过该记录
                         continue;
@@ -179,18 +166,6 @@ namespace LocalDataApi.Services
                             coilNumber = item.货号.Substring(startIndex + 1, endIndex - startIndex - 1);
                         }
                     }
-
-                    // 从字典获取来源字段（O(1) 时间复杂度）
-                    string source = string.Empty;
-                    // if (!string.IsNullOrEmpty(item.货号) && !string.IsNullOrEmpty(item.合同号))
-                    // {
-                    //     var key = (item.货号, item.合同号);
-                    //     if (sourceDict.TryGetValue(key, out var sourceValue))
-                    //     {
-                    //         source = sourceValue ?? string.Empty;
-                    //     }
-                    // }
-
                     PMCDeliveryReview review = new PMCDeliveryReview
                     {
                         编号 = item.编号,
@@ -206,7 +181,7 @@ namespace LocalDataApi.Services
                         中文规格 = item.中文规格,
                         创建时间 = item.创建时间,
                         电压 = item.电压,
-                        排产编号 = schedulingNumber,          
+                        排产编号 = schedulingNumber,
                         交货日期 = item.货好日期,
                         工单单号 = workOrder,
                         线圈货号 = coilNumber,
@@ -419,21 +394,21 @@ namespace LocalDataApi.Services
             {
                 // 过滤掉货号为null的记录
                 var validResult = result.Where(r => !string.IsNullOrEmpty(r.货号)).ToList();
-                
+
                 if (validResult.Count == 0)
                 {
                     return result;
                 }
-                
+
                 // 提取有效的货号列表
                 var validItemNos = validResult.Select(r => r.货号).ToList();
-                
+
                 // 查询现有记录，过滤掉货号为null的记录
                 var existingItems = await _context.产品销控表
                     .Where(x => validItemNos.Contains(x.货号) && x.货号 != null)
                     .AsNoTracking()
                     .ToListAsync();
-                
+
                 // 手动构建字典，确保键不为null
                 var existingDict = existingItems
                     .Where(x => x.货号 != null)
@@ -617,29 +592,6 @@ namespace LocalDataApi.Services
             return scheduling;
         }
 
-        //保存PMC产品信息
-        public async Task<List<PMCProductInfo>> SavePMCProductInfoAsync(PMCDeliveryReview deliveryReview)
-        {
-            List<PMCProductInfo> pmcProductInfos = new();
-            var dataAssemblyLists = await GetProductDataAssemblyList(deliveryReview.物料货号);
-
-            foreach (var productData in dataAssemblyLists)
-            {
-                var data = await GetProductData(productData.货号);
-
-                var productInfo = new PMCProductInfo
-                {
-                    分析单号 = deliveryReview.分析单号,
-                    货号 = deliveryReview.货号,
-                    中文品名 = data?.中文品名,
-                    中文规格 = data?.中文规格,
-                };
-                pmcProductInfos.Add(productInfo);
-            }
-
-            await _context.外销合同产品.AddRangeAsync(pmcProductInfos);
-            return pmcProductInfos;
-        }
         // 根据排产用户获取用户编号
         public async Task<string> GetUserNumberAsync(string productionUser)
         {
@@ -655,64 +607,192 @@ namespace LocalDataApi.Services
             return userNumber.Trim();
         }
 
-        // 根据销控表中的货号获取排产分析列表
+
+
+        #region 排产分析详情列表
+
+        // 根据销控表中的货号获取排产分析详情列表
         public async Task<List<SchedulingAnalysisDto>> GetSchedulingAnalysisListDto(PMCRequestDto request)
         {
-            List<SchedulingAnalysisDto> anaylsisDtos = new();
+            var result = new List<SchedulingAnalysisDto>();
 
+            // 基础数据
             var salesControlList = await GetPMCSalesControlList(request.货号);
-            PMCSalesControl? salesData = salesControlList?.FirstOrDefault();
-            List<ProductDataAssemblyList> productDataAssemblyList = await GetProductDataAssemblyList(request.货号);
+            var productDataAssemblyList = await GetProductDataAssemblyList(request.货号);
+            var salesData = salesControlList?.FirstOrDefault();
 
-            //string rootItemNo = "";
-            //if (salesData != null)
-            //{
-            //    rootItemNo = salesData.父级货号 == request.货号 ? request.货号 : salesData.父级货号;
-            //}
-            //根据货号获取品名等相关信息
-            // var productRootData = await GetProductData(salesData?.父级货号);
+            string schedulingNo = salesData?.排产编号;
 
-            ProductData?  productSelfData = await GetProductData(salesData?.货号);
+            // 收集所有货号（父 + 子）
+            var itemNos = new HashSet<string>();
+            if (!string.IsNullOrEmpty(request.货号))
+                itemNos.Add(request.货号);
 
-            //var rootData = new SchedulingAnalysisDto
-            //{
-            //    合同号= salesData.合同号,
-            //    货号 = salesData.父级货号,
-            //    层 = "0",
-            //    产品属性 = "",
-            //    品名 = productRootData.中文品名,
-            //    规格 = productRootData.中文规格,               
-            //};
-            int index=0;
-            var selfData = new SchedulingAnalysisDto
+            foreach (var item in productDataAssemblyList)
             {
-                货号 = request.货号,
-                层 = index.ToString(),
-                产品属性 = "",
-                品名 = productSelfData?.中文品名,
-                规格 = productSelfData?.中文规格,
-            };
-
-            //anaylsisDtos.Add(rootData);
-            anaylsisDtos.Add(selfData);
-            foreach (var dataAssembly in productDataAssemblyList)
-            {
-                var productChildData = await GetProductData(dataAssembly.货号);
-                var childrenData = new SchedulingAnalysisDto
-                {
-                    货号 = dataAssembly.货号,
-                    层 = (index + 1).ToString(),
-                    产品属性 = "",
-                    品名 = productChildData?.中文品名,
-                    规格 = productChildData?.中文规格,
-                    来源 = dataAssembly.来源,
-                    用量 = dataAssembly.用量,
-                    单位 = dataAssembly.单位,
-                };
-                anaylsisDtos.Add(childrenData);
+                if (!string.IsNullOrEmpty(item.货号))
+                    itemNos.Add(item.货号);
             }
-            return anaylsisDtos;
+
+            // 批量查询
+            var productDataDict = await GetProductDataBatchAsync(itemNos.ToList());
+            var warehouseGoodsDict = await GetWarehouseGoodsBatchAsync(itemNos.ToList());
+            var productionDemandDict = await GetProductionDemandBatchAsync(itemNos.ToList(), schedulingNo);
+            var inTransitQuantityDict = await GetInTransitQuantityBatchAsync(itemNos.ToList(), schedulingNo);
+
+            int level = 0;
+
+            //  统一构建方法
+            SchedulingAnalysisDto BuildDto(
+                string itemNo,
+                int level,
+                ProductDataAssemblyList? assembly = null,
+                PMCSalesControl? sales = null)
+            {
+                productDataDict.TryGetValue(itemNo, out var productData);
+                warehouseGoodsDict.TryGetValue(itemNo, out var goodsData);
+                productionDemandDict.TryGetValue(itemNo, out var productionDemand);
+                inTransitQuantityDict.TryGetValue(itemNo, out var inTransit);
+
+                return new SchedulingAnalysisDto
+                {
+                    货号 = itemNo,
+                    层 = level.ToString(),
+
+                    品名 = sales?.中文品名 ?? productData?.中文品名,
+                    规格 = sales?.中文规格 ?? productData?.中文规格,
+
+                    来源 = assembly?.来源 ?? "",
+                    用量 = assembly?.用量 ?? "",
+                    单位 = assembly?.单位 ?? "",
+
+                    仓库名称 = goodsData?.仓库名,
+                    仓库数 = goodsData?.数量,
+                    库存上限 = goodsData?.库存上限,
+                    库存下限 = goodsData?.库存下限,
+
+                    产品属性 = productData?.产品属性,
+                    工序名称 = productData?.工序名称,
+                    工序车间 = productData?.生产车间,
+
+                    在产需求 = productionDemand?.需求量?.ToString(),
+                    在途数 = inTransit?.在产量?.ToString()
+                };
+            }
+
+            // 父级（作为第一个节点）
+            result.Add(BuildDto(request.货号, level, null, salesData));
+
+            // 子级（复用同一方法）
+            foreach (var assembly in productDataAssemblyList)
+            {
+                result.Add(BuildDto(assembly.货号, level + 1, assembly));
+            }
+
+            return result;
         }
+
+
+        /// <summary>
+        /// 批量获取产品资料
+        /// </summary>
+        private async Task<Dictionary<string, ProductData>> GetProductDataBatchAsync(List<string> itemNos)
+        {
+            if (itemNos == null || itemNos.Count == 0)
+            {
+                return new Dictionary<string, ProductData>();
+            }
+
+            var productDataList = await _context.产品资料
+                .AsNoTracking()
+                .Where(e => itemNos.Contains(e.货号) && !string.IsNullOrEmpty(e.货号))
+                .ToListAsync();
+
+            // 使用 GroupBy + First() 处理重复货号，保持与 GetProductData 行为一致
+            return productDataList.Where(e => e.货号 != null)
+                .GroupBy(e => e.货号!)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
+        /// <summary>
+        /// 批量获取仓库货品数据
+        /// </summary>
+        private async Task<Dictionary<string, WarehouseGoods>> GetWarehouseGoodsBatchAsync(List<string> itemNos)
+        {
+            if (itemNos == null || itemNos.Count == 0)
+            {
+                return new Dictionary<string, WarehouseGoods>();
+            }
+
+            var warehouseGoodsList = await _context.仓库货品
+                .AsNoTracking()
+                .Where(e => itemNos.Contains(e.货号) && !string.IsNullOrEmpty(e.货号))
+                .ToListAsync();
+
+            // 使用 GroupBy + First() 处理重复货号，保持与 GetWarehouseGoodsByItemNo 行为一致
+            return warehouseGoodsList.Where(e => e.货号 != null)
+                .GroupBy(e => e.货号!)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
+        /// <summary>
+        /// 批量获取在产需求量
+        /// </summary>
+        private async Task<Dictionary<string, ProductionDemand>> GetProductionDemandBatchAsync(List<string> itemNos, string? schedulingNo)
+        {
+            if (itemNos == null || itemNos.Count == 0)
+            {
+                return new Dictionary<string, ProductionDemand>();
+            }
+
+            var query = _context.在产需求量
+                .AsNoTracking()
+                .Where(e => itemNos.Contains(e.货号) && !string.IsNullOrEmpty(e.货号));
+
+            if (!string.IsNullOrWhiteSpace(schedulingNo))
+            {
+                query = query.Where(e => e.排产编号 == schedulingNo);
+            }
+
+            var productionDemandList = await query.ToListAsync();
+
+            // 使用 GroupBy + First() 处理重复货号，保持与 GetProductionDemand 行为一致
+            return productionDemandList.Where(e => e.货号 != null)
+                .GroupBy(e => e.货号!)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+        /// <summary>
+        /// 批量获取在途数
+        /// </summary>
+        /// <summary>
+        /// 批量获取在途数
+        /// </summary>
+        private async Task<Dictionary<string, InTransitQuantity>> GetInTransitQuantityBatchAsync(List<string> itemNos, string? schedulingNo)
+        {
+            if (itemNos == null || itemNos.Count == 0)
+            {
+                return new Dictionary<string, InTransitQuantity>();
+            }
+
+            var query = _context.在途数
+                .AsNoTracking()
+                .Where(e => itemNos.Contains(e.货号) && !string.IsNullOrEmpty(e.货号));
+
+            if (!string.IsNullOrWhiteSpace(schedulingNo))
+            {
+                query = query.Where(e => e.排产编号 == schedulingNo);
+            }
+
+            var inTransitQuantityList = await query.ToListAsync();
+
+            // 使用 GroupBy + First() 处理重复货号，保持与 GetInTransitQuantity 行为一致
+            return inTransitQuantityList.Where(e => e.货号 != null)
+                .GroupBy(e => e.货号!)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
+        #endregion
+
 
         #region 工单管理
 
@@ -842,38 +922,65 @@ namespace LocalDataApi.Services
             return contract;
         }
 
-        // 获取产品资料装配清单
+
+
+
+        // 获取产品资料装配清单（优化版：消除递归）
         public async Task<List<ProductDataAssemblyList>> GetProductDataAssemblyList(string? itemNo)
         {
-            // 1. 预处理：如果 itemNo 包含括号，取第一个括号之前的内容
             if (string.IsNullOrWhiteSpace(itemNo))
             {
                 return new List<ProductDataAssemblyList>();
             }
-            string processedItemNo = itemNo;
-            int bracketIndex = itemNo.IndexOf('(');
-            if (bracketIndex > 0)
+
+            string currentItemNo = itemNo;
+            List<ProductDataAssemblyList> result = new List<ProductDataAssemblyList>();
+
+            // 最多递归3层，防止无限循环
+            for (int depth = 0; depth < 3; depth++)
             {
-                processedItemNo = itemNo.Substring(0, bracketIndex);
+                // 预处理：如果 itemNo 包含括号，取第一个括号之前的内容
+                string processedItemNo = currentItemNo;
+                int bracketIndex = currentItemNo.IndexOf('(');
+                bool hadBracket = bracketIndex > 0;
+                if (hadBracket)
+                {
+                    processedItemNo = currentItemNo.Substring(0, bracketIndex);
+                }
+
+                // 使用处理后的 itemNo 获取产品资料装配信息
+                ProductDataAssembly? productData = await _context.产品资料装配
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.货号 == processedItemNo);
+
+                if (productData == null)
+                {
+                    break; // 找不到装配信息，终止循环
+                }
+
+                List<ProductDataAssemblyList> productDataList = await _context.产品资料装配清单
+                    .AsNoTracking()
+                    .Where(e => e.主编号 == productData.编号)
+                    .ToListAsync();
+
+                // 如果查询结果只有一条，且当前使用的 itemNo 是经过预处理的
+                if (productDataList.Count == 1 && hadBracket)
+                {
+                    currentItemNo = productDataList[0].货号 ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(currentItemNo))
+                    {
+                        break;
+                    }
+                    // 继续下一轮循环，使用新货号查询
+                    continue;
+                }
+
+                // 添加到结果并退出循环
+                result.AddRange(productDataList);
+                break;
             }
 
-            // 2. 使用处理后的 itemNo 获取产品资料装配信息
-            ProductDataAssembly productData = await GetProductDataAssembly(processedItemNo);
-            List<ProductDataAssemblyList> productDataList = await _context.产品资料装配清单
-                 .AsNoTracking()
-                 .Where(e => e.主编号 == productData.编号).ToListAsync();
-
-            // 3. 如果查询结果只有一条，且当前使用的 itemNo 是经过预处理的（即原始 itemNo 含括号）
-            //    则尝试从这条记录中提取新的货号再次查询
-            if (productDataList.Count == 1 && bracketIndex > 0)
-            {
-                // 假设 ProductDataAssemblyList 实体中包含一个名为 "货号" 的属性
-                string newItemNo = productDataList[0].货号;  // 请根据实际字段名修改
-
-                // 递归调用自身,按照需求，应该是使用新货号再次查询
-                return await GetProductDataAssemblyList(newItemNo);
-            }
-            return productDataList;
+            return result;
         }
 
         // 获取产品资料装配信息
