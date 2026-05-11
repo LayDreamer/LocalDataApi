@@ -3,6 +3,7 @@
     public class SchedulingAnalysisDto
     {
         public string? 合同号 { get; set; }
+        public string? 成品货号 { get; set; }       
 
         public string? 货号 { get; set; }
         public string? 层 { get; set; }
@@ -29,5 +30,7 @@
         public string? 生产数 { get; set; }
         public string? 采购数 { get; set; }
         public string? 生产损耗 { get; set; }
+
+        public List<SchedulingAnalysisDto>? 子集 { get; set; }
     }
 }

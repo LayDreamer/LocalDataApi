@@ -85,7 +85,7 @@ builder.Services.AddCors(options =>
         //builder.AllowAnyOrigin()
         //       .AllowAnyMethod()
         //       .AllowAnyHeader();
-        builder.WithOrigins("http://localhost:5173", "http://192.168.1.110:1001")
+        builder.WithOrigins("http://localhost:5173", "http://192.168.1.110:1001", "http://192.168.1.110:1002")
              .AllowAnyHeader()
              .AllowAnyMethod()
              .AllowCredentials();
@@ -95,7 +95,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 在开发环境中启用Swagger中间件
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment()||app.Environment.IsProduction())
 {
     app.MapOpenApi();
     // Enable middleware to serve generated Swagger as a JSON endpoint

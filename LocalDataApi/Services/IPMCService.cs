@@ -22,6 +22,7 @@ namespace LocalDataApi.Services
         Task<List<SchedulingAnalysisDto>> GetSchedulingAnalysisListDto(PMCRequestDto request);
         Task<List<PMCWorkOrder>> GetPMCWorkOrderList();
         Task<PMCWorkOrder> AddPMCWorkOrder(PMCWorkOrder workOrder);
+        Task<PMCWorkOrder> AddPMCWorkOrder(PMCRequestDto request);
         Task<PMCWorkOrder> UpdatePMCWorkOrder(PMCWorkOrder workOrder);
         Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
     }

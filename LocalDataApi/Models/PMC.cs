@@ -77,6 +77,7 @@ namespace LocalDataApi.Models
         public string? 生产车间 { get; set; }
         public string? 产品属性 { get; set; }
         public string? 制造方式 { get; set; }//作为来源依据
+        public string? 数量单位 { get; set; }//作为单位依据
         public string? 停用 { get; set; }
     }
 
@@ -239,4 +240,6 @@ namespace LocalDataApi.Models
         public string? 制单 { get; set; }
         public string? 订单编号 { get; set; }
     }
+
+    
 }

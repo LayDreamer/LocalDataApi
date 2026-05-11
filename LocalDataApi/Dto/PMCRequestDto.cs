@@ -7,5 +7,6 @@ namespace LocalDataApi.Dto
         public  string? 分析单号 { get; set; }
         public string? 货号 { get; set; }
         public string? 线圈货号 { get; set; }
+        public string? 补充数据{get;set;}
     }
 }

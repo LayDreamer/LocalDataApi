@@ -35,10 +35,11 @@ namespace LocalDataApi.Data
         // public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
 
         public DbSet<PMCDeliveryReview> 外产_订单 { get; set; }
+         public DbSet<PMCWorkOrder> 外产_工单 { get; set; }
  
         public DbSet<PMCSalesControl> 产品销控表 { get; set; }
 
-        public DbSet<PMCWorkOrder> 工单管理 { get; set; }
+        // public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
        public DbSet<ProductionDemand> 在产需求量 { get; set; }
        public DbSet<InTransitQuantity> 在途数 { get; set; }

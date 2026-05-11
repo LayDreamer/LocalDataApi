@@ -36,11 +36,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<List<PMCDeliveryReview>>()
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+               return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -146,11 +142,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -181,11 +173,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+              return BadRequest($"错误提示：{e.Message}");
 
             }
         }
@@ -209,11 +197,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -311,11 +295,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -337,11 +317,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+               return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -363,11 +339,7 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                return BadRequest($"错误提示：{e.Message}");
             }
         }
 
@@ -386,6 +358,28 @@ namespace LocalDataApi.Controllers
             }
             catch (Exception e)
             {
+                return BadRequest($"错误提示：{e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 根据货号创建工单管理（从外产_订单表中查找评审通过的数据）
+        /// </summary>
+        [HttpPost("AddPMCWorkOrderByRequest")]
+        public async Task<ActionResult<ApiResponse<object>>> AddPMCWorkOrder(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var workOrder = await _pmcService.AddPMCWorkOrder(requestDto);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "创建成功！",
+                    Data = workOrder
+                });
+            }
+            catch (Exception e)
+            {
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
@@ -393,7 +387,6 @@ namespace LocalDataApi.Controllers
                 });
             }
         }
-
 
     }
 }
