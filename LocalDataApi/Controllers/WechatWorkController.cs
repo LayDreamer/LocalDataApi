@@ -268,6 +268,33 @@ namespace LocalDataApi.Controllers
             }
         }
 
+        /// <summary>
+        /// 获取 JS-SDK 配置（用于前端 wx.config 鉴权，调用扫码等能力）
+        /// </summary>
+        [HttpGet("jssdk-config")]
+        public async Task<IActionResult> GetJsSdkConfig([FromQuery] string url)
+        {
+            try
+            {
+                var config = await _wechatWorkService.GetJsSdkConfigAsync(url);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "获取成功",
+                    Data = config
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+
         //[HttpPost("chains")]
         //public async Task<IActionResult> GetChains()
         //{

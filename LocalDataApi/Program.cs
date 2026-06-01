@@ -2,6 +2,7 @@
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using LocalDataApi.WeChatWork;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using SKIT.FlurlHttpClient.Wechat.Work;
@@ -16,11 +17,33 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(); // 将日志输出到控制台
 
+// 检测 SQL Server 版本，动态设置批量插入大小
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+int maxBatchSize = 1; // 默认保守：低版本单条插入
+
+try
+{
+    using var connection = new SqlConnection(connectionString);
+    connection.Open();
+    using var command = connection.CreateCommand();
+    command.CommandText = "SELECT CAST(SERVERPROPERTY('ProductMajorVersion') AS INT)";
+    var versionObj = command.ExecuteScalar();
+    if (versionObj != null && Convert.ToInt32(versionObj) >= 10) // SQL Server 2008+ 支持多行 VALUES (...), (...)
+    {
+        maxBatchSize = 1000;
+    }
+}
+catch
+{
+    maxBatchSize = 1;
+}
+
 // 配置数据库连接
 builder.Services.AddDbContext<AppDbContext>
     (options =>
     {
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+        options.UseSqlServer(connectionString,
+            sqlOptions => sqlOptions.MaxBatchSize(maxBatchSize));
         // 在开发环境启用敏感数据日志，便于调试
         if (builder.Environment.IsDevelopment())
         {

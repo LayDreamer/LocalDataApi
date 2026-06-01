@@ -388,5 +388,31 @@ namespace LocalDataApi.Controllers
             }
         }
 
+        /// <summary>
+        /// 扫码入库（接收前端扫码结果并入库）
+        /// </summary>
+        [HttpPost("ScanWarehousing")]
+        public async Task<ActionResult<ApiResponse<object>>> ScanWarehousing(ScanWarehousingDto dto)
+        {
+            try
+            {
+                var result = await _pmcService.ScanWarehousingAsync(dto);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "入库成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = e.Message
+                });
+            }
+        }
+
     }
 }

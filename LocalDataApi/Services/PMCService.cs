@@ -185,6 +185,7 @@ namespace LocalDataApi.Services
                         电压 = item.电压,
                         排产编号 = schedulingNumber,
                         交货日期 = item.货好日期,
+                        数量=item.数量,
                         工单单号 = workOrder,
                         线圈货号 = coilNumber,
                         来源 = source,
@@ -227,17 +228,53 @@ namespace LocalDataApi.Services
             }
             else
             {
-
                 //创建新的排产分析单号
-                var analysisNum = await GenerateAnalysisOrderNumberAsync(deliveryReview.排产用户);
+                 //var analysisNum = await GenerateAnalysisOrderNumberAsync(deliveryReview.排产用户);
 
                 // 创建排产分析单并保存到数据库
-                var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview, analysisNum);
+                //  var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview, analysisNum);
 
-                deliveryReview.编号 = scheduling.编号; // 使用排产分析单的编号作为交期评审的编号
-                deliveryReview.分析单号 = analysisNum;
+                // 使用排产分析单的编号作为交期评审的编号
+                // deliveryReview.编号 = scheduling.编号; 
+                
+                // deliveryReview.分析单号 = analysisNum;
+
+                deliveryReview.编号= Guid.NewGuid().ToString();
+
                 // 新增
                 await _context.外产_订单.AddAsync(deliveryReview);
+
+                //测试用-插入5条新记录：复制deliveryReview的值，交货日期依次+1天，重新生成编号
+                // for (int i = 1; i <= 5; i++)
+                // {
+                //     var newDeliveryReview = new PMCDeliveryReview
+                //     {
+                //         编号 = Guid.NewGuid().ToString(),
+                //         用户编号 = deliveryReview.用户编号,
+                //         用户铭 = deliveryReview.用户铭,
+                //         修改状态 = deliveryReview.修改状态,
+                //         锁定用户 = deliveryReview.锁定用户,
+                //         审核过程 = deliveryReview.审核过程,
+                //         打印 = deliveryReview.打印,
+                //         合同号 = deliveryReview.合同号,
+                //         货号 = deliveryReview.货号,
+                //         中文品名 = deliveryReview.中文品名,
+                //         中文规格 = deliveryReview.中文规格,
+                //         创建时间 = deliveryReview.创建时间,
+                //         电压 = deliveryReview.电压,
+                //         排产编号 = deliveryReview.排产编号,
+                //         交货日期 = CalculateDeliveryDate(deliveryReview.交货日期, i),
+                //         数量 = deliveryReview.数量,
+                //         工单单号 = deliveryReview.工单单号,
+                //         线圈货号 = deliveryReview.线圈货号,
+                //         来源 = deliveryReview.来源,
+                //         状态 = deliveryReview.状态,
+                //         排产用户 = deliveryReview.排产用户,
+                //         物料货号 = deliveryReview.物料货号,
+                //         备注 = deliveryReview.备注
+                //     };
+                //     await _context.外产_订单.AddAsync(newDeliveryReview);
+                // }
             }
 
             // 保存到数据库
@@ -273,6 +310,7 @@ namespace LocalDataApi.Services
             {
                 return new List<PMCSalesControl>();
             }
+            
             return await _context.产品销控表
                .Where(e => e.货号 == number)
                .AsNoTracking()
@@ -290,10 +328,8 @@ namespace LocalDataApi.Services
 
             if (!reviewList.Any()) return new List<PMCSalesControl>();
 
-            reviewList.ForEach(e => e.分析单号 = "PCZY126030646");
-
             // 2. 准备过滤条件
-            var analysisNos = reviewList.Select(r => r.分析单号).Distinct().ToList();
+            var contractNos = reviewList.Select(r => r.合同号).Where(h => !string.IsNullOrEmpty(h)).Distinct().ToList();
             var allItemNos = reviewList.Select(r => r.货号)
                 .Concat(reviewList.Select(r => r.物料货号))
                 .Where(h => !string.IsNullOrEmpty(h))
@@ -302,11 +338,11 @@ namespace LocalDataApi.Services
 
             // 3. 查询产品和仓库数据
             var productTask = await _context.外销合同产品
-                .Where(p => analysisNos.Contains(p.分析单号) && allItemNos.Contains(p.货号))
+                .Where(p => contractNos.Contains(p.合同号) && allItemNos.Contains(p.货号))
                 .AsNoTracking()
                 .Select(p => new PMCProductInfo
                 {
-                    分析单号 = p.分析单号,
+                    合同号 = p.合同号,
                     货号 = p.货号,
                     数量 = p.数量,
                     发运数量 = p.发运数量,
@@ -322,8 +358,8 @@ namespace LocalDataApi.Services
 
             // 4. 数据预处理（内存中）
             var productDict = productTask
-                .Where(p => p.分析单号 != null && p.货号 != null)
-                .GroupBy(p => (p.分析单号!, p.货号!))
+                .Where(p => p.合同号 != null && p.货号 != null)
+                .GroupBy(p => (p.合同号!, p.货号!))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var warehouseDict = warehouseTask
@@ -340,10 +376,10 @@ namespace LocalDataApi.Services
                 intermediateRecords.Add(CreateIntermediate(review, review.货号, "成品", productDict, warehouseDict));
 
                 // 半成品
-                if (!string.IsNullOrEmpty(review.物料货号) && review.物料货号 != review.货号)
-                {
-                    intermediateRecords.Add(CreateIntermediate(review, review.物料货号, "半成品", productDict, warehouseDict));
-                }
+                // if (!string.IsNullOrEmpty(review.物料货号) && review.物料货号 != review.货号)
+                // {
+                //     intermediateRecords.Add(CreateIntermediate(review, review.物料货号, "半成品", productDict, warehouseDict));
+                // }
             }
 
             // 6. 按货号分组合并
@@ -352,8 +388,8 @@ namespace LocalDataApi.Services
                 .Select(g =>
                 {
                     var first = g.First();
-
                     // 收集所有交货计划（尚未合并）
+                
                     var allPlans = g.SelectMany(x => x.交货计划 ?? new List<DeliveryPlan>()).ToList();
 
                     // ========= 关键修改：按交货日期合并计划 =========
@@ -363,14 +399,14 @@ namespace LocalDataApi.Services
                         {
                             交货日期 = grp.Key,
                             交货数量 = grp.Sum(p => int.Parse(p.交货数量)).ToString(),
-                            状态 = ""  // 状态由前端计算，后端留空
+                            状态 = "",  // 状态由前端计算，后端留空
+                            排产用户 = grp.FirstOrDefault(p => !string.IsNullOrEmpty(p.排产用户))?.排产用户 ?? ""
                         })
                         .ToList();
-
+                                            
                     // 序列化为 JSON 字符串
                     string deliveryPlanJson = JsonConvert.SerializeObject(aggregatedPlans);
                     string? parentItemNo = first.父级货号 == first.货号 ? "" : first.父级货号;
-
 
                     return new PMCSalesControl
                     {
@@ -457,7 +493,7 @@ namespace LocalDataApi.Services
             Dictionary<(string, string), List<PMCProductInfo>> dict, // dynamic 在这里对应匿名对象
             Dictionary<string, int> houseDict)
         {
-            var key = (review.分析单号, itemNo);
+            var key = (review.合同号, itemNo);
             int totalDemand = 0;
             int totalInProd = 0;
             var plans = new List<DeliveryPlan>();
@@ -470,7 +506,7 @@ namespace LocalDataApi.Services
                     int s = ParseInt(p.发运数量);
                     totalDemand += (q - s);
                     totalInProd += ParseInt(p.在产需求量);
-                    plans.Add(new DeliveryPlan { 交货日期 = review.交货日期, 交货数量 = p.数量 });
+                    plans.Add(new DeliveryPlan { 交货日期 = review.交货日期, 交货数量 = p.数量, 排产用户 = review.排产用户 });
                 }
             }
 
@@ -490,6 +526,7 @@ namespace LocalDataApi.Services
                 在产数 = totalInProd,
                 需求量 = totalDemand,
                 仓库数 = houseQty,
+                排产用户 = review.排产用户,
                 交货计划 = plans
             };
         }
@@ -505,6 +542,20 @@ namespace LocalDataApi.Services
                     result = result * 10 + (c - '0');
             }
             return result;
+        }
+
+        /// <summary>
+        /// 计算交货日期：在原日期基础上增加指定天数
+        /// </summary>
+        private static string CalculateDeliveryDate(string? originalDate, int daysToAdd)
+        {
+            if (string.IsNullOrEmpty(originalDate))
+                return "";
+
+            if (DateTime.TryParse(originalDate, out var date))
+                return date.AddDays(daysToAdd).ToString("yyyy-MM-dd");
+
+            return originalDate;
         }
 
         #endregion
@@ -597,7 +648,7 @@ namespace LocalDataApi.Services
                 排产编号 = deliveryReview.排产编号,
             };
             //测试时先不保存到数据库，等后续逻辑完善后再保存
-            //await _context.排产分析单.AddAsync(scheduling);
+            // await _context.排产分析单.AddAsync(scheduling);
             return scheduling;
         }
 
@@ -730,7 +781,7 @@ namespace LocalDataApi.Services
             int level,
             Dictionary<string, ProductData> productDataDict,
             Dictionary<string, WarehouseGoods> warehouseGoodsDict,
-            Dictionary<string, ProductionDemand> productionDemandDict,
+            Dictionary<string, ProductionDemand> productionDemandDict,            
             Dictionary<string, InTransitQuantity> inTransitQuantityDict)
             
         {
@@ -1199,14 +1250,14 @@ namespace LocalDataApi.Services
                 .ToListAsync();
 
             // 如果查询结果只有一条，且当前使用的 itemNo 是经过预处理的，则继续递归
-            // if (productDataList.Count == 1 && hadBracket)
-            // {
-            //     string? nextItemNo = productDataList[0].货号;
-            //     if (!string.IsNullOrWhiteSpace(nextItemNo))
-            //     {
-            //         return await GetProductDataAssemblyListRecursive(nextItemNo, visitedItemNos);
-            //     }
-            // }
+            if (productDataList.Count == 1 && hadBracket)
+            {
+                string? nextItemNo = productDataList[0].货号;
+                if (!string.IsNullOrWhiteSpace(nextItemNo))
+                {
+                    return await GetProductDataAssemblyListRecursive(nextItemNo, visitedItemNos);
+                }
+            }
 
             return productDataList;
         }
@@ -1253,6 +1304,52 @@ namespace LocalDataApi.Services
 
 
 
+        #region 扫码入库
+
+        /// <summary>
+        /// 扫码入库：保存入库记录，并同步更新仓库货品库存
+        /// </summary>
+        public async Task<Warehousing> ScanWarehousingAsync(ScanWarehousingDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.扫码内容))
+                throw new ArgumentException("扫码内容不能为空");
+
+            var itemNo = dto.扫码内容.Trim();
+            var addQty = ParseInt(dto.入库数量);
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // 1. 添加入库记录
+            var record = new Warehousing
+            {
+                编号 = Guid.NewGuid().ToString(),
+                货号 = itemNo,
+                入库数量 = addQty.ToString(),
+                创建时间 = now,
+                修改状态 = "0"
+            };
+            // await _context.入库记录.AddAsync(record);
+
+            // // 2. 同步更新仓库货品数量（按 货号 + 仓库名 匹配）
+            // var goods = await _context.仓库货品
+            //     .FirstOrDefaultAsync(x => x.货号 == itemNo &&
+            //         (string.IsNullOrWhiteSpace(dto.仓库名) || x.仓库名 == dto.仓库名));
+
+            // if (goods != null)
+            // {
+            //     var oldQty = ParseInt(goods.数量);
+            //     goods.数量 = (oldQty + addQty).ToString();
+            //     goods.修改状态 = "1";
+            //     _context.Entry(goods).State = EntityState.Modified;
+            // }
+
+            // await _context.SaveChangesAsync();
+            return record;
+        }
+
+        #endregion
+
+
+
         // 定义一个简单的内部结构体，避免频繁解析字符串
         private class IntermediateData
         {
@@ -1271,6 +1368,7 @@ namespace LocalDataApi.Services
             public int 需求量 { get; set; }
             //仓库数
             public int 仓库数 { get; set; }
+            public string? 排产用户 { get; set; }
             public List<DeliveryPlan>? 交货计划 { get; set; }
         }
     }

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿using Microsoft.EntityFrameworkCore;
+﻿﻿using Microsoft.EntityFrameworkCore;
 using LocalDataApi.Models;
 namespace LocalDataApi.Data
 {
@@ -37,6 +37,14 @@ namespace LocalDataApi.Data
         public DbSet<PMCDeliveryReview> 外产_订单 { get; set; }
          public DbSet<PMCWorkOrder> 外产_工单 { get; set; }
  
+        public DbSet<ExternalProductionShipment> 外产_发运 { get; set; }
+
+        public DbSet<ExternalProduction> 外产_生产 { get; set; }
+
+        public DbSet<ExternalProductionWarehousing> 外产_入库 { get; set; }
+
+        public DbSet<ExternalProductionPickMaterial> 外产_领料 { get; set; }
+
         public DbSet<PMCSalesControl> 产品销控表 { get; set; }
 
         // public DbSet<PMCWorkOrder> 工单管理 { get; set; }
@@ -111,6 +119,26 @@ namespace LocalDataApi.Data
                 entity.HasKey(e => e.编号);
             });
 
+            modelBuilder.Entity<ExternalProductionShipment>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<ExternalProduction>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<ExternalProductionWarehousing>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<ExternalProductionPickMaterial>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
             modelBuilder.Entity<PMCUserProductInfo>(entity =>
             {
                 entity.HasKey(e => e.编号);
@@ -118,6 +146,7 @@ namespace LocalDataApi.Data
 
             // 尝试使用dbo模式前缀，确保视图名称正确
             modelBuilder.Entity<ProductionDemand>().ToView("vw_在产需求量").HasNoKey();
+            
             // 配置InTransitQuantity实体映射到vw_甘特图在产量视图
             modelBuilder.Entity<InTransitQuantity>().ToView("vw_甘特图在产量").HasNoKey();
 

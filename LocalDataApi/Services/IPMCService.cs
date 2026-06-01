@@ -25,5 +25,7 @@ namespace LocalDataApi.Services
         Task<PMCWorkOrder> AddPMCWorkOrder(PMCRequestDto request);
         Task<PMCWorkOrder> UpdatePMCWorkOrder(PMCWorkOrder workOrder);
         Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
+
+        Task<Warehousing> ScanWarehousingAsync(ScanWarehousingDto dto);
     }
 }

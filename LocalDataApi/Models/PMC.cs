@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -146,13 +146,13 @@ namespace LocalDataApi.Models
         public double? 在产量 { get; set; }
     }
 
-    //信息交期评审
+    //外产_订单(信息交期评审)
     public class PMCDeliveryReview : ERPBase
     {
         //合同号
         public string? 合同号 { get; set; }
         public string? 排产编号 { get; set; }
-        // public string? 层 { get; set; }
+        public string? 数量 { get; set; }
         public string? 货号 { get; set; }
         public string? 中文品名 { get; set; }
         public string? 中文规格 { get; set; }
@@ -215,8 +215,9 @@ namespace LocalDataApi.Models
         public string? 交货数量 { get; set; }
 
         public string? 状态 { get; set; }
-    }
 
+        public string? 排产用户 { get; set; }
+    }   
     //工单管理
     public class PMCWorkOrder : ERPBase
     {
@@ -241,5 +242,19 @@ namespace LocalDataApi.Models
         public string? 订单编号 { get; set; }
     }
 
+    public class MaterialRequisition: ERPBase
+    {
+        public string? Id { get; set; }
+        public string? 货号 { get; set; }
+        public string? 需求量 { get; set; }
+        public string? 出库数量 { get; set; }
+    }
+    public class Warehousing: ERPBase
+    {
+        public string? Id { get; set; }
+        public string? 货号 { get; set; }
+        public string? 需求量 { get; set; }
+        public string? 入库数量 { get; set; }
+    }
     
 }

@@ -25,6 +25,9 @@ namespace LocalDataApi.Services
         private string? _accessToken;
         private DateTime? _tokenExpireTime;
 
+        private string? _jsApiTicket;
+        private DateTime? _ticketExpireTime;
+
         #region 企业组织架构相关接口
 
         // 获取部门列表
@@ -1196,5 +1199,66 @@ namespace LocalDataApi.Services
         }
 
         #endregion
+
+
+        
+
+        /// <summary>获取企业微信 JS-SDK 的 jsapi_ticket</summary>
+        public async Task<string> GetJsApiTicketAsync()
+        {
+            if (!string.IsNullOrEmpty(_jsApiTicket) && _ticketExpireTime.HasValue && DateTime.Now < _ticketExpireTime.Value)
+            {
+                return _jsApiTicket;
+            }
+
+            var token = await GetAccessTokenAsync();
+            using var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.GetAsync(
+                $"https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket?access_token={token}");
+            var content = await response.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("ticket", out var ticketElement))
+            {
+                _jsApiTicket = ticketElement.GetString();
+                var expiresIn = root.GetProperty("expires_in").GetInt32();
+                _ticketExpireTime = DateTime.Now.AddSeconds(expiresIn).AddMinutes(-5);
+                return _jsApiTicket!;
+            }
+
+            var errMsg = root.TryGetProperty("errmsg", out var em) ? em.GetString() : "未知错误";
+            throw new Exception($"获取JsApiTicket失败: {errMsg}");
+        }
+
+        /// <summary>生成前端 wx.config 所需的签名配置</summary>
+        public async Task<JsSdkConfig> GetJsSdkConfigAsync(string url)
+        {
+            var ticket = await GetJsApiTicketAsync();
+            var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
+            var nonceStr = Guid.NewGuid().ToString("N")[..16];
+
+            var raw = $"jsapi_ticket={ticket}&noncestr={nonceStr}&timestamp={timestamp}&url={url}";
+            using var sha1 = System.Security.Cryptography.SHA1.Create();
+            var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(raw));
+            var signature = BitConverter.ToString(hash).Replace("-", "").ToLower();
+
+            return new JsSdkConfig
+            {
+                AppId = _config["WechatWork:CorpId"]!,
+                Timestamp = timestamp,
+                NonceStr = nonceStr,
+                Signature = signature
+            };
+        }
+
+        public class JsSdkConfig
+        {
+            public string AppId { get; set; } = null!;
+            public long Timestamp { get; set; }
+            public string NonceStr { get; set; } = null!;
+            public string Signature { get; set; } = null!;
+        }
+
     }
 }
