@@ -473,6 +473,25 @@ namespace LocalDataApi.Services
                     }
                 }
 
+                // 8. 保存外产_发运数据
+                var validIntermediate = intermediateRecords
+                    .Where(r => !string.IsNullOrEmpty(r.货号) && !string.IsNullOrEmpty(r.排产编号))
+                    .ToList();
+
+                if (validIntermediate.Any())
+                {
+                    var shipmentList = validIntermediate.Select(item => new ExternalProductionShipment
+                    {
+                        合同号 = item.合同号,
+                        货号 = item.货号,
+                        排产编号 = item.排产编号,
+                        需求量 = item.需求量.ToString(),
+                        发运数量 = item.发运数量.ToString(),
+                    }).ToList();
+
+                    await AddOrUpdateExternalProductionShipmentList(shipmentList);
+                }
+
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateException ex)
@@ -490,12 +509,13 @@ namespace LocalDataApi.Services
             PMCDeliveryReview review,
             string itemNo,
             string attr,
-            Dictionary<(string, string), List<PMCProductInfo>> dict, // dynamic 在这里对应匿名对象
+            Dictionary<(string, string), List<PMCProductInfo>> dict,
             Dictionary<string, int> houseDict)
         {
             var key = (review.合同号, itemNo);
             int totalDemand = 0;
             int totalInProd = 0;
+            int totalShipped = 0;
             var plans = new List<DeliveryPlan>();
 
             if (dict.TryGetValue(key, out var products))
@@ -506,6 +526,7 @@ namespace LocalDataApi.Services
                     int s = ParseInt(p.发运数量);
                     totalDemand += (q - s);
                     totalInProd += ParseInt(p.在产需求量);
+                    totalShipped += s;
                     plans.Add(new DeliveryPlan { 交货日期 = review.交货日期, 交货数量 = p.数量, 排产用户 = review.排产用户 });
                 }
             }
@@ -525,6 +546,7 @@ namespace LocalDataApi.Services
                 商品属性 = attr,
                 在产数 = totalInProd,
                 需求量 = totalDemand,
+                发运数量 = totalShipped,
                 仓库数 = houseQty,
                 排产用户 = review.排产用户,
                 交货计划 = plans
@@ -1170,6 +1192,634 @@ namespace LocalDataApi.Services
         }
         #endregion
 
+        #region 工单销控表
+
+        /// <summary>
+        /// 批量添加或更新工单销控表数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<WorkOrderSalesControl>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("工单销控表数据不能为空", nameof(list));
+            }
+
+            var result = new List<WorkOrderSalesControl>();
+            var itemNos = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => x.货号!)
+                .Distinct()
+                .ToList();
+
+            // 查询已存在的记录
+            var existingItems = await _context.工单销控表
+                .Where(x => itemNos.Contains(x.货号) && x.货号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.货号 != null)
+                .ToDictionary(x => x.货号!);
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                if (existingDict.TryGetValue(item.货号, out var existing))
+                {
+                    // 更新已有记录：先对齐主键编号，再 SetValues，避免 EF Core 检测到主键变更
+                    item.编号 = existing.编号;
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    // 新增记录
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    await _context.工单销控表.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询工单销控表列表
+        /// </summary>
+        public async Task<List<WorkOrderSalesControl>> GetWorkOrderSalesControlList(string? itemNo)
+        {
+            var query = _context.工单销控表.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        #endregion
+
+        #region 工单销控表明细
+
+        /// <summary>
+        /// 批量添加或更新工单销控表明细数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<WorkOrderSalesControlDetail>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("工单销控表明细数据不能为空", nameof(list));
+            }
+
+            var result = new List<WorkOrderSalesControlDetail>();
+            var itemNos = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => x.货号!)
+                .Distinct()
+                .ToList();
+
+            // 查询已存在的记录
+            var existingItems = await _context.工单销控表明细
+                .Where(x => itemNos.Contains(x.货号) && x.货号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.货号 != null)
+                .ToDictionary(x => x.货号!);
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                if (existingDict.TryGetValue(item.货号, out var existing))
+                {
+                    // 更新已有记录：先对齐主键编号，再 SetValues
+                    item.编号 = existing.编号;
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    // 新增记录
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    await _context.工单销控表明细.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询工单销控表明细列表
+        /// </summary>
+        public async Task<List<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(string? itemNo)
+        {
+            var query = _context.工单销控表明细.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除工单销控表明细数据
+        /// </summary>
+        public async Task DeleteWorkOrderSalesControlDetailList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.工单销控表明细
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.工单销控表明细.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
+        #region 外产发运
+
+        /// <summary>
+        /// 批量添加或更新外产发运数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<ExternalProductionShipment>> AddOrUpdateExternalProductionShipmentList(List<ExternalProductionShipment> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("外产发运数据不能为空", nameof(list));
+            }
+
+            var result = new List<ExternalProductionShipment>();
+            var keys = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => (x.排产编号!, x.货号!))
+                .Distinct()
+                .ToList();
+
+            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
+
+            // 查询已存在的记录
+            var existingItems = await _context.外产_发运
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.排产编号 != null && x.货号 != null)
+                .ToDictionary(x => (x.排产编号!, x.货号!));
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                var key = (item.排产编号!, item.货号!);
+                if (existingDict.TryGetValue(key, out var existing))
+                {
+                    // 更新已有记录：先对齐主键编号，再 SetValues
+                    item.编号 = existing.编号;
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    // 新增记录
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    if (string.IsNullOrWhiteSpace(item.关联编号))
+                    {
+                        item.关联编号 = Guid.NewGuid().ToString();
+                    }
+                    await _context.外产_发运.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询外产发运列表
+        /// </summary>
+        public async Task<List<ExternalProductionShipment>> GetExternalProductionShipmentList(string? itemNo)
+        {
+            var query = _context.外产_发运.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除外产发运数据
+        /// </summary>
+        public async Task DeleteExternalProductionShipmentList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.外产_发运
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.外产_发运.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
+        #region 外产领料
+
+        /// <summary>
+        /// 批量添加或更新外产领料数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<ExternalProductionPickMaterial>> AddOrUpdateExternalProductionPickMaterialList(List<ExternalProductionPickMaterial> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("外产领料数据不能为空", nameof(list));
+            }
+
+            var result = new List<ExternalProductionPickMaterial>();
+            var keys = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => (x.排产编号!, x.货号!))
+                .Distinct()
+                .ToList();
+
+            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
+
+            // 查询对应的外产发运记录，用于获取关联编号
+            var shipmentItems = await _context.外产_发运
+                .AsNoTracking()
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .Select(x => new { x.排产编号, x.关联编号 })
+                .ToListAsync();
+
+            var shipmentDict = shipmentItems
+                .Where(x => x.排产编号 != null)
+                .GroupBy(x => x.排产编号!)
+                .ToDictionary(g => g.Key, g => g.First().关联编号);
+
+            var existingItems = await _context.外产_领料
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.排产编号 != null && x.货号 != null)
+                .ToDictionary(x => (x.排产编号!, x.货号!));
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                var key = (item.排产编号!, item.货号!);
+                if (existingDict.TryGetValue(key, out var existing))
+                {
+                    item.编号 = existing.编号;
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    await _context.外产_领料.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询外产领料列表
+        /// </summary>
+        public async Task<List<ExternalProductionPickMaterial>> GetExternalProductionPickMaterialList(string? itemNo)
+        {
+            var query = _context.外产_领料.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除外产领料数据
+        /// </summary>
+        public async Task DeleteExternalProductionPickMaterialList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.外产_领料
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.外产_领料.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
+        #region 外产生产
+
+        /// <summary>
+        /// 批量添加或更新外产生产数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<ExternalProduction>> AddOrUpdateExternalProductionList(List<ExternalProduction> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("外产生产数据不能为空", nameof(list));
+            }
+
+            var result = new List<ExternalProduction>();
+            var keys = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => (x.排产编号!, x.货号!))
+                .Distinct()
+                .ToList();
+
+            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
+
+            // 查询对应的外产发运记录，用于获取关联编号
+            var shipmentItems = await _context.外产_发运
+                .AsNoTracking()
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .Select(x => new { x.排产编号, x.关联编号 })
+                .ToListAsync();
+
+            var shipmentDict = shipmentItems
+                .Where(x => x.排产编号 != null)
+                .GroupBy(x => x.排产编号!)
+                .ToDictionary(g => g.Key, g => g.First().关联编号);
+
+            var existingItems = await _context.外产_生产
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.排产编号 != null && x.货号 != null)
+                .ToDictionary(x => (x.排产编号!, x.货号!));
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                var key = (item.排产编号!, item.货号!);
+                if (existingDict.TryGetValue(key, out var existing))
+                {
+                    item.编号 = existing.编号;
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    await _context.外产_生产.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询外产生产列表
+        /// </summary>
+        public async Task<List<ExternalProduction>> GetExternalProductionList(string? itemNo)
+        {
+            var query = _context.外产_生产.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除外产生产数据
+        /// </summary>
+        public async Task DeleteExternalProductionList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.外产_生产
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.外产_生产.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
+        #region 外产入库
+
+        /// <summary>
+        /// 批量添加或更新外产入库数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<ExternalProductionWarehousing>> AddOrUpdateExternalProductionWarehousingList(List<ExternalProductionWarehousing> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("外产入库数据不能为空", nameof(list));
+            }
+
+            var result = new List<ExternalProductionWarehousing>();
+            var keys = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => (x.排产编号!, x.货号!))
+                .Distinct()
+                .ToList();
+
+            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
+
+            // 查询对应的外产发运记录，用于获取关联编号
+            var shipmentItems = await _context.外产_发运
+                .AsNoTracking()
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .Select(x => new { x.排产编号, x.关联编号 })
+                .ToListAsync();
+
+            var shipmentDict = shipmentItems
+                .Where(x => x.排产编号 != null)
+                .GroupBy(x => x.排产编号!)
+                .ToDictionary(g => g.Key, g => g.First().关联编号);
+
+            var existingItems = await _context.外产_入库
+                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.排产编号 != null && x.货号 != null)
+                .ToDictionary(x => (x.排产编号!, x.货号!));
+
+            foreach (var item in list)
+            {
+                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                {
+                    continue;
+                }
+
+                var key = (item.排产编号!, item.货号!);
+                if (existingDict.TryGetValue(key, out var existing))
+                {
+                    item.编号 = existing.编号;
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    _context.Entry(existing).CurrentValues.SetValues(item);
+                    result.Add(existing);
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(item.编号))
+                    {
+                        item.编号 = Guid.NewGuid().ToString();
+                    }
+                    // 从外产发运获取关联编号
+                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
+                    {
+                        item.关联编号 = relNo;
+                    }
+                    await _context.外产_入库.AddAsync(item);
+                    result.Add(item);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 根据货号查询外产入库列表
+        /// </summary>
+        public async Task<List<ExternalProductionWarehousing>> GetExternalProductionWarehousingList(string? itemNo)
+        {
+            var query = _context.外产_入库.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除外产入库数据
+        /// </summary>
+        public async Task DeleteExternalProductionWarehousingList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.外产_入库
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.外产_入库.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
 
         // 获取合同状态
         public async Task<PMCBasicInfo> GetContractStatus(string num)
@@ -1304,51 +1954,6 @@ namespace LocalDataApi.Services
 
 
 
-        #region 扫码入库
-
-        /// <summary>
-        /// 扫码入库：保存入库记录，并同步更新仓库货品库存
-        /// </summary>
-        public async Task<Warehousing> ScanWarehousingAsync(ScanWarehousingDto dto)
-        {
-            if (string.IsNullOrWhiteSpace(dto.扫码内容))
-                throw new ArgumentException("扫码内容不能为空");
-
-            var itemNo = dto.扫码内容.Trim();
-            var addQty = ParseInt(dto.入库数量);
-            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-            // 1. 添加入库记录
-            var record = new Warehousing
-            {
-                编号 = Guid.NewGuid().ToString(),
-                货号 = itemNo,
-                入库数量 = addQty.ToString(),
-                创建时间 = now,
-                修改状态 = "0"
-            };
-            // await _context.入库记录.AddAsync(record);
-
-            // // 2. 同步更新仓库货品数量（按 货号 + 仓库名 匹配）
-            // var goods = await _context.仓库货品
-            //     .FirstOrDefaultAsync(x => x.货号 == itemNo &&
-            //         (string.IsNullOrWhiteSpace(dto.仓库名) || x.仓库名 == dto.仓库名));
-
-            // if (goods != null)
-            // {
-            //     var oldQty = ParseInt(goods.数量);
-            //     goods.数量 = (oldQty + addQty).ToString();
-            //     goods.修改状态 = "1";
-            //     _context.Entry(goods).State = EntityState.Modified;
-            // }
-
-            // await _context.SaveChangesAsync();
-            return record;
-        }
-
-        #endregion
-
-
 
         // 定义一个简单的内部结构体，避免频繁解析字符串
         private class IntermediateData
@@ -1362,10 +1967,13 @@ namespace LocalDataApi.Services
             public string? 中文规格 { get; set; }
             public string? 分析单号 { get; set; }
             public string? 商品属性 { get; set; }
+            public string? 关联编号 { get; set; }
             //在产数
             public int 在产数 { get; set; }
             //需求量
             public int 需求量 { get; set; }
+            //发运数量
+            public int 发运数量 { get; set; }
             //仓库数
             public int 仓库数 { get; set; }
             public string? 排产用户 { get; set; }

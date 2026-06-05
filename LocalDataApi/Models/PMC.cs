@@ -1,4 +1,4 @@
-﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -208,7 +208,7 @@ namespace LocalDataApi.Models
     }
 
     //交货计划
-    public class DeliveryPlan
+    public class DeliveryPlan : ERPBase
     {
         public string? 交货日期 { get; set; }
 
@@ -217,6 +217,8 @@ namespace LocalDataApi.Models
         public string? 状态 { get; set; }
 
         public string? 排产用户 { get; set; }
+
+        public string? 销控编号 { get; set; }   
     }   
     //工单管理
     public class PMCWorkOrder : ERPBase
@@ -242,19 +244,42 @@ namespace LocalDataApi.Models
         public string? 订单编号 { get; set; }
     }
 
-    public class MaterialRequisition: ERPBase
+    /// <summary>
+    /// 工单销控表
+    /// </summary>
+    public class WorkOrderSalesControl : ERPBase
     {
-        public string? Id { get; set; }
+        public string? 车间名称 { get; set; }
+        public string? 商品属性 { get; set; }
         public string? 货号 { get; set; }
-        public string? 需求量 { get; set; }
-        public string? 出库数量 { get; set; }
+        public string? 品名 { get; set; }
+        public string? 规格 { get; set; }
+        public string? 工单总数 { get; set; }
+        public string? 已入库数 { get; set; }
+        public string? 在产数量 { get; set; }
+        public string? 齐套 { get; set; }
+        public string? 配料 { get; set; }
+        public string? 分析日期 { get; set; }
+        public string? 生产完成率 { get; set; }
+        public string? 交货计划 { get; set; }
+        public string? 层 { get; set; }
     }
-    public class Warehousing: ERPBase
+
+    /// <summary>
+    /// 工单销控表明细
+    /// </summary>
+    public class WorkOrderSalesControlDetail : ERPBase
     {
-        public string? Id { get; set; }
         public string? 货号 { get; set; }
-        public string? 需求量 { get; set; }
-        public string? 入库数量 { get; set; }
-    }
-    
+        public string? 品名 { get; set; }
+        public string? 规格 { get; set; }
+        public string? 用量 { get; set; }
+        public string? 需求数 { get; set; }
+        public string? 已出库数 { get; set; }
+        public string? 缺料数 { get; set; }
+        public string? 仓库名称 { get; set; }
+        public string? 仓库数 { get; set; }
+        public string? 仓库缺料 { get; set; }
+        public string? 父级编号 { get; set; }
+    }   
 }

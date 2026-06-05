@@ -26,6 +26,39 @@ namespace LocalDataApi.Services
         Task<PMCWorkOrder> UpdatePMCWorkOrder(PMCWorkOrder workOrder);
         Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
 
-        Task<Warehousing> ScanWarehousingAsync(ScanWarehousingDto dto);
+        #region 工单销控表
+        Task<List<WorkOrderSalesControl>> GetWorkOrderSalesControlList(string? itemNo);
+        Task<List<WorkOrderSalesControl>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list);
+        #endregion
+
+        #region 工单销控表明细
+        Task<List<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(string? itemNo);
+        Task<List<WorkOrderSalesControlDetail>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list);
+        Task DeleteWorkOrderSalesControlDetailList(List<string> ids);
+        #endregion
+
+        #region 外产发运
+        Task<List<ExternalProductionShipment>> GetExternalProductionShipmentList(string? itemNo);
+        Task<List<ExternalProductionShipment>> AddOrUpdateExternalProductionShipmentList(List<ExternalProductionShipment> list);
+        Task DeleteExternalProductionShipmentList(List<string> ids);
+        #endregion
+
+        #region 外产领料
+        Task<List<ExternalProductionPickMaterial>> GetExternalProductionPickMaterialList(string? itemNo);
+        Task<List<ExternalProductionPickMaterial>> AddOrUpdateExternalProductionPickMaterialList(List<ExternalProductionPickMaterial> list);
+        Task DeleteExternalProductionPickMaterialList(List<string> ids);
+        #endregion
+
+        #region 外产生产
+        Task<List<ExternalProduction>> GetExternalProductionList(string? itemNo);
+        Task<List<ExternalProduction>> AddOrUpdateExternalProductionList(List<ExternalProduction> list);
+        Task DeleteExternalProductionList(List<string> ids);
+        #endregion
+
+        #region 外产入库
+        Task<List<ExternalProductionWarehousing>> GetExternalProductionWarehousingList(string? itemNo);
+        Task<List<ExternalProductionWarehousing>> AddOrUpdateExternalProductionWarehousingList(List<ExternalProductionWarehousing> list);
+        Task DeleteExternalProductionWarehousingList(List<string> ids);
+        #endregion
     }
 }

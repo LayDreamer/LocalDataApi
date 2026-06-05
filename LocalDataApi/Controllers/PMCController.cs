@@ -389,18 +389,18 @@ namespace LocalDataApi.Controllers
         }
 
         /// <summary>
-        /// 扫码入库（接收前端扫码结果并入库）
+        /// 批量添加或更新工单销控表数据（存在则覆盖，不存在则新增）
         /// </summary>
-        [HttpPost("ScanWarehousing")]
-        public async Task<ActionResult<ApiResponse<object>>> ScanWarehousing(ScanWarehousingDto dto)
+        [HttpPost("AddOrUpdateWorkOrderSalesControlList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list)
         {
             try
             {
-                var result = await _pmcService.ScanWarehousingAsync(dto);
+                var result = await _pmcService.AddOrUpdateWorkOrderSalesControlList(list);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
-                    Message = "入库成功！",
+                    Message = "批量保存成功！",
                     Data = result
                 });
             }
@@ -409,10 +409,436 @@ namespace LocalDataApi.Controllers
                 return BadRequest(new ApiResponse<object>
                 {
                     Success = false,
-                    Message = e.Message
+                    Message = $"错误提示：{e.Message}"
                 });
             }
         }
 
+        /// <summary>
+        /// 获取工单销控表列表
+        /// </summary>
+        [HttpPost("GetWorkOrderSalesControlList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetWorkOrderSalesControlList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetWorkOrderSalesControlList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量添加或更新工单销控表明细数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateWorkOrderSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateWorkOrderSalesControlDetailList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取工单销控表明细列表
+        /// </summary>
+        [HttpPost("GetWorkOrderSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetWorkOrderSalesControlDetailList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetWorkOrderSalesControlDetailList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除工单销控表明细数据
+        /// </summary>
+        [HttpPost("DeleteWorkOrderSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteWorkOrderSalesControlDetailList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteWorkOrderSalesControlDetailList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量添加或更新外产发运数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateExternalProductionShipmentList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionShipmentList(List<ExternalProductionShipment> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateExternalProductionShipmentList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量添加或更新外产领料数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateExternalProductionPickMaterialList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionPickMaterialList(List<ExternalProductionPickMaterial> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateExternalProductionPickMaterialList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量添加或更新外产生产数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateExternalProductionList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionList(List<ExternalProduction> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateExternalProductionList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量添加或更新外产入库数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateExternalProductionWarehousingList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionWarehousingList(List<ExternalProductionWarehousing> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateExternalProductionWarehousingList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #region 外产发运查询与删除
+
+        /// <summary>
+        /// 获取外产发运列表
+        /// </summary>
+        [HttpPost("GetExternalProductionShipmentList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionShipmentList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionShipmentList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除外产发运数据
+        /// </summary>
+        [HttpPost("DeleteExternalProductionShipmentList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionShipmentList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteExternalProductionShipmentList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
+        #region 外产领料查询与删除
+
+        /// <summary>
+        /// 获取外产领料列表
+        /// </summary>
+        [HttpPost("GetExternalProductionPickMaterialList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionPickMaterialList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionPickMaterialList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除外产领料数据
+        /// </summary>
+        [HttpPost("DeleteExternalProductionPickMaterialList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionPickMaterialList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteExternalProductionPickMaterialList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
+        #region 外产生产查询与删除
+
+        /// <summary>
+        /// 获取外产生产列表
+        /// </summary>
+        [HttpPost("GetExternalProductionList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除外产生产数据
+        /// </summary>
+        [HttpPost("DeleteExternalProductionList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteExternalProductionList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
+        #region 外产入库查询与删除
+
+        /// <summary>
+        /// 获取外产入库列表
+        /// </summary>
+        [HttpPost("GetExternalProductionWarehousingList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionWarehousingList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionWarehousingList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除外产入库数据
+        /// </summary>
+        [HttpPost("DeleteExternalProductionWarehousingList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionWarehousingList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteExternalProductionWarehousingList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
     }
 }
