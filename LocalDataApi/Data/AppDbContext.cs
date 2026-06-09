@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using LocalDataApi.Models;
 namespace LocalDataApi.Data
 {
@@ -52,6 +52,8 @@ namespace LocalDataApi.Data
         public DbSet<WorkOrderSalesControl> 工单销控表 { get; set; }
 
         public DbSet<WorkOrderSalesControlDetail> 工单销控表明细 { get; set; }
+
+        public DbSet<ProductSalesControlDetail> 成品销控表明细 { get; set; }
 
         // public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
@@ -131,6 +133,11 @@ namespace LocalDataApi.Data
             });
 
             modelBuilder.Entity<WorkOrderSalesControlDetail>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<ProductSalesControlDetail>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });

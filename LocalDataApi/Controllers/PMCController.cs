@@ -517,6 +517,87 @@ namespace LocalDataApi.Controllers
             }
         }
 
+        #region 成品销控表明细
+
+        /// <summary>
+        /// 批量添加或更新成品销控表明细数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        [HttpPost("AddOrUpdateProductSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateProductSalesControlDetailList(List<ProductSalesControlDetail> list)
+        {
+            try
+            {
+                var result = await _pmcService.AddOrUpdateProductSalesControlDetailList(list);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "批量保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取成品销控表明细列表
+        /// </summary>
+        [HttpPost("GetProductSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetProductSalesControlDetailList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetProductSalesControlDetailList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除成品销控表明细数据
+        /// </summary>
+        [HttpPost("DeleteProductSalesControlDetailList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteProductSalesControlDetailList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteProductSalesControlDetailList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// 批量添加或更新外产发运数据（存在则覆盖，不存在则新增）
         /// </summary>

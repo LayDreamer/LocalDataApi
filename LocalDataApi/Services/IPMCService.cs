@@ -37,6 +37,12 @@ namespace LocalDataApi.Services
         Task DeleteWorkOrderSalesControlDetailList(List<string> ids);
         #endregion
 
+        #region 成品销控表明细
+        Task<List<ProductSalesControlDetail>> GetProductSalesControlDetailList(string? itemNo);
+        Task<List<ProductSalesControlDetail>> AddOrUpdateProductSalesControlDetailList(List<ProductSalesControlDetail> list);
+        Task DeleteProductSalesControlDetailList(List<string> ids);
+        #endregion
+
         #region 外产发运
         Task<List<ExternalProductionShipment>> GetExternalProductionShipmentList(string? itemNo);
         Task<List<ExternalProductionShipment>> AddOrUpdateExternalProductionShipmentList(List<ExternalProductionShipment> list);

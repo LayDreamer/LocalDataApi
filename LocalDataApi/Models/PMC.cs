@@ -1,4 +1,4 @@
-﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -282,4 +282,22 @@ namespace LocalDataApi.Models
         public string? 仓库缺料 { get; set; }
         public string? 父级编号 { get; set; }
     }   
+
+    /// <summary>
+    /// 成品销控表明细
+    /// </summary>
+    public class ProductSalesControlDetail : ERPBase
+    {
+        public string? 合同号 { get; set; }
+        public string? 业务员 { get; set; }
+        public string? 交货日期 { get; set; }
+        public string? 订单数量 { get; set; }
+        public string? 已发数量 { get; set; }
+        public string? 待发数量 { get; set; }
+        public string? 状态 { get; set; }
+        public string? 货号 { get; set; }
+        public string? 品名 { get; set; }
+        public string? 规格 { get; set; }
+        public string? 父级编号 { get; set; }
+    }
 }

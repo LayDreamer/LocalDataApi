@@ -1363,6 +1363,98 @@ namespace LocalDataApi.Services
 
         #endregion
 
+        #region 成品销控表明细
+
+        /// <summary>
+        /// 批量添加或更新成品销控表明细数据（存在则覆盖，不存在则新增）
+        /// </summary>
+        public async Task<List<ProductSalesControlDetail>> AddOrUpdateProductSalesControlDetailList(List<ProductSalesControlDetail> list)
+        {
+            if (list == null || list.Count == 0)
+            {
+                throw new ArgumentException("成品销控表明细数据不能为空", nameof(list));
+            }
+
+            var result = new List<ProductSalesControlDetail>();
+            var itemNos = list
+                .Where(x => !string.IsNullOrWhiteSpace(x.货号))
+                .Select(x => x.货号!)
+                .Distinct()
+                .ToList();
+
+            // 查询已存在的记录
+            var existingItems = await _context.成品销控表明细
+                .Where(x => itemNos.Contains(x.货号) && x.货号 != null)
+                .ToListAsync();
+
+            var existingDict = existingItems
+                .Where(x => x.货号 != null)
+                .ToDictionary(x => x.货号!);
+
+            foreach (var newItem in list)
+            {
+                if (string.IsNullOrWhiteSpace(newItem.货号))
+                {
+                    continue;
+                }
+
+                if (existingDict.TryGetValue(newItem.货号, out var existing))
+                {
+                    // 更新已有记录
+                    _context.Entry(existing).CurrentValues.SetValues(newItem);
+                    result.Add(existing);
+                }
+                else
+                {
+                    // 新增记录
+                    newItem.编号 = Guid.NewGuid().ToString();
+                    await _context.成品销控表明细.AddAsync(newItem);
+                    result.Add(newItem);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        /// <summary>
+        /// 获取成品销控表明细列表
+        /// </summary>
+        public async Task<List<ProductSalesControlDetail>> GetProductSalesControlDetailList(string? itemNo)
+        {
+            var query = _context.成品销控表明细.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(itemNo))
+            {
+                query = query.Where(e => e.货号 == itemNo);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        /// <summary>
+        /// 批量删除成品销控表明细数据
+        /// </summary>
+        public async Task DeleteProductSalesControlDetailList(List<string> ids)
+        {
+            if (ids == null || ids.Count == 0)
+            {
+                throw new ArgumentException("删除列表不能为空", nameof(ids));
+            }
+
+            var items = await _context.成品销控表明细
+                .Where(x => ids.Contains(x.编号))
+                .ToListAsync();
+
+            if (items.Count > 0)
+            {
+                _context.成品销控表明细.RemoveRange(items);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        #endregion
+
         #region 外产发运
 
         /// <summary>
