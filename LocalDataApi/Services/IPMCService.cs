@@ -19,13 +19,9 @@ namespace LocalDataApi.Services
         Task<List<PMCSalesControl>> AddPMCSalesControlList();
         Task<List<PMCSalesControl>> GetPMCSalesControlList(string? number);
         Task<ProductData?> GetProductData(string? itemNo);
-        Task<List<SchedulingAnalysisDto>> GetSchedulingAnalysisListDto(PMCRequestDto request);
-        Task<List<PMCWorkOrder>> GetPMCWorkOrderList();
-        Task<PMCWorkOrder> AddPMCWorkOrder(PMCWorkOrder workOrder);
-        Task<PMCWorkOrder> AddPMCWorkOrder(PMCRequestDto request);
-        Task<PMCWorkOrder> UpdatePMCWorkOrder(PMCWorkOrder workOrder);
-        Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
 
+        Task<List<SchedulingAnalysisDto>> ConvertToSchedulingAnalysisList(PMCRequestDto request);
+        Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
         #region 工单销控表
         Task<List<WorkOrderSalesControl>> GetWorkOrderSalesControlList(string? itemNo);
         Task<List<WorkOrderSalesControl>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list);
@@ -35,6 +31,11 @@ namespace LocalDataApi.Services
         Task<List<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(string? itemNo);
         Task<List<WorkOrderSalesControlDetail>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list);
         Task DeleteWorkOrderSalesControlDetailList(List<string> ids);
+        #endregion
+
+        #region 成品销控表主表
+        /// 更新成品销控表主表 - 若总需求数=0，删除该货号在成品销控表及明细表中的所有记录
+        Task UpdatePMCSalesControl(string itemNo);
         #endregion
 
         #region 成品销控表明细
@@ -65,6 +66,14 @@ namespace LocalDataApi.Services
         Task<List<ExternalProductionWarehousing>> GetExternalProductionWarehousingList(string? itemNo);
         Task<List<ExternalProductionWarehousing>> AddOrUpdateExternalProductionWarehousingList(List<ExternalProductionWarehousing> list);
         Task DeleteExternalProductionWarehousingList(List<string> ids);
+        #endregion
+
+        #region 外产BOM
+
+        Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo);
+        Task<List<ExternalProductionBOM>> GetExternalProductionBOMList(string? itemNo);
+        Task<List<ExternalProductionBOM>> AddOrUpdateExternalProductionBOMList(List<ExternalProductionBOM> list);
+        Task DeleteExternalProductionBOMList(List<string> ids);
         #endregion
     }
 }

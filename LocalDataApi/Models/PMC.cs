@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -210,40 +210,21 @@ namespace LocalDataApi.Models
     //交货计划
     public class DeliveryPlan : ERPBase
     {
+        public string? 合同号 { get; set; }
+        
         public string? 交货日期 { get; set; }
 
         public string? 交货数量 { get; set; }
 
+        public string? 发运数量 { get; set; }
+        public string? 待发数量 { get; set; }
         public string? 状态 { get; set; }
 
         public string? 排产用户 { get; set; }
 
         public string? 销控编号 { get; set; }   
     }   
-    //工单管理
-    public class PMCWorkOrder : ERPBase
-    {
-        public string? 计划开工日 { get; set; }
-        public string? 计划完工日 { get; set; }
-        public string? 状态 { get; set; }
-        public string? 工单单号 { get; set; }
-        public string? 物料齐套 { get; set; }
-        public string? 物料配料 { get; set; }
-        public string? 上线情况 { get; set; }
-        public string? 生产单位 { get; set; }
-        public string? 成品编号 { get; set; }
-        public string? 成品品名 { get; set; }
-        public string? 规格 { get; set; }
-        public string? 需求数量 { get; set; }
-        public string? 入库数量 { get; set; }
-        public string? 未入库数量 { get; set; }
-        public string? 报工工艺 { get; set; }
-        public string? 报工数 { get; set; }
-        public string? 报工日期 { get; set; }
-        public string? 制单 { get; set; }
-        public string? 订单编号 { get; set; }
-    }
-
+    
     /// <summary>
     /// 工单销控表
     /// </summary>

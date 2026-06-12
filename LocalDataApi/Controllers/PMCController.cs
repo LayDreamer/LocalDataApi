@@ -204,14 +204,14 @@ namespace LocalDataApi.Controllers
         [HttpPost("GetPMCSalesControlList")]
         public async Task<ActionResult<ApiResponse<object>>> GetPMCSalesControlList(PMCRequestDto requestDto)
         {
-            if (string.IsNullOrWhiteSpace(requestDto.货号))
-            {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = "货号不能为空！"
-                });
-            }
+            // if (string.IsNullOrWhiteSpace(requestDto.货号))
+            // {
+            //     return BadRequest(new ApiResponse<object>
+            //     {
+            //         Success = false,
+            //         Message = "货号不能为空！"
+            //     });
+            // }
 
             try
             {
@@ -285,7 +285,7 @@ namespace LocalDataApi.Controllers
         {
             try
             {
-                var productData = await _pmcService.GetSchedulingAnalysisListDto(requestDto);
+                var productData = await _pmcService.ConvertToSchedulingAnalysisList(requestDto);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
@@ -296,95 +296,6 @@ namespace LocalDataApi.Controllers
             catch (Exception e)
             {
                 return BadRequest($"错误提示：{e.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 获取全部工单列表
-        /// </summary>
-        [HttpPost("GetPMCWorkOrderList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetPMCWorkOrderList()
-        {
-            try
-            {
-                var workOrderList = await _pmcService.GetPMCWorkOrderList();
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "获取成功！",
-                    Data = workOrderList // 空列表也正常返回
-                });
-            }
-            catch (Exception e)
-            {
-               return BadRequest($"错误提示：{e.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 更新工单
-        /// </summary>
-        [HttpPost("UpdatePMCWorkOrder")]
-        public async Task<ActionResult<ApiResponse<object>>> UpdatePMCWorkOrder(PMCWorkOrder workOrder)
-        {
-            try
-            {
-                var productData = await _pmcService.UpdatePMCWorkOrder(workOrder);
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "更新成功！",
-                    Data = productData
-                });
-            }
-            catch (Exception e)
-            {
-                return BadRequest($"错误提示：{e.Message}");
-            }
-        }
-
-        [HttpPost("AddPMCWorkOrder")]
-        public async Task<ActionResult<ApiResponse<object>>> AddPMCWorkOrder(PMCWorkOrder workOrder)
-        {
-            try
-            {
-                var productData = await _pmcService.AddPMCWorkOrder(workOrder);
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "添加成功！",
-                    Data = productData // 空列表也正常返回
-                });
-            }
-            catch (Exception e)
-            {
-                return BadRequest($"错误提示：{e.Message}");
-            }
-        }
-
-        /// <summary>
-        /// 根据货号创建工单管理（从外产_订单表中查找评审通过的数据）
-        /// </summary>
-        [HttpPost("AddPMCWorkOrderByRequest")]
-        public async Task<ActionResult<ApiResponse<object>>> AddPMCWorkOrder(PMCRequestDto requestDto)
-        {
-            try
-            {
-                var workOrder = await _pmcService.AddPMCWorkOrder(requestDto);
-                return Ok(new ApiResponse<object>
-                {
-                    Success = true,
-                    Message = "创建成功！",
-                    Data = workOrder
-                });
-            }
-            catch (Exception e)
-            {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
             }
         }
 
@@ -904,6 +815,87 @@ namespace LocalDataApi.Controllers
             try
             {
                 await _pmcService.DeleteExternalProductionWarehousingList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
+        #region 外产BOM查询与删除
+
+        /// <summary>
+        /// 根据成品货号生成并保存外产BOM结构
+        /// </summary>
+        [HttpPost("SaveExternalProductionBOM")]
+        public async Task<ActionResult<ApiResponse<object>>> SaveExternalProductionBOM(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.SaveExternalProductionBOM(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取外产BOM列表
+        /// </summary>
+        [HttpPost("GetExternalProductionBOMList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionBOMList(PMCRequestDto requestDto)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionBOMList(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除外产BOM数据
+        /// </summary>
+        [HttpPost("DeleteExternalProductionBOMList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionBOMList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteExternalProductionBOMList(ids);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
