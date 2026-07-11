@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using LocalDataApi.Models;
 namespace LocalDataApi.Data
 {
@@ -29,6 +29,9 @@ namespace LocalDataApi.Data
         public DbSet<ProductDataAssemblyList> 产品资料装配清单 { get; set; }
         
         public DbSet<ERPUser> tb_control_user { get; set; }
+
+        public DbSet<ERPId> tb_control_id { get; set; }
+
         
         public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
         
@@ -56,10 +59,14 @@ namespace LocalDataApi.Data
 
         public DbSet<ProductSalesControlDetail> 成品销控表明细 { get; set; }
 
+        public DbSet<BOMStructureProcess> BOM结构工序 { get; set; }
+
         // public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
-       public DbSet<ProductionDemand> 在产需求量 { get; set; }
+        public DbSet<ProductionDemand> 在产需求量 { get; set; }
        public DbSet<InTransitQuantity> 在途数 { get; set; }
+
+        public DbSet<WechatWorkGroupChat> 企业微信群聊 { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -114,6 +121,12 @@ namespace LocalDataApi.Data
                 entity.HasKey(e => e.ID);
             });
 
+            modelBuilder.Entity<ERPId>(entity =>
+            {
+                entity.HasKey(e => e.ID);
+            });
+
+
             modelBuilder.Entity<PMCSalesControl>(entity =>
             {
                 entity.HasKey(e => e.货号);
@@ -136,6 +149,11 @@ namespace LocalDataApi.Data
             });
 
             modelBuilder.Entity<ProductSalesControlDetail>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<BOMStructureProcess>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });
@@ -180,6 +198,12 @@ namespace LocalDataApi.Data
             
             // 配置InTransitQuantity实体映射到vw_甘特图在产量视图
             modelBuilder.Entity<InTransitQuantity>().ToView("vw_甘特图在产量").HasNoKey();
+
+            modelBuilder.Entity<WechatWorkGroupChat>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+                entity.HasIndex(e => e.ChatId).IsUnique();
+            });
 
             base.OnModelCreating(modelBuilder);
         }

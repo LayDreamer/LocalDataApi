@@ -70,10 +70,14 @@ namespace LocalDataApi.Services
 
         #region 外产BOM
 
-        Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo);
+        // Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo);
+        Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(List<ExternalProductionBOM> bomList, string username, string schedulingNo);
         Task<List<ExternalProductionBOM>> GetExternalProductionBOMList(string? itemNo);
-        Task<List<ExternalProductionBOM>> AddOrUpdateExternalProductionBOMList(List<ExternalProductionBOM> list);
         Task DeleteExternalProductionBOMList(List<string> ids);
+        #endregion
+
+        #region BOM结构工序
+        Task<List<BOMStructureProcess>> GetBOMStructureProcessList();
         #endregion
     }
 }

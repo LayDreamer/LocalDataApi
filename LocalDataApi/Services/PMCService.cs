@@ -12,9 +12,12 @@ namespace LocalDataApi.Services
     public class PMCService : IPMCService
     {
         private readonly AppDbContext _context;
-        public PMCService(AppDbContext context)
+        private readonly ERPBaseService _erpBaseService;
+
+        public PMCService(AppDbContext context, ERPBaseService erpBaseService)
         {
             _context = context;
+            _erpBaseService = erpBaseService;
         }
 
         // 获取外销合同产品列表(测试根据分析单号来获取)
@@ -99,7 +102,7 @@ namespace LocalDataApi.Services
             {
                 // 预分配List容量，避免动态扩容
                 List<PMCDeliveryReview> data = new List<PMCDeliveryReview>(userProductInfos.Count);
-                string orderUser = "ZY1[张圆]";
+                // string orderUser = "ZY1[张圆]";
                 if (userProductInfos == null || userProductInfos.Count == 0)
                 {
                     return data;
@@ -149,14 +152,7 @@ namespace LocalDataApi.Services
                         continue;
                     }
                     // 计算工单工号
-                    string workOrder = "";
-                    if (!string.IsNullOrEmpty(item.编号))
-                    {
-                        // 按照规则处理：USR替换成10，然后去掉中间的字母
-                        workOrder = item.编号.ToUpper().Replace("USR", "10");
-                        // 只保留数字
-                        workOrder = new string(workOrder.Where(char.IsDigit).ToArray());
-                    }
+                    string workOrder = _erpBaseService.CalculateWorkOrder(item.编号);
 
                     // 计算线圈货号
                     string coilNumber = string.Empty;
@@ -192,7 +188,7 @@ namespace LocalDataApi.Services
                         线圈货号 = coilNumber,
                         来源 = source,
                         状态 = "待评审",
-                        排产用户 = orderUser
+                        // 排产用户 = orderUser
                     };
                     data.Add(review);
                 }
@@ -234,7 +230,7 @@ namespace LocalDataApi.Services
                 //var analysisNum = await GenerateAnalysisOrderNumberAsync(deliveryReview.排产用户);
 
                 // 创建排产分析单并保存到数据库
-                //  var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview, analysisNum);
+                //  var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview);
 
                 // 使用排产分析单的编号作为交期评审的编号
                 // deliveryReview.编号 = scheduling.编号; 
@@ -242,6 +238,7 @@ namespace LocalDataApi.Services
                 // deliveryReview.分析单号 = analysisNum;
 
                 deliveryReview.编号 = Guid.NewGuid().ToString();
+                deliveryReview.创建时间 = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
                 // 新增
                 await _context.外产_订单.AddAsync(deliveryReview);
@@ -738,7 +735,10 @@ namespace LocalDataApi.Services
 
 
 
-        #region 系统原始排产分析单相关
+        #region 排产分析单相关
+
+
+
 
         // 根据排产用户生成分析单号        
         public async Task<string> GenerateAnalysisOrderNumberAsync(string productionUser)
@@ -779,14 +779,33 @@ namespace LocalDataApi.Services
             return $"{prefix}{serialStr}";
         }
 
+
+        public async Task<SchedulingAnalysis> SaveSchedulingAnalysisAsync(PMCRequestDto request)
+        {
+            // 从外产_订单中查找对应货号的数据
+            var deliveryReview = await _context.外产_订单
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.货号 == request.货号);
+
+            if (deliveryReview != null)
+            {
+                // 如果存在则调用另一个重载方法进行保存
+                return await SaveSchedulingAnalysisAsync(deliveryReview);
+            }
+
+            return null;
+        }
+
+
+
         // 根据排产用户和分析单号保存排产分析单信息
-        public async Task<SchedulingAnalysis> SaveSchedulingAnalysisAsync(PMCDeliveryReview deliveryReview, string analysisNum)
+        public async Task<SchedulingAnalysis> SaveSchedulingAnalysisAsync(PMCDeliveryReview deliveryReview)
         {
             string nowss = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             string nowdd = DateTime.Now.ToString("yyyy-MM-dd");
             string productionUser = deliveryReview.排产用户;
             string userNum = await GetUserNumberAsync(productionUser);
-
+            var analysisNum = await GenerateAnalysisOrderNumberAsync(deliveryReview.排产用户);
             string prefix = $"{userNum}UNT";
             var existingNumbers = await _context.排产分析单
                 .Where(x => x.编号.StartsWith(prefix))
@@ -826,7 +845,7 @@ namespace LocalDataApi.Services
                 排产编号 = deliveryReview.排产编号,
             };
             //测试时先不保存到数据库，等后续逻辑完善后再保存
-            // await _context.排产分析单.AddAsync(scheduling);
+            await _context.排产分析单.AddAsync(scheduling);
             return scheduling;
         }
 
@@ -850,7 +869,7 @@ namespace LocalDataApi.Services
 
         #region 转换的排产分析详情列表
 
-        // 根据销控表中的货号获取排产分析详情列表（嵌套树形结构）    
+        // 根据销控表中的货号获取排产分析详情列表（嵌套树形结构）
         public async Task<List<SchedulingAnalysisDto>> ConvertToSchedulingAnalysisList(PMCRequestDto request)
         {
             var result = new List<SchedulingAnalysisDto>();
@@ -882,7 +901,8 @@ namespace LocalDataApi.Services
             var warehouseGoodsDict = await GetWarehouseGoodsBatchAsync(itemNos.ToList(), request.货号);
             var productionDemandDict = await GetProductionDemandBatchAsync(itemNos.ToList(), schedulingNo);
             var inTransitQuantityDict = await GetInTransitQuantityBatchAsync(itemNos.ToList(), schedulingNo);
-         
+            // var productionDemandDict=new Dictionary<string, ProductionDemand>();
+            //  var inTransitQuantityDict=new Dictionary<string, InTransitQuantity>();
             // 第四步：构建嵌套树形结果
             var parentDto = BuildDto(request.货号, 0, null, salesData,
                 productDataDict, warehouseGoodsDict, productionDemandDict, inTransitQuantityDict);
@@ -890,7 +910,6 @@ namespace LocalDataApi.Services
             // 构建子级嵌套结构
             parentDto.子集 = BuildNestedDtoList(assemblyTree, 1,
             productDataDict, warehouseGoodsDict, productionDemandDict, inTransitQuantityDict);
-           
             result.Add(parentDto);
             return result;
         }
@@ -1398,29 +1417,32 @@ namespace LocalDataApi.Services
             }
 
             var result = new List<WorkOrderSalesControlDetail>();
+
+            // 仅以"货号 + 交货日期"作为唯一判定键
             var itemNos = list
                 .Where(x => !string.IsNullOrWhiteSpace(x.货号))
                 .Select(x => x.货号!)
                 .Distinct()
                 .ToList();
 
-            // 查询已存在的记录
+            // 查询已存在的记录（按货号拉取，再在内存中按 货号+交货日期 判定）
             var existingItems = await _context.工单销控表明细
                 .Where(x => itemNos.Contains(x.货号) && x.货号 != null)
                 .ToListAsync();
 
             var existingDict = existingItems
                 .Where(x => x.货号 != null)
-                .ToDictionary(x => x.货号!);
+                .ToDictionary(x => (x.货号!, x.交货日期));
 
             foreach (var item in list)
             {
-                if (string.IsNullOrWhiteSpace(item.货号))
+                if (string.IsNullOrWhiteSpace(item.货号) || string.IsNullOrWhiteSpace(item.编号))
                 {
-                    continue;
+                    throw new ArgumentException("工单销控表明细中的编号不能为空", nameof(item));
                 }
 
-                if (existingDict.TryGetValue(item.货号, out var existing))
+                var dictKey = (item.货号!, item.交货日期);
+                if (existingDict.TryGetValue(dictKey, out var existing))
                 {
                     // 更新已有记录：先对齐主键编号，再 SetValues
                     item.编号 = existing.编号;
@@ -1429,11 +1451,7 @@ namespace LocalDataApi.Services
                 }
                 else
                 {
-                    // 新增记录
-                    if (string.IsNullOrWhiteSpace(item.编号))
-                    {
-                        item.编号 = Guid.NewGuid().ToString();
-                    }
+                    item.工单单号 = _erpBaseService.CalculateWorkOrder(item.编号);
                     await _context.工单销控表明细.AddAsync(item);
                     result.Add(item);
                 }
@@ -1597,67 +1615,16 @@ namespace LocalDataApi.Services
             }
 
             var result = new List<ExternalProductionPickMaterial>();
-            var keys = list
-                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
-                .Select(x => (x.排产编号!, x.货号!))
-                .Distinct()
-                .ToList();
 
-            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
-
-            // 查询对应的外产发运记录，用于获取关联编号
-            var shipmentItems = await _context.外产_发运
-                .AsNoTracking()
-                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
-                .Select(x => new { x.排产编号, x.关联编号 })
-                .ToListAsync();
-
-            var shipmentDict = shipmentItems
-                .Where(x => x.排产编号 != null)
-                .GroupBy(x => x.排产编号!)
-                .ToDictionary(g => g.Key, g => g.First().关联编号);
-
-            var existingItems = await _context.外产_领料
-                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
-                .ToListAsync();
-
-            var existingDict = existingItems
-                .Where(x => x.排产编号 != null && x.货号 != null)
-                .ToDictionary(x => (x.排产编号!, x.货号!));
 
             foreach (var item in list)
             {
-                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                if (string.IsNullOrWhiteSpace(item.编号) || string.IsNullOrWhiteSpace(item.货号))
                 {
-                    continue;
+                     throw new ArgumentException("外产领料数据中的编号或货号不能为空", nameof(item));
                 }
-
-                var key = (item.排产编号!, item.货号!);
-                if (existingDict.TryGetValue(key, out var existing))
-                {
-                    item.编号 = existing.编号;
-                    // 从外产发运获取关联编号
-                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
-                    {
-                        item.关联编号 = relNo;
-                    }
-                    _context.Entry(existing).CurrentValues.SetValues(item);
-                    result.Add(existing);
-                }
-                else
-                {
-                    if (string.IsNullOrWhiteSpace(item.编号))
-                    {
-                        item.编号 = Guid.NewGuid().ToString();
-                    }
-                    // 从外产发运获取关联编号
-                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
-                    {
-                        item.关联编号 = relNo;
-                    }
-                    await _context.外产_领料.AddAsync(item);
-                    result.Add(item);
-                }
+                await _context.外产_领料.AddAsync(item);
+                result.Add(item);
             }
 
             await _context.SaveChangesAsync();
@@ -1831,69 +1798,15 @@ namespace LocalDataApi.Services
             {
                 throw new ArgumentException("外产入库数据不能为空", nameof(list));
             }
-
             var result = new List<ExternalProductionWarehousing>();
-            var keys = list
-                .Where(x => !string.IsNullOrWhiteSpace(x.排产编号) && !string.IsNullOrWhiteSpace(x.货号))
-                .Select(x => (x.排产编号!, x.货号!))
-                .Distinct()
-                .ToList();
-
-            var schedulingNos = keys.Select(k => k.Item1).Distinct().ToList();
-
-            // 查询对应的外产发运记录，用于获取关联编号
-            var shipmentItems = await _context.外产_发运
-                .AsNoTracking()
-                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
-                .Select(x => new { x.排产编号, x.关联编号 })
-                .ToListAsync();
-
-            var shipmentDict = shipmentItems
-                .Where(x => x.排产编号 != null)
-                .GroupBy(x => x.排产编号!)
-                .ToDictionary(g => g.Key, g => g.First().关联编号);
-
-            var existingItems = await _context.外产_入库
-                .Where(x => schedulingNos.Contains(x.排产编号) && x.排产编号 != null)
-                .ToListAsync();
-
-            var existingDict = existingItems
-                .Where(x => x.排产编号 != null && x.货号 != null)
-                .ToDictionary(x => (x.排产编号!, x.货号!));
-
             foreach (var item in list)
             {
-                if (string.IsNullOrWhiteSpace(item.排产编号) || string.IsNullOrWhiteSpace(item.货号))
+                if (string.IsNullOrWhiteSpace(item.编号) || string.IsNullOrWhiteSpace(item.货号))
                 {
-                    continue;
+                     throw new ArgumentException("外产入库数据中的编号或货号不能为空", nameof(item));
                 }
-
-                var key = (item.排产编号!, item.货号!);
-                if (existingDict.TryGetValue(key, out var existing))
-                {
-                    item.编号 = existing.编号;
-                    // 从外产发运获取关联编号
-                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
-                    {
-                        item.关联编号 = relNo;
-                    }
-                    _context.Entry(existing).CurrentValues.SetValues(item);
-                    result.Add(existing);
-                }
-                else
-                {
-                    if (string.IsNullOrWhiteSpace(item.编号))
-                    {
-                        item.编号 = Guid.NewGuid().ToString();
-                    }
-                    // 从外产发运获取关联编号
-                    if (shipmentDict.TryGetValue(item.排产编号!, out var relNo))
-                    {
-                        item.关联编号 = relNo;
-                    }
-                    await _context.外产_入库.AddAsync(item);
-                    result.Add(item);
-                }
+                await _context.外产_入库.AddAsync(item);
+                result.Add(item);
             }
 
             await _context.SaveChangesAsync();
@@ -1941,63 +1854,91 @@ namespace LocalDataApi.Services
         #region 外产BOM
 
         /// <summary>
-        /// 批量添加或更新外产BOM数据（存在则覆盖，不存在则新增）
-        /// </summary>
-        public async Task<List<ExternalProductionBOM>> AddOrUpdateExternalProductionBOMList(List<ExternalProductionBOM> list)
+        /// 根据成品货号生成并保存外产BOM结构
+
+
+        // public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo)
+        // {
+        //     var bomRecords = await GetExternalProductionBOM(itemNo);
+        //     await _context.外产_BOM.AddRangeAsync(bomRecords);
+        //     await _context.SaveChangesAsync();
+        //     return bomRecords;
+        // }
+
+        public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(List<ExternalProductionBOM> bomList, string username, string schedulingNo)
         {
-            if (list == null || list.Count == 0)
+            if (bomList == null || bomList.Count == 0 || string.IsNullOrEmpty(schedulingNo))
             {
-                throw new ArgumentException("外产BOM数据不能为空", nameof(list));
+                return new List<ExternalProductionBOM>();
             }
 
-            var result = new List<ExternalProductionBOM>();
-            var keys = list
-                .Where(x => !string.IsNullOrWhiteSpace(x.货号))
-                .Select(x => x.货号!)
-                .Distinct()
-                .ToList();
+            //默认
+            username = "GLY[管理员]";
+            string userid = "USR01522";
+            // 根据传入的用户名和排产编号构造参数，调用 SaveSchedulingAnalysisAsync 获取排产分析单号
+            var deliveryReview = new PMCDeliveryReview
+            {
+                排产用户 = username,
+                排产编号 = schedulingNo,
+            };
+            var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview);
+            string? analysisNo = scheduling?.分析单号;
 
-            // 查询已存在的记录
-            var existingItems = await _context.外产_BOM
-                .Where(x => keys.Contains(x.货号) && x.货号 != null)
-                .ToListAsync();
+            // 将传入的用户名、排产编号与排产分析单号同步到每条 BOM 记录
+            bomList.ForEach(item => item.分析单号 = analysisNo);
 
-            var existingDict = existingItems
-                .Where(x => x.货号 != null)
-                .ToDictionary(x => x.货号!);
+            // 1）确定每条记录的最终编号，全部作为新增，并建立 {层}_{货号} -> 编号 映射（供父级重映射使用）
+            const string bomTableName = "外产_BOM";
+            // 循环前预加载一次被跟踪的控制ID记录，循环内复用（内存自增，末尾统一提交）
+            var controlId = await _erpBaseService.GetControlIdTrackedAsync(userid, bomTableName);
+            var itemNoToId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var newItems = new List<ExternalProductionBOM>();
 
-            foreach (var item in list)
+            foreach (var item in bomList)
             {
                 if (string.IsNullOrWhiteSpace(item.货号))
                 {
                     continue;
                 }
 
-                if (existingDict.TryGetValue(item.货号!, out var existing))
+                // 全部作为新增：基于预加载的控制ID记录生成新编号（内存自增）
+                var newId = _erpBaseService.GenerateCodeFromRecord(controlId, userid) ?? Guid.NewGuid().ToString();
+                item.编号 = newId;
+                item.创建时间 = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                newItems.Add(item);
+                if (!string.IsNullOrWhiteSpace(item.层))
+                    itemNoToId[$"{item.层}_{item.货号}"] = newId;
+            }
+
+            // 3）根据层级关系：父级编号原值为父级货号，替换为对应的父级 GUID
+            foreach (var item in bomList)
+            {
+                if (!string.IsNullOrWhiteSpace(item.父级编号) && !string.IsNullOrWhiteSpace(item.层))
                 {
-                    // 更新已有记录：先对齐主键编号，再 SetValues
-                    item.编号 = existing.编号;
-                    _context.Entry(existing).CurrentValues.SetValues(item);
-                    result.Add(existing);
-                }
-                else
-                {
-                    // 新增记录
-                    if (string.IsNullOrWhiteSpace(item.编号))
+                    if (int.TryParse(item.层, out int level) && level > 0)
                     {
-                        item.编号 = Guid.NewGuid().ToString();
+                        string parentKey = $"{level - 1}_{item.父级编号}";
+                        if (itemNoToId.TryGetValue(parentKey, out var parentId))
+                        {
+                            item.父级编号 = parentId;
+                        }
                     }
-                    await _context.外产_BOM.AddAsync(item);
-                    result.Add(item);
                 }
             }
 
+            // 4）新记录：批量新增
+            if (newItems.Count > 0)
+            {
+                await _context.外产_BOM.AddRangeAsync(newItems);
+            }
+
             await _context.SaveChangesAsync();
-            return result;
+
+            return bomList;
         }
 
         /// <summary>
-        /// 根据货号查询外产BOM列表
+        /// 查询父级编号关联的外产BOM列表
         /// </summary>
         public async Task<List<ExternalProductionBOM>> GetExternalProductionBOMList(string? itemNo)
         {
@@ -2005,9 +1946,13 @@ namespace LocalDataApi.Services
 
             if (!string.IsNullOrWhiteSpace(itemNo))
             {
-                query = query.Where(e => e.货号 == itemNo);
+                var parent = query.Where(e => e.货号 == itemNo).FirstOrDefault();
+                if (parent == null)
+                {
+                    return new List<ExternalProductionBOM>();
+                }
+                query = query.Where(e => e.父级编号 == parent.编号);
             }
-
             return await query.ToListAsync();
         }
 
@@ -2034,7 +1979,7 @@ namespace LocalDataApi.Services
 
 
 
- public async Task<List<ExternalProductionBOM>> GetExternalProductionBOM(string? itemNo)
+        public async Task<List<ExternalProductionBOM>> GetExternalProductionBOM(string? itemNo)
         {
             var empty = new List<ExternalProductionBOM>();
 
@@ -2245,31 +2190,12 @@ namespace LocalDataApi.Services
                 }
             }
         }
-        
 
 
-        /// <summary>
-        /// 根据成品货号生成并保存外产BOM结构
-        /// 逻辑：
-        /// 1）传入货号必须带括号（成品货号格式），如 ABC123(X01)；去掉括号部分作为基础货号
-        /// 2）带括号的完整货号作为成品（level=0，顶层），括号里的内容作为线圈货号（level=1，与半成品平级）
-        /// 3）用基础货号查询「产品资料装配」→「产品资料装配清单」
-        /// 4）若清单只有一条，当前货号不是半成品货号，继续向下查询（不写入 BOM）
-        /// 5）若清单有多条，当前货号即为半成品货号：写入半成品（level=1，父级=成品）和其所有子集（level=2）
-        /// 6）若第一次用基础货号查询后直接就有多条数据，则基础货号自身就是半成品货号
-        /// </summary>
-        /// <param name="itemNo">成品货号（带括号，例如：ABC123(X01)）</param>
-        /// <returns>已保存的外产BOM列表；若货号格式不正确或无数据，返回空列表</returns>
-        
-        public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo)
-        {
-            var bomRecords = await GetExternalProductionBOM(itemNo);
-            await _context.外产_BOM.AddRangeAsync(bomRecords);
-            await _context.SaveChangesAsync();
-            return bomRecords;
-        }
-       
-       
+
+
+
+
         #endregion
 
 
@@ -2372,6 +2298,19 @@ namespace LocalDataApi.Services
             return true;
         }
 
+        #region BOM结构工序
+
+        /// <summary>
+        /// 获取所有BOM结构工序数据
+        /// </summary>
+        public async Task<List<BOMStructureProcess>> GetBOMStructureProcessList()
+        {
+            return await _context.BOM结构工序
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        #endregion
 
 
 

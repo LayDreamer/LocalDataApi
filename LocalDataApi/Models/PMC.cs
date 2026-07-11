@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -168,6 +168,7 @@ namespace LocalDataApi.Models
         public string? 状态 { get; set; } //待评审,评审通过,评审驳回
         public string? 物料货号 { get; set; }
         public string? 备注 { get; set; }
+        public string? 特殊要求 { get; set; }
     }
 
     //排产分析单
@@ -231,6 +232,7 @@ namespace LocalDataApi.Models
     public class WorkOrderSalesControl : ERPBase
     {
         public string? 车间名称 { get; set; }
+        public string? 工单单号 { get; set; }
         public string? 商品属性 { get; set; }
         public string? 货号 { get; set; }
         public string? 品名 { get; set; }
@@ -240,10 +242,12 @@ namespace LocalDataApi.Models
         public string? 在产数量 { get; set; }
         public string? 齐套 { get; set; }
         public string? 配料 { get; set; }
+
+        public string? 交货日期 { get; set; }
         public string? 分析日期 { get; set; }
         public string? 生产完成率 { get; set; }
-        public string? 交货计划 { get; set; }
         public string? 层 { get; set; }
+
     }
 
     /// <summary>
@@ -254,14 +258,14 @@ namespace LocalDataApi.Models
         public string? 货号 { get; set; }
         public string? 品名 { get; set; }
         public string? 规格 { get; set; }
-        public string? 用量 { get; set; }
-        public string? 需求数 { get; set; }
-        public string? 已出库数 { get; set; }
-        public string? 缺料数 { get; set; }
-        public string? 仓库名称 { get; set; }
-        public string? 仓库数 { get; set; }
-        public string? 仓库缺料 { get; set; }
+        public string? 工单单号 { get; set; }
+        public string? 交货日期 { get; set; }
+        public string? 生产数 { get; set; }
+        public string? 入库数 { get; set; }
+        public string? 待产数 { get; set; }
         public string? 父级编号 { get; set; }
+        public string? 分析单号 { get; set; }
+
     }   
 
     /// <summary>
@@ -280,5 +284,19 @@ namespace LocalDataApi.Models
         public string? 品名 { get; set; }
         public string? 规格 { get; set; }
         public string? 父级编号 { get; set; }
+    }
+
+    /// <summary>
+    /// BOM结构工序
+    /// </summary>
+    public class BOMStructureProcess : ERPBase
+    {
+        public string? 制定人 { get; set; }
+        public string? 制定日期 { get; set; }
+        public string? 执行状态 { get; set; }
+        public string? 制定说明 { get; set; }
+        public string? 制定编号 { get; set; }
+        public string? 执行日期 { get; set; }
+        public string? 执行车间 { get; set; }
     }
 }

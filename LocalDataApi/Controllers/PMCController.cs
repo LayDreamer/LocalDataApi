@@ -839,16 +839,16 @@ namespace LocalDataApi.Controllers
         /// 根据成品货号生成并保存外产BOM结构
         /// </summary>
         [HttpPost("SaveExternalProductionBOM")]
-        public async Task<ActionResult<ApiResponse<object>>> SaveExternalProductionBOM(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<object>>> SaveExternalProductionBOM(List<ExternalProductionBOM> bomList, string username, string schedulingNo)
         {
             try
             {
-                var result = await _pmcService.SaveExternalProductionBOM(requestDto.货号);
+                var savedList = await _pmcService.SaveExternalProductionBOM(bomList, username, schedulingNo);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
                     Message = "保存成功！",
-                    Data = result
+                    Data = savedList
                 });
             }
             catch (Exception e)
@@ -860,6 +860,9 @@ namespace LocalDataApi.Controllers
                 });
             }
         }
+
+
+       
 
         /// <summary>
         /// 获取外产BOM列表
@@ -900,6 +903,36 @@ namespace LocalDataApi.Controllers
                 {
                     Success = true,
                     Message = "删除成功！"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        #endregion
+
+        #region BOM结构工序
+
+        /// <summary>
+        /// 获取所有BOM结构工序数据
+        /// </summary>
+        [HttpGet("GetBOMStructureProcessList")]
+        public async Task<ActionResult<ApiResponse<object>>> GetBOMStructureProcessList()
+        {
+            try
+            {
+                var result = await _pmcService.GetBOMStructureProcessList();
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
                 });
             }
             catch (Exception e)

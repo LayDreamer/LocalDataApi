@@ -1,7 +1,10 @@
 ﻿using Azure;
 using Azure.Core;
+using LocalDataApi.Data;
+using LocalDataApi.Models;
 using LocalDataApi.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -15,27 +18,42 @@ using System.Text.Json;
 
 namespace LocalDataApi.Services
 {
-    public class WeChatWorkService(WechatWorkClient client, IHttpClientFactory httpClientFactory, IConfiguration config, ILogger<WeChatWorkService> logger)
+    public class WeChatWorkService(
+        WechatWorkClient client,
+        WechatWorkTokenProvider tokenProvider,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration config,
+        ILogger<WeChatWorkService> logger,
+        AppDbContext context)
     {
         private readonly WechatWorkClient _client = client;
+        private readonly WechatWorkTokenProvider _tokenProvider = tokenProvider;
         private readonly IConfiguration _config = config;
         private readonly ILogger<WeChatWorkService> _logger = logger;
         private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+        private readonly AppDbContext _context = context;
         private readonly int _agentId = config.GetValue<int>("WechatWork:AgentId"); // 从配置中读取应用ID
-        private string? _accessToken;
-        private DateTime? _tokenExpireTime;
-
-        private string? _jsApiTicket;
-        private DateTime? _ticketExpireTime;
 
         #region 企业组织架构相关接口
 
         // 获取部门列表
-        public async Task<CgibinDepartmentListResponse> GetDepartmentsAsync()
+        public async Task<CgibinDepartmentListResponse> GetDepartmentsAsync(CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-            var request = new CgibinDepartmentListRequest() { AccessToken = _accessToken };
-            return await _client.ExecuteCgibinDepartmentListAsync(request);
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    var request = new CgibinDepartmentListRequest() { AccessToken = token };
+                    return await _client.ExecuteCgibinDepartmentListAsync(request);
+                }, ct);
+
+            if (!response.IsSuccessful())
+            {
+                _logger.LogError(
+                    "获取部门列表失败: [{ErrorCode}] {ErrorMessage} (提示: 错误码 60011 表示服务器出口IP未配置可信IP)",
+                    response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
         }
 
         /// <summary>
@@ -174,19 +192,6 @@ namespace LocalDataApi.Services
         }
 
 
-        /// <summary>
-        /// 部门树节点
-        /// </summary>
-        public class DepartmentTreeNode
-        {
-            public long Id { get; set; }
-            public string Name { get; set; }
-            public long ParentId { get; set; }
-            public long Order { get; set; }
-            public List<string> DepartmentLeader { get; set; }
-            public List<DepartmentTreeNode> Children { get; set; }
-        }
-
         #endregion
 
         #region 企业成员相关接口
@@ -195,16 +200,28 @@ namespace LocalDataApi.Services
         /// </summary>
         /// <param name="departmentId">部门ID，默认根部门(1)</param>
         /// <returns></returns>
-        public async Task<CgibinUserListResponse> GetDepartmentUsersAsync(int departmentId, bool fetchChild = true)
+        public async Task<CgibinUserListResponse> GetDepartmentUsersAsync(int departmentId, bool fetchChild = true, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-            var request = new CgibinUserListRequest
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    var request = new CgibinUserListRequest
+                    {
+                        AccessToken = token,
+                        DepartmentId = departmentId,
+                        RequireFetchChild = fetchChild
+                    };
+                    return await _client.ExecuteCgibinUserListAsync(request);
+                }, ct);
+
+            if (!response.IsSuccessful())
             {
-                AccessToken = _accessToken,
-                DepartmentId = departmentId,
-                RequireFetchChild = fetchChild
-            };
-            return await _client.ExecuteCgibinUserListAsync(request);
+                _logger.LogError(
+                    "获取部门成员失败: [{ErrorCode}] {ErrorMessage} (提示: 错误码 60011 表示服务器出口IP未配置可信IP)",
+                    response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
         }
 
         #endregion
@@ -212,47 +229,47 @@ namespace LocalDataApi.Services
         #region 获取上下游企业相关接口
 
         //获取上下游根目录
-        public async Task<CgibinCorpGroupCorpGetChainListResponse> GetChainsAsync()
+        public async Task<CgibinCorpGroupCorpGetChainListResponse> GetChainsAsync(CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinCorpGroupCorpGetChainListRequest()
             {
-                AccessToken = _accessToken
+                AccessToken = accessToken
             };
             return await _client.ExecuteCgibinCorpGroupCorpGetChainListAsync(request);
         }
 
         //获取上下游分组列表
-        public async Task<CgibinCorpGroupCorpGetChainGroupResponse> GetChainGroupAsync(string chainId)
+        public async Task<CgibinCorpGroupCorpGetChainGroupResponse> GetChainGroupAsync(string chainId, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinCorpGroupCorpGetChainGroupRequest()
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 ChainId = chainId,
             };
             return await _client.ExecuteCgibinCorpGroupCorpGetChainGroupAsync(request);
         }
 
         //获取互联企业列表（查询指定互联企业/上下游的企业列表）
-        public async Task<CgibinCorpGroupCorpGetChainCorpInfoListResponse> GetChainGroupInfoListAsync(string chainId, int? groupId)
+        public async Task<CgibinCorpGroupCorpGetChainCorpInfoListResponse> GetChainGroupInfoListAsync(string chainId, int? groupId, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinCorpGroupCorpGetChainCorpInfoListRequest()
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 ChainId = chainId,
                 GroupId = groupId
             };
             return await _client.ExecuteCgibinCorpGroupCorpGetChainCorpInfoListAsync(request);
         }
 
-        public async Task<CgibinLinkedCorpUserListResponse> GetLinkedCorpUserListAsync(string chainId, int? groupId)
+        public async Task<CgibinLinkedCorpUserListResponse> GetLinkedCorpUserListAsync(string chainId, int? groupId, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinLinkedCorpUserListRequest()
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 LinkedDepartmentId = $"{chainId}/{groupId}", // 互联企业部门ID格式为 "企业ID/部门ID"
                 RequireFetchChild = true
             };
@@ -262,16 +279,16 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 获取互联企业部门列表（查询指定互联企业/上下游的部门结构）
         /// </summary>
-        public async Task<CgibinLinkedCorpDepartmentListResponse> GetLinkedCorpDepartmentsAsync(string corpId, string? deptId = null)
+        public async Task<CgibinLinkedCorpDepartmentListResponse> GetLinkedCorpDepartmentsAsync(string corpId, string? deptId = null, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
 
             // 正确拼接：企业ID/部门ID，如果 deptId 为 null，则默认查询根部门(/1)
             string departmentId = string.IsNullOrEmpty(deptId) ? $"{corpId}/1" : $"{corpId}/{deptId}";
 
             var request = new CgibinLinkedCorpDepartmentListRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 LinkedDepartmentId = departmentId
             };
 
@@ -279,12 +296,12 @@ namespace LocalDataApi.Services
         }
 
         // 获取互联企业部门成员（查询指定部门下的成员列表）
-        public async Task<CgibinLinkedCorpUserListResponse> GetLinkedCorpUsersAsync(string linkedDepartmentId, bool requireFetchChild = true)
+        public async Task<CgibinLinkedCorpUserListResponse> GetLinkedCorpUsersAsync(string linkedDepartmentId, bool requireFetchChild = true, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinLinkedCorpUserListRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 LinkedDepartmentId = linkedDepartmentId,
                 RequireFetchChild = requireFetchChild
             };
@@ -296,12 +313,12 @@ namespace LocalDataApi.Services
         ///  获取互联企业成员详细信息（根据成员ID获取其详细信息，不含敏感字段）
         /// </summary>
         /// <param name="userId">上下游成员ID，格式为"企业ID/成员ID"（必填）</param>
-        public async Task<CgibinLinkedCorpUserGetResponse> GetLinkedCorpUserDetailAsync(string userId)
+        public async Task<CgibinLinkedCorpUserGetResponse> GetLinkedCorpUserDetailAsync(string userId, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinLinkedCorpUserGetRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 CorpUserId = userId // 格式为"企业ID/成员ID"
             };
             return await _client.ExecuteCgibinLinkedCorpUserGetAsync(request);
@@ -313,13 +330,13 @@ namespace LocalDataApi.Services
         /// </summary>
         /// <param name="corpId">下游企业的CorpId（如 "wpNrVGagAATR5j8L4lli59Bd0rzseVOw"）</param>
         /// <returns>包含下游企业 AccessToken 的响应对象</returns>
-        public async Task<CgibinCorpGroupCorpGetTokenResponse> GetCorpGroupTokenAsync(string corpId)
+        public async Task<CgibinCorpGroupCorpGetTokenResponse> GetCorpGroupTokenAsync(string corpId, CancellationToken ct = default)
         {
             // 确保你有上游企业的 AccessToken
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinCorpGroupCorpGetTokenRequest
             {
-                AccessToken = _accessToken,      // 这是你上游企业的 AccessToken
+                AccessToken = accessToken,      // 这是你上游企业的 AccessToken
                 CorpId = corpId,                   // 要授权的下游企业 CorpId
                 AgentId = _agentId                  // 你的应用ID
             };
@@ -333,14 +350,13 @@ namespace LocalDataApi.Services
         /// <param name="userId">接收消息的成员ID，格式为 "企业ID/成员ID"（例如 "wpNrVGagAATR5j8L4lli59Bd0rzseVOw/zhangsan"）</param>
         /// <param name="content">消息内容</param>
         /// <returns>发送消息的响应对象</returns>
-        public async Task<CgibinLinkedCorpMessageSendResponse> SendTextMessageToLinkedCorpUserAsync(string corpId, string userId, string content)
+        public async Task<CgibinLinkedCorpMessageSendResponse> SendTextMessageToLinkedCorpUserAsync(string corpId, string userId, string content, CancellationToken ct = default)
         {
             // 1. 先获取下游企业的 Token
-            var tokenResponse = await GetCorpGroupTokenAsync(corpId);
+            var tokenResponse = await GetCorpGroupTokenAsync(corpId, ct);
             if (!tokenResponse.IsSuccessful())
             {
-                // 处理获取token失败的情况
-                throw new Exception($"获取下游企业Token失败: {tokenResponse.ErrorMessage}");
+                throw new InvalidOperationException($"获取下游企业Token失败: [{tokenResponse.ErrorCode}] {tokenResponse.ErrorMessage}");
             }
             string downstreamAccessToken = tokenResponse.AccessToken;
 
@@ -369,23 +385,29 @@ namespace LocalDataApi.Services
         /// 发送消息接口（支持文本、markdown等多种消息类型，接收者可以是成员/部门/标签）
         /// </summary>
         public async Task<CgibinMessageSendResponse> SendMessageAsync(
-                       List<string> users,          // 接收消息的成员ID列表
-                       string content,                // 消息内容（文本/markdown等）
+                       List<string> users,
+                       string content,
                        WechatWorkMessageType msgType,
-                       bool isSafe = false)           // 是否保密消息
+                       bool isSafe = false,
+                       CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            if (users == null || users.Count == 0 || users.All(string.IsNullOrWhiteSpace))
+                throw new ArgumentException("接收者列表不能为空", nameof(users));
+            if (string.IsNullOrWhiteSpace(content))
+                throw new ArgumentException("消息内容不能为空", nameof(content));
 
-            // 2. 构建基础请求对象
+            users = users.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
+
             var request = new CgibinMessageSendRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 ToUserIdList = users,
-                ToDepartmentIdList = null, // 部门ID列表
-                ToTagIdList = null, // 标签ID列表
+                ToDepartmentIdList = null,
+                ToTagIdList = null,
                 IsSafe = isSafe,
             };
-            // 3. 根据消息类型设置对应的消息内容和 MsgType
+
             switch (msgType)
             {
                 case WechatWorkMessageType.Text:
@@ -403,34 +425,28 @@ namespace LocalDataApi.Services
                         Content = content
                     };
                     break;
-                //request.MessageContentAsTextCard = new CgibinMessageSendRequest.Types.TextCardMessage
-                //{
-                //    Title = "2026研发项目管理智能表",
-                //    Description = "这是本月项目进度的汇总表，请及时更新您的任务状态。", // 卡片描述
-                //    Url = "https://doc.weixin.qq.com/smartsheet/s3_AZcA3AYLALECN3AVCeR8AT1qu2tpw?scode=ADYAtQdGAGoovltNZDAZcA3AYLALE&version=5.0.6.6028&platform=win&tab=db_qj1WYl", // 智能表格链接
-                //    ButtonText = "查看详情" // 可选，按钮文字，默认“详情”
-                //};
-                //break;
-
-                // 示例：图片消息（需要传入图片 media_id）
-                // case WechatWorkMessageType.Image:
-                //     request.MessageType = "image";
-                //     request.MessageContentAsImage = new CgibinMessageSendRequest.Types.ImageMessage
+                // case WechatWorkMessageType.Card:
+                //     request.MessageType = "textcard";
+                //     request.MessageContentAsTextCard = new CgibinMessageSendRequest.Types.TextCardMessage
                 //     {
-                //         MediaId = content   // content 此时应为 media_id
+                //         Title = "永创系统后台通知",
+                //         Description = content,
+                //         Url = url,
+                //          ButtonText = "查看详情"
                 //     };
                 //     break;
-
-                // 其他消息类型可继续添加...
 
                 default:
                     throw new NotSupportedException($"不支持的消息类型: {msgType}");
             }
 
-            // 4. 发送请求
-            var response = await _client.ExecuteCgibinMessageSendAsync(request);
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    request.AccessToken = token;
+                    return await _client.ExecuteCgibinMessageSendAsync(request);
+                }, ct);
 
-            // 5. 日志记录
             if (response.IsSuccessful())
             {
                 _logger.LogInformation("消息发送成功，MsgId: {MsgId}", response.MessageId);
@@ -443,41 +459,45 @@ namespace LocalDataApi.Services
             return response;
         }
 
-
-
         //发送文本卡片消息（适合发送智能表格链接等场景）
         public async Task<CgibinMessageSendResponse> SendMessageAsCardAsync(
                       List<string> users,
                         string title,
                         string description,
                         string url,
-                        string buttontText = "查看详情")
+                        string buttontText = "查看详情",
+                        CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            if (users == null || users.Count == 0 || users.All(string.IsNullOrWhiteSpace))
+                throw new ArgumentException("接收者列表不能为空", nameof(users));
 
-            // 2. 构建基础请求对象
+            users = users.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
+
             var request = new CgibinMessageSendRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 ToUserIdList = users,
                 MessageType = "textcard",
-                ToDepartmentIdList = null, // 部门ID列表
-                ToTagIdList = null, // 标签ID列表
+                ToDepartmentIdList = null,
+                ToTagIdList = null,
                 IsSafe = false,
                 MessageContentAsTextCard = new CgibinMessageSendRequest.Types.TextCardMessage
                 {
                     Title = title,
-                    Description = description, // 卡片描述
-                    Url = url, // 智能表格链接
-                    ButtonText = "查看详情" // 可选，按钮文字，默认“详情”
+                    Description = description,
+                    Url = url,
+                    ButtonText = buttontText
                 },
             };
 
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    request.AccessToken = token;
+                    return await _client.ExecuteCgibinMessageSendAsync(request);
+                }, ct);
 
-            // 4. 发送请求
-            var response = await _client.ExecuteCgibinMessageSendAsync(request);
-
-            // 5. 日志记录
             if (response.IsSuccessful())
             {
                 _logger.LogInformation("消息发送成功，MsgId: {MsgId}", response.MessageId);
@@ -499,151 +519,121 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 创建一个智能表格
         /// </summary>
-        public async Task<CgibinWedocCreateDocumentResponse> CreateDocumentAsync(string title, List<string> userIds, string? parentId = null)
+        public async Task<CgibinWedocCreateDocumentResponse> CreateDocumentAsync(string title, List<string> userIds, string? parentId = null, CancellationToken ct = default)
         {
-            // 1. 获取访问令牌
-            await GetAccessTokenAsync();
-
-            // 2. 构建创建请求
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocCreateDocumentRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentName = title,
-                DocumentType = 10, // 固定为10，代表智能表格
+                DocumentType = 10,
                 AdminUserIdList = userIds
             };
-
-            // 3. 执行请求
             return await _client.ExecuteCgibinWedocCreateDocumentAsync(request);
         }
 
         //删除智能表格(doc)
-
-        public async Task<CgibinWedocDeleteDocumentResponse> DeleteDocumentAsync(string documentId)
+        public async Task<CgibinWedocDeleteDocumentResponse> DeleteDocumentAsync(string documentId, CancellationToken ct = default)
         {
-            // 1. 获取访问令牌
-            await GetAccessTokenAsync();
-
-            // 2. 构建创建请求
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocDeleteDocumentRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = documentId,
             };
-            // 3. 执行请求
             return await _client.ExecuteCgibinWedocDeleteDocumentAsync(request);
         }
 
         //添加智能表格子表（sheet）
-        public async Task<CgibinWedocSmartSheetAddSheetResponse> SmartSheetAddSheetAsync(string documentId)
+        public async Task<CgibinWedocSmartSheetAddSheetResponse> SmartSheetAddSheetAsync(string documentId, CancellationToken ct = default)
         {
-            // 1. 获取访问令牌
-            await GetAccessTokenAsync();
-
-            // 2. 构建创建请求
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetAddSheetRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = documentId,
                 Sheet = new CgibinWedocSmartSheetAddSheetRequest.Types.Sheet
                 {
                     Title = "测试表1",
                 }
             };
-            // 3. 执行请求
             return await _client.ExecuteCgibinWedocSmartSheetAddSheetAsync(request);
         }
 
         // 获取智能表格的所有子表信息
-        public async Task<List<CgibinWedocSmartSheetGetSheetResponse.Types.Sheet>> GetSheetsAsync(string docId)
+        public async Task<List<CgibinWedocSmartSheetGetSheetResponse.Types.Sheet>> GetSheetsAsync(string docId, CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetGetSheetRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId
-                // 如果需要获取包括仪表盘在内的所有类型子表，可以设置 NeedAllTypeSheet = true
             };
 
             var response = await _client.ExecuteCgibinWedocSmartSheetGetSheetAsync(request);
 
             if (response.IsSuccessful() && response.ErrorCode == 0)
             {
-                // 返回子表列表，通常第一个就是默认子表
                 return response.SheetList?.ToList() ?? new List<CgibinWedocSmartSheetGetSheetResponse.Types.Sheet>();
             }
             else
             {
-                throw new Exception($"查询子表失败: {response.ErrorCode} - {response.ErrorMessage}");
+                throw new InvalidOperationException($"查询子表失败: [{response.ErrorCode}] {response.ErrorMessage}");
             }
         }
 
-
-        // 向智能表格的指定子表中添加记录（行）      
+        // 向智能表格的指定子表中添加记录（行）
         public async Task<CgibinWedocSmartSheetAddRecordsResponse> AddSmartSheetRecordsAsync(
             string docId,
             string? sheetId,
-            IList<IDictionary<string, object>> records)
+            IList<IDictionary<string, object>> records,
+            CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
 
-            //var res= await SmartSheetAddSheetAsync(docId);
-            // sheetId = res.Sheet.SheetId;
-
-            // 1. 获取默认子表ID
             if (string.IsNullOrEmpty(sheetId))
             {
-                sheetId = await GetDefaultSheetIdAsync(docId);
+                sheetId = await GetDefaultSheetIdAsync(docId, ct);
             }
 
-            // 2. 获取现有字段列表
-            var fields = await GetFieldsAsync(docId, sheetId);
-            //字段名->字段ID 映射
+            var fields = await GetFieldsAsync(docId, sheetId, ct);
             var fieldNameToIdMap = fields.FieldList.ToDictionary(f => f.Title, f => f.FieldId);
-            //字段ID->字段类型 映射
             var fieldIdToTypeMap = fields.FieldList.ToDictionary(f => f.FieldId, f => f.Type);
 
-            // 3. 分析记录中使用的字段，找出缺失字段并推断其类型
             var (missingFields, fieldNameToInferredType) = AnalyzeMissingFields(records, fieldNameToIdMap.Keys);
 
-            // 4. 如果有缺失字段，则批量创建
             if (missingFields.Any())
             {
-                await CreateMissingFieldsAsync(docId, sheetId, missingFields, fieldNameToInferredType);
-                // 重新获取字段列表，更新映射
-                fields = await GetFieldsAsync(docId, sheetId);
+                await CreateMissingFieldsAsync(docId, sheetId, missingFields, fieldNameToInferredType, accessToken);
+                fields = await GetFieldsAsync(docId, sheetId, ct);
                 fieldNameToIdMap = fields.FieldList.ToDictionary(f => f.Title, f => f.FieldId);
                 fieldIdToTypeMap = fields.FieldList.ToDictionary(f => f.FieldId, f => f.Type);
             }
 
-            // 5. 构建 SDK 要求的记录列表（字段名 -> 字段ID）
             var recordList = BuildRecordList(records, fieldNameToIdMap, fieldIdToTypeMap);
 
-            // 6. 批量添加记录
             var addRequest = new CgibinWedocSmartSheetAddRecordsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId,
                 RecordList = recordList,
                 KeyType = "CELL_VALUE_KEY_TYPE_FIELD_ID"
             };
 
-            var response = await _client.ExecuteCgibinWedocSmartSheetAddRecordsAsync(addRequest);
-            return response;
+            return await _client.ExecuteCgibinWedocSmartSheetAddRecordsAsync(addRequest);
         }
 
         //获取智能表格相关数据信息
         public async Task<CgibinWedocSmartSheetGetRecordsResponse> GetSmartSheetRecordsAsync(
           string docId,
-          string? sheetId)
+          string? sheetId,
+          CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetGetRecordsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId,
             };
@@ -654,14 +644,13 @@ namespace LocalDataApi.Services
         public async Task<CgibinWedocSmartSheetDeleteRecordsResponse> DeleteSmartSheetRecordsAsync(
          string docId,
          string? sheetId,
-         IList<string> recordIds
-         )
+         IList<string> recordIds,
+         CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetDeleteRecordsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId,
                 RecordIdList = recordIds
@@ -673,44 +662,44 @@ namespace LocalDataApi.Services
         public async Task<CgibinWedocSmartSheetUpdateRecordsResponse> UpdateSmartSheetRecordsAsync(
          string docId,
          string? sheetId,
-         IList<CgibinWedocSmartSheetUpdateRecordsRequest.Types.Record> recordList
-         )
+         IList<CgibinWedocSmartSheetUpdateRecordsRequest.Types.Record> recordList,
+         CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetUpdateRecordsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId,
-                KeyType= "CELL_VALUE_KEY_TYPE_FIELD_ID",
+                KeyType = "CELL_VALUE_KEY_TYPE_FIELD_ID",
                 RecordList = recordList
             };
             return await _client.ExecuteCgibinWedocSmartSheetUpdateRecordsAsync(request);
         }
 
         // 获取默认子表的SheetId
-        public async Task<string> GetDefaultSheetIdAsync(string docId)
+        public async Task<string> GetDefaultSheetIdAsync(string docId, CancellationToken ct = default)
         {
-            var sheets = await GetSheetsAsync(docId);
-            var defaultSheet = sheets.FirstOrDefault(s => s.Type == "smartsheet"); // 筛选智能表类型
+            var sheets = await GetSheetsAsync(docId, ct);
+            var defaultSheet = sheets.FirstOrDefault(s => s.Type == "smartsheet");
 
             if (defaultSheet != null)
             {
                 return defaultSheet.SheetId;
             }
-            throw new Exception("未找到智能表格类型的子表");
+            throw new InvalidOperationException("未找到智能表格类型的子表");
         }
 
         // 获取智能表格指定子表的字段列表
         public async Task<CgibinWedocSmartSheetGetFieldsResponse> GetFieldsAsync(
             string docId,
-            string sheetId)
+            string sheetId,
+            CancellationToken ct = default)
         {
-            await GetAccessTokenAsync();
-
+            var accessToken = await _tokenProvider.GetAccessTokenAsync(ct);
             var request = new CgibinWedocSmartSheetGetFieldsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId
             };
@@ -757,7 +746,8 @@ namespace LocalDataApi.Services
                             string docId,
                             string sheetId,
                             List<string> missingFieldNames,
-                            Dictionary<string, string> fieldNameToInferredType)
+                            Dictionary<string, string> fieldNameToInferredType,
+                            string accessToken)
         {
             var fieldsToAdd = missingFieldNames
                 .Select(fieldName => CreateFieldWithDefaultProperties(fieldName, fieldNameToInferredType[fieldName]))
@@ -765,7 +755,7 @@ namespace LocalDataApi.Services
 
             var addFieldsRequest = new CgibinWedocSmartSheetAddFieldsRequest
             {
-                AccessToken = _accessToken,
+                AccessToken = accessToken,
                 DocumentId = docId,
                 SheetId = sheetId,
                 FieldList = fieldsToAdd
@@ -774,10 +764,9 @@ namespace LocalDataApi.Services
             var addFieldsResponse = await _client.ExecuteCgibinWedocSmartSheetAddFieldsAsync(addFieldsRequest);
             if (!addFieldsResponse.IsSuccessful())
             {
-                // 增强异常信息，包含具体的字段列表以便调试
                 var fieldNames = string.Join(", ", missingFieldNames);
                 throw new InvalidOperationException(
-                    $"创建字段失败 (字段: {fieldNames})。错误码: {addFieldsResponse.ErrorCode} - {addFieldsResponse.ErrorMessage}");
+                    $"创建字段失败 (字段: {fieldNames})。错误码: [{addFieldsResponse.ErrorCode}] {addFieldsResponse.ErrorMessage}");
             }
         }
 
@@ -1135,106 +1124,345 @@ namespace LocalDataApi.Services
 
         #endregion
 
-        #region  获取 AccessToken
+        #region Token 失效自动重试
 
-        // 获取 AccessToken 的方法（使用 SDK）
-        public async Task<string> GetAccessTokenAsync()
+        private async Task<TResponse> ExecuteWithTokenRefreshAsync<TResponse>(
+            Func<string, Task<TResponse>> action,
+            CancellationToken ct)
+            where TResponse : WechatWorkResponse
         {
-            // 快速路径：如果现有 token 有效，直接返回
-            if (!string.IsNullOrEmpty(_accessToken) && _tokenExpireTime.HasValue && DateTime.Now < _tokenExpireTime.Value)
+            var token = await _tokenProvider.GetAccessTokenAsync(ct);
+            var response = await action(token);
+
+            if (response.ErrorCode == 42001 || response.ErrorCode == 40014)
             {
-                _logger.LogInformation("Token 未过期可用，值为{AccessToken}", _accessToken);
-                return _accessToken;
+                _logger.LogWarning("AccessToken 提前失效（错误码 {ErrorCode}），正在强制刷新...", response.ErrorCode);
+                await _tokenProvider.ForceRefreshAccessTokenAsync(ct);
+                token = await _tokenProvider.GetAccessTokenAsync(ct);
+                response = await action(token);
             }
 
-            var request = new CgibinGetTokenRequest();
-            var response = await _client.ExecuteCgibinGetTokenAsync(request);
-            if (response.IsSuccessful())
-            {
-                _accessToken = response.AccessToken;
-                _tokenExpireTime = DateTime.Now.AddSeconds(response.ExpiresIn).AddMinutes(-5);
-                _logger.LogInformation("Token 刷新成功，值为{AccessToken}, 有效期至 {ExpireTime}", _accessToken, _tokenExpireTime);
-                return _accessToken;
-            }
-            throw new Exception($"获取Token失败: {response.ErrorMessage}");
-        }
-
-
-        //手动实现获取 AccessToken 的方法（不使用 SDK，直接调用接口）
-        private async Task<string> GetAccessTokenAsync1()
-        {
-            // 如果已有有效 Token，直接返回
-            if (!string.IsNullOrEmpty(_accessToken) && _tokenExpireTime > DateTime.Now)
-            {
-                return _accessToken;
-            }
-
-            // 手动调用企业微信获取 Token 的接口
-            var corpId = _config["WechatWork:CorpId"];
-            var secret = _config["WechatWork:AgentSecret"];
-            var url = $"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpId}&corpsecret={secret}";
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            var response = await httpClient.GetAsync(url);
-            var content = await response.Content.ReadAsStringAsync();
-
-            // 解析响应（手动或使用 JsonDocument）
-            using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("access_token", out var tokenElement))
-            {
-                _accessToken = tokenElement.GetString();
-                var expiresIn = root.GetProperty("expires_in").GetInt32();
-                // 提前5分钟过期，避免边界问题
-                _tokenExpireTime = DateTime.Now.AddSeconds(expiresIn).AddMinutes(-5);
-                _logger.LogInformation("Token 刷新成功，有效期至 {ExpireTime}", _tokenExpireTime);
-                return _accessToken;
-            }
-            else
-            {
-                var errCode = root.GetProperty("errcode").GetInt32();
-                var errMsg = root.GetProperty("errmsg").GetString();
-                throw new Exception($"获取 Token 失败: {errCode} - {errMsg}");
-            }
+            return response;
         }
 
         #endregion
 
+        #region 群聊相关接口
 
-        
+        /// <summary>
+        /// 创建企业微信群聊并发送消息（一步完成）
+        /// </summary>
+        /// <param name="userIds">群成员 userid 列表，2-2000人（必须包含群主 userid）</param>
+        /// <param name="chatName">群聊名称，最多50个UTF-8字符</param>
+        /// <param name="ownerUserId">群主 userid（必须在 userList 中）</param>
+        /// <param name="content">消息内容</param>
+        /// <param name="msgType">消息类型，默认文本</param>
+        /// <param name="chatId">可选，自定义群聊ID（不传则系统自动生成），最长为32字符</param>
+        /// <param name="title">卡片标题，仅在 msgType 为 Card 时必填</param>
+        /// <param name="description">卡片描述，仅在 msgType 为 Card 时必填</param>
+        /// <param name="url">卡片跳转链接，仅在 msgType 为 Card 时必填</param>
+        /// <param name="buttonText">卡片按钮文字，仅在 msgType 为 Card 时有效，默认"查看详情"</param>
+        /// <returns>包含创建结果和发送结果的元组</returns>
+        public async Task<(CgibinAppChatCreateResponse CreateResult, CgibinAppChatSendResponse? SendResult)>
+            CreateChatAndSendMessageAsync(
+                List<string> userIds,
+                string chatName,
+                string ownerUserId,
+                string content,
+                WechatWorkMessageType msgType = WechatWorkMessageType.Text,
+                string? chatId = null,
+                string? title = null,
+                string? description = null,
+                string? url = null,
+                string? buttonText = null,
+                CancellationToken ct = default)
+        {
+            // 1. 创建群聊
+            var createResponse = await CreateGroupChatAsync(userIds, chatName, ownerUserId, chatId, ct);
+            if (!createResponse.IsSuccessful())
+            {
+                _logger.LogError("创建群聊失败: [{ErrorCode}] {ErrorMessage}",
+                    createResponse.ErrorCode, createResponse.ErrorMessage);
+                throw new InvalidOperationException(
+                    $"创建群聊失败: [{createResponse.ErrorCode}] {createResponse.ErrorMessage}");
+            }
+
+            _logger.LogInformation("群聊创建成功，ChatId: {ChatId}", createResponse.ChatId);
+
+            // 2. 向新建的群聊发送消息
+            var sendResponse = await SendMessageToGroupChatAsync(
+                createResponse.ChatId, content, msgType, title, description, url, buttonText, ct: ct);
+
+            if (!sendResponse.IsSuccessful())
+            {
+                _logger.LogError("向群聊 [{ChatId}] 发送消息失败: [{ErrorCode}] {ErrorMessage}",
+                    createResponse.ChatId, sendResponse.ErrorCode, sendResponse.ErrorMessage);
+            }
+            else
+            {
+                _logger.LogInformation("向群聊 [{ChatId}] 发送消息成功", createResponse.ChatId);
+            }
+
+            return (createResponse, sendResponse);
+        }
+
+        /// <summary>
+        /// 创建企业微信应用群聊
+        /// </summary>
+        /// <param name="userIds">群成员 userid 列表，2-2000人（必须包含群主）</param>
+        /// <param name="chatName">群聊名称，最多50个UTF-8字符</param>
+        /// <param name="ownerUserId">群主 userid（必须在 userList 中）</param>
+        /// <param name="chatId">可选，自定义群聊ID（不传则系统自动生成），最长为32字符</param>
+        public async Task<CgibinAppChatCreateResponse> CreateGroupChatAsync(
+            List<string> userIds,
+            string chatName,
+            string ownerUserId,
+            string? chatId = null,
+            CancellationToken ct = default)
+        {
+            if (userIds == null || userIds.Count < 2)
+                throw new ArgumentException("群聊至少需要2个成员", nameof(userIds));
+            if (string.IsNullOrWhiteSpace(chatName))
+                throw new ArgumentException("群聊名称不能为空", nameof(chatName));
+            if (string.IsNullOrWhiteSpace(ownerUserId))
+                throw new ArgumentException("群主不能为空", nameof(ownerUserId));
+
+            var distinctUsers = userIds.Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().ToList();
+
+            if (!distinctUsers.Contains(ownerUserId))
+            {
+                _logger.LogWarning("群主 {Owner} 不在成员列表中，已自动添加", ownerUserId);
+                distinctUsers.Add(ownerUserId);
+                distinctUsers = distinctUsers.Distinct().ToList();
+            }
+
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    var request = new CgibinAppChatCreateRequest
+                    {
+                        AccessToken = token,
+                        Name = chatName,
+                        OwnerUserId = ownerUserId,
+                        MemberUserIdList = distinctUsers,
+                        ChatId = chatId
+                    };
+                    return await _client.ExecuteCgibinAppChatCreateAsync(request);
+                }, ct);
+
+            if (!response.IsSuccessful())
+            {
+                _logger.LogError("创建群聊失败: [{ErrorCode}] {ErrorMessage}",
+                    response.ErrorCode, response.ErrorMessage);
+                return response;
+            }
+
+            // 创建成功后，将群聊信息持久化到数据库
+            await SaveGroupChatToDbAsync(response.ChatId, chatName, ownerUserId, distinctUsers);
+
+            return response;
+        }
+
+        /// <summary>
+        /// 从数据库获取所有群聊记录
+        /// </summary>
+        public async Task<List<WechatWorkGroupChat>> GetAllGroupChatsAsync(CancellationToken ct = default)
+        {
+            return await _context.企业微信群聊
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync(ct);
+        }
+
+        /// <summary>
+        /// 将群聊记录保存到数据库
+        /// </summary>
+        private async Task SaveGroupChatToDbAsync(
+            string chatId,
+            string chatName,
+            string ownerUserId,
+            List<string> memberUserIds)
+        {
+            try
+            {
+                // 检查是否已存在（防重复）
+                var exists = await _context.企业微信群聊.AnyAsync(c => c.ChatId == chatId);
+                if (exists)
+                {
+                    _logger.LogInformation("群聊 [{ChatId}] 已在数据库中存在，跳过保存", chatId);
+                    return;
+                }
+
+                _context.企业微信群聊.Add(new WechatWorkGroupChat
+                {
+                    编号=Guid.NewGuid().ToString("N"),
+                    ChatId = chatId,
+                    Name = chatName,
+                    OwnerUserId = ownerUserId,
+                    MemberUserIds = string.Join(",", memberUserIds),
+                    CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                });
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("群聊 [{ChatId}] 已保存到数据库", chatId);
+            }
+            catch (Exception ex)
+            {
+                // 数据库保存失败不影响群聊创建结果
+                _logger.LogWarning(ex, "保存群聊 [{ChatId}] 到数据库失败，但群聊已创建成功", chatId);
+            }
+        }
+
+        /// <summary>
+        /// 向已有企业微信群聊发送消息
+        /// </summary>
+        /// <param name="chatId">群聊ID</param>
+        /// <param name="content">消息内容（文本/Markdown 内容）</param>
+        /// <param name="msgType">消息类型（支持 Text / Markdown / Card）</param>
+        /// <param name="title">卡片标题，仅在 msgType 为 Card 时必填</param>
+        /// <param name="description">卡片描述，仅在 msgType 为 Card 时必填</param>
+        /// <param name="url">卡片跳转链接，仅在 msgType 为 Card 时必填</param>
+        /// <param name="buttonText">卡片按钮文字，仅在 msgType 为 Card 时有效，默认"查看详情"</param>
+        public async Task<CgibinAppChatSendResponse> SendMessageToGroupChatAsync(
+            string chatId,
+            string content,
+            WechatWorkMessageType msgType,
+            string? title = null,
+            string? description = null,
+            string? url = null,
+            string? buttonText = null,
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(chatId))
+                throw new ArgumentException("群聊ID不能为空", nameof(chatId));
+            if (string.IsNullOrWhiteSpace(content))
+                throw new ArgumentException("消息内容不能为空", nameof(content));
+
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    var request = new CgibinAppChatSendRequest
+                    {
+                        AccessToken = token,
+                        ChatId = chatId
+                    };
+
+                    switch (msgType)
+                    {
+                        case WechatWorkMessageType.Text:
+                            request.MessageType = "text";
+                            request.MessageContentAsText = new CgibinAppChatSendRequest.Types.TextMessage
+                            {
+                                Content = content
+                            };
+                            break;
+
+                        case WechatWorkMessageType.Markdown:
+                            request.MessageType = "markdown";
+                            request.MessageContentAsMarkdown = new CgibinAppChatSendRequest.Types.MarkdownMessage
+                            {
+                                Content = content
+                            };
+                            break;
+
+                        case WechatWorkMessageType.Card:
+                            if (string.IsNullOrWhiteSpace(title))
+                                throw new ArgumentException("发送卡片消息时 title 不能为空", nameof(title));
+                            if (string.IsNullOrWhiteSpace(description))
+                                throw new ArgumentException("发送卡片消息时 description 不能为空", nameof(description));
+                            if (string.IsNullOrWhiteSpace(url))
+                                throw new ArgumentException("发送卡片消息时 url 不能为空", nameof(url));
+                            request.MessageType = "textcard";
+                            request.MessageContentAsTextCard = new CgibinAppChatSendRequest.Types.TextCardMessage
+                            {
+                                Title = title,
+                                Description = description,
+                                Url = url,
+                                ButtonText = buttonText ?? "查看详情"
+                            };
+                            break;
+
+                        default:
+                            throw new NotSupportedException($"群聊消息不支持的类型: {msgType}");
+                    }
+
+                    return await _client.ExecuteCgibinAppChatSendAsync(request);
+                }, ct);
+
+            if (!response.IsSuccessful())
+            {
+                _logger.LogError("向群聊 [{ChatId}] 发送消息失败: [{ErrorCode}] {ErrorMessage}",
+                    chatId, response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
+        }
+
+        /// <summary>
+        /// 向已有企业微信群聊发送文本卡片消息
+        /// </summary>
+        /// <param name="chatId">群聊ID</param>
+        /// <param name="title">卡片标题</param>
+        /// <param name="description">卡片描述</param>
+        /// <param name="url">点击后跳转的链接</param>
+        /// <param name="buttonText">按钮文字，默认"查看详情"</param>
+        public async Task<CgibinAppChatSendResponse> SendMessageToGroupChatAsCardAsync(
+            string chatId,
+            string title,
+            string description,
+            string url,
+            string buttonText = "查看详情",
+            CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(chatId))
+                throw new ArgumentException("群聊ID不能为空", nameof(chatId));
+            if (string.IsNullOrWhiteSpace(title))
+                throw new ArgumentException("卡片标题不能为空", nameof(title));
+            if (string.IsNullOrWhiteSpace(description))
+                throw new ArgumentException("卡片描述不能为空", nameof(description));
+            if (string.IsNullOrWhiteSpace(url))
+                throw new ArgumentException("跳转链接不能为空", nameof(url));
+
+            var response = await ExecuteWithTokenRefreshAsync(
+                async token =>
+                {
+                    var request = new CgibinAppChatSendRequest
+                    {
+                        AccessToken = token,
+                        ChatId = chatId,
+                        MessageType = "textcard",
+                        MessageContentAsTextCard = new CgibinAppChatSendRequest.Types.TextCardMessage
+                        {
+                            Title = title,
+                            Description = description,
+                            Url = url,
+                            ButtonText = buttonText
+                        }
+                    };
+
+                    return await _client.ExecuteCgibinAppChatSendAsync(request);
+                }, ct);
+
+            if (!response.IsSuccessful())
+            {
+                _logger.LogError("向群聊 [{ChatId}] 发送卡片消息失败: [{ErrorCode}] {ErrorMessage}",
+                    chatId, response.ErrorCode, response.ErrorMessage);
+            }
+
+            return response;
+        }
+
+        #endregion
 
         /// <summary>获取企业微信 JS-SDK 的 jsapi_ticket</summary>
-        public async Task<string> GetJsApiTicketAsync()
+        public async Task<string> GetJsApiTicketAsync(CancellationToken ct = default)
         {
-            if (!string.IsNullOrEmpty(_jsApiTicket) && _ticketExpireTime.HasValue && DateTime.Now < _ticketExpireTime.Value)
-            {
-                return _jsApiTicket;
-            }
-
-            var token = await GetAccessTokenAsync();
-            using var httpClient = _httpClientFactory.CreateClient();
-            var response = await httpClient.GetAsync(
-                $"https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket?access_token={token}");
-            var content = await response.Content.ReadAsStringAsync();
-            using var doc = System.Text.Json.JsonDocument.Parse(content);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("ticket", out var ticketElement))
-            {
-                _jsApiTicket = ticketElement.GetString();
-                var expiresIn = root.GetProperty("expires_in").GetInt32();
-                _ticketExpireTime = DateTime.Now.AddSeconds(expiresIn).AddMinutes(-5);
-                return _jsApiTicket!;
-            }
-
-            var errMsg = root.TryGetProperty("errmsg", out var em) ? em.GetString() : "未知错误";
-            throw new Exception($"获取JsApiTicket失败: {errMsg}");
+            return await _tokenProvider.GetJsApiTicketAsync(ct);
         }
 
         /// <summary>生成前端 wx.config 所需的签名配置</summary>
-        public async Task<JsSdkConfig> GetJsSdkConfigAsync(string url)
+        public async Task<JsSdkConfig> GetJsSdkConfigAsync(string url, CancellationToken ct = default)
         {
-            var ticket = await GetJsApiTicketAsync();
+            var ticket = await _tokenProvider.GetJsApiTicketAsync(ct);
             var timestamp = DateTimeOffset.Now.ToUnixTimeSeconds();
             var nonceStr = Guid.NewGuid().ToString("N")[..16];
 

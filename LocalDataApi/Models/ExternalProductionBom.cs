@@ -11,7 +11,19 @@ namespace LocalDataApi.Models
         public string? 层 { get; set; }
         public string? 品名 { get; set; }
         public string? 规格 { get; set; }
+        //分析单号
         public string? 关联编号 { get; set; }
         public string? 父级编号 { get; set; }
+
+        public string? 用量 { get; set; }
+        public string? 仓库名称 { get; set; }
+
+        public string? 仓库数 { get; set; }
+
+        public string? 生产数 { get; set; }
+
+        public string? 分析单号 { get; set; }
+
+        public string ?交货日期{get;set;}
     }
 }

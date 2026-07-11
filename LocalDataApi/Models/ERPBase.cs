@@ -1,4 +1,7 @@
-﻿namespace LocalDataApi.Models
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace LocalDataApi.Models
 {
     public class ERPBase
     {
@@ -25,4 +28,21 @@
         public string? usercode { get; set; }
       
     }
+
+    /// <summary>
+    /// 控制ID表
+    /// </summary>
+
+    public class ERPId
+    {
+        public int ID { get; set; }
+
+        public string? userid { get; set; }
+
+        public string? tablecode { get; set; }
+
+        public string? tablename { get; set; }
+
+        public int? currentcount { get; set; }
+    }    
 }

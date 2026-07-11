@@ -1,5 +1,6 @@
 ﻿using Azure;
 using LocalDataApi.Dto;
+using LocalDataApi.Models;
 using LocalDataApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using SKIT.FlurlHttpClient.Wechat.Work;
@@ -26,49 +27,64 @@ namespace LocalDataApi.Controllers
         /// <param name="departmentId">部门ID，默认根部门(1)</param>
         /// <returns></returns>
         [HttpPost("users")]
-        public async Task<IActionResult> GetUsers(DepartmentRequestDto departmentRequest)
+        public async Task<ActionResult<ApiResponse<object>>> GetUsers([FromBody] DepartmentRequestDto departmentRequest)
         {
-            var response = await _wechatWorkService.GetDepartmentUsersAsync(departmentRequest.DepartmentId);
-            if (response.IsSuccessful())
+            try
             {
-                return Ok(new ApiResponse<object>
+                var response = await _wechatWorkService.GetDepartmentUsersAsync(departmentRequest.DepartmentId);
+                if (response.IsSuccessful())
                 {
-                    Success = true,
-                    Message = "用户列表查询成功！",
-                    Data = response.UserList,
+                    return Ok(new ApiResponse<object>
+                    {
+                        Success = true,
+                        Message = "用户列表查询成功！",
+                        Data = response.UserList,
+                    });
+                }
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"[{response.ErrorCode}] {response.ErrorMessage}",
+                    Data = new { response.ErrorCode, response.ErrorMessage }
                 });
             }
-            return BadRequest(new ApiResponse<object>
+            catch (Exception ex)
             {
-                Success = false,
-                Message = response.ErrorMessage
-            });
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
         }
 
         [HttpGet("departments")]
-        public async Task<IActionResult> GetDepartments()
+        public async Task<ActionResult<ApiResponse<object>>> GetDepartments()
         {
-            var response = await _wechatWorkService.GetDepartmentsAsync();
-            if (response.IsSuccessful())
+            try
             {
-                // 2. 转换为树形结构
-                var tree = _wechatWorkService.BuildDepartmentTree(response.DepartmentList.ToList());
-                return Ok(new ApiResponse<object>
+                var response = await _wechatWorkService.GetDepartmentsAsync();
+                if (response.IsSuccessful())
                 {
-                    Success = true,
-                    Message = "部门列表查询成功！",
-                    Data = tree,
+                    var tree = _wechatWorkService.BuildDepartmentTree(response.DepartmentList.ToList());
+                    return Ok(new ApiResponse<object>
+                    {
+                        Success = true,
+                        Message = "部门列表查询成功！",
+                        Data = tree,
+                    });
+                }
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"[{response.ErrorCode}] {response.ErrorMessage}",
+                    Data = new { response.ErrorCode, response.ErrorMessage }
                 });
             }
-            return BadRequest(new ApiResponse<object>
+            catch (Exception ex)
             {
-                Success = false,
-                Message = response.ErrorMessage
-            });
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
         }
 
         [HttpPost("send")]
-        public async Task<IActionResult> SendMessage(SendMessageDto dto)
+        public async Task<ActionResult<ApiResponse<object>>> SendMessage(SendMessageDto dto)
         {
             try
             {
@@ -105,7 +121,7 @@ namespace LocalDataApi.Controllers
         }
 
         [HttpPost("sendCardMessage")]
-        public async Task<IActionResult> SendCardMessage(SendMessageDto dto)
+        public async Task<ActionResult<ApiResponse<object>>> SendCardMessage(SendMessageDto dto)
         {
             try
             {
@@ -115,7 +131,6 @@ namespace LocalDataApi.Controllers
                     title: dto.Title,
                     description: dto.Description, // 卡片描述
                     url: dto.Url
-                //url : "https://doc.weixin.qq.com/smartsheet/s3_AZcA3AYLALECN3AVCeR8AT1qu2tpw?scode=ADYAtQdGAGoovltNZDAZcA3AYLALE&version=5.0.6.6028&platform=win&tab=db_qj1WYl"
                 );
 
                 if (response.IsSuccessful())
@@ -145,7 +160,7 @@ namespace LocalDataApi.Controllers
 
 
         [HttpPost("createSmartSheet")]
-        public async Task<IActionResult> CreateSmartSheet(CreateSmartSheetDto createDto)
+        public async Task<ActionResult<ApiResponse<object>>> CreateSmartSheet(CreateSmartSheetDto createDto)
         {
             var response = await _wechatWorkService.CreateDocumentAsync(createDto.Title, createDto.AdminUserIds);
             if (response.IsSuccessful())
@@ -166,7 +181,7 @@ namespace LocalDataApi.Controllers
 
 
         [HttpPost("addSmartSheetRecord")]
-        public async Task<IActionResult> AddSmartSheetRecord(string docId, string? sheetId)
+        public async Task<ActionResult<ApiResponse<object>>> AddSmartSheetRecord(string docId, string? sheetId)
         {
             var records = new List<IDictionary<string, object>>
                             {
@@ -199,7 +214,7 @@ namespace LocalDataApi.Controllers
         }
 
         [HttpPost("getSmartSheetRecord")]
-        public async Task<IActionResult> getSmartSheetRecord(string docId, string? sheetId)
+        public async Task<ActionResult<ApiResponse<object>>> getSmartSheetRecord(string docId, string? sheetId)
         {
           
             var response = await _wechatWorkService.GetSmartSheetRecordsAsync(docId, sheetId);
@@ -219,8 +234,146 @@ namespace LocalDataApi.Controllers
             });
         }
 
+        /// <summary>
+        /// 创建企业微信群聊并发送消息
+        /// </summary>
+        [HttpPost("createChatAndSend")]
+        public async Task<ActionResult<ApiResponse<object>>> CreateChatAndSendMessage(GroupChatMessageDto dto)
+        {
+            try
+            {
+                var (createResult, sendResult) = await _wechatWorkService.CreateChatAndSendMessageAsync(
+                    userIds: dto.UserIds,
+                    chatName: dto.ChatName,
+                    ownerUserId: dto.OwnerUserId,
+                    content: dto.Content,
+                    msgType: dto.MsgType,
+                    chatId: dto.ChatId,
+                    title: dto.Title,
+                    description: dto.Description,
+                    url: dto.Url,
+                    buttonText: dto.ButtonText
+                );
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "群聊创建成功，消息已发送",
+                    Data = new
+                    {
+                        ChatId = createResult.ChatId,
+                        CreateResult = createResult,
+                        SendResult = sendResult
+                    }
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 向已有的企业微信群聊发送消息
+        /// </summary>
+        [HttpPost("sendToGroupChat")]
+        public async Task<ActionResult<ApiResponse<object>>> SendMessageToGroupChat(GroupChatMessageDto dto)
+        {
+            try
+            {
+                var response = await _wechatWorkService.SendMessageToGroupChatAsync(
+                    chatId: dto.ChatId,
+                    content: dto.Content,
+                    msgType: dto.MsgType,
+                    title: dto.Title,
+                    description: dto.Description,
+                    url: dto.Url,
+                    buttonText: dto.ButtonText
+                );
+
+                if (response.IsSuccessful())
+                {
+                    return Ok(new ApiResponse<object>
+                    {
+                        Success = true,
+                        Message = "消息发送成功",
+                        Data = response
+                    });
+                }
+
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"发送失败: [{response.ErrorCode}] {response.ErrorMessage}",
+                    Data = response
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (NotSupportedException ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取所有已创建的群聊列表（从数据库查询）
+        /// </summary>
+        [HttpGet("groupChats")]
+        public async Task<ActionResult<ApiResponse<object>>> GetGroupChats()
+        {
+            try
+            {
+                var chats = await _wechatWorkService.GetAllGroupChatsAsync();
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = $"查询成功，共 {chats.Count} 个群聊",
+                    Data = chats
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
         [HttpPost("createSmartSheetAndNotify")]
-        public async Task<IActionResult> CreateSmartSheetAndNotify(CreateAndNotifyDto dto)
+        public async Task<ActionResult<ApiResponse<object>>> CreateSmartSheetAndNotify(CreateAndNotifyDto dto)
         {
             try
             {

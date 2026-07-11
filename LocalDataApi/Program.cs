@@ -1,4 +1,4 @@
-﻿using LocalDataApi.Data;
+using LocalDataApi.Data;
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using LocalDataApi.WeChatWork;
@@ -43,7 +43,16 @@ builder.Services.AddDbContext<AppDbContext>
     (options =>
     {
         options.UseSqlServer(connectionString,
-            sqlOptions => sqlOptions.MaxBatchSize(maxBatchSize));
+            sqlOptions =>
+            {
+                sqlOptions.MaxBatchSize(maxBatchSize);
+                // 启用连接弹性（连接失败自动重试）
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,           // 最多重试 5 次
+                    maxRetryDelay: TimeSpan.FromSeconds(10),  // 每次重试间隔最大 10 秒
+                    errorNumbersToAdd: null);   // 要额外处理的 SQL 错误号（null 用默认）
+                sqlOptions.CommandTimeout(120); // 命令超时设置为 120 秒
+            });
         // 在开发环境启用敏感数据日志，便于调试
         if (builder.Environment.IsDevelopment())
         {
@@ -52,6 +61,7 @@ builder.Services.AddDbContext<AppDbContext>
     });
 builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
 builder.Services.AddScoped<IPMCService, PMCService>();
+builder.Services.AddScoped<ERPBaseService>();
 
 // ========== 3. 企业微信客户端配置 ==========
 // 3.1 读取配置并验证（如果值为空，可提前抛出异常或日志）
@@ -74,8 +84,10 @@ builder.Services.AddSingleton(new WechatWorkClient(new WechatWorkClientOptions
     AgentId = wechatWorkOptions.AgentId,
     AgentSecret = wechatWorkOptions.AgentSecret
 }));
-//// 3.3 注册自定义服务
-builder.Services.AddSingleton<WeChatWorkService>();
+// 3.3 注册 Token 提供者（单例，线程安全）
+builder.Services.AddSingleton<WechatWorkTokenProvider>();
+// 3.4 注册自定义服务
+builder.Services.AddScoped<WeChatWorkService>();
 
 /// 配置控制器和JSON选项
 builder.Services.AddControllers()
