@@ -20,11 +20,12 @@ namespace LocalDataApi.Services
         Task<List<PMCSalesControl>> GetPMCSalesControlList(string? number);
         Task<ProductData?> GetProductData(string? itemNo);
 
-        Task<List<SchedulingAnalysisDto>> ConvertToSchedulingAnalysisList(PMCRequestDto request);
+        Task<List<SchedulingAnalysisDto>> GetSchedulingAnalysisList(PMCRequestDto request);
         Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto requestDto);
         #region 工单销控表
         Task<List<WorkOrderSalesControl>> GetWorkOrderSalesControlList(string? itemNo);
         Task<List<WorkOrderSalesControl>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list);
+        Task DeleteWorkOrderSalesControlList(List<string> ids);
         #endregion
 
         #region 工单销控表明细

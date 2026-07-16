@@ -285,7 +285,7 @@ namespace LocalDataApi.Controllers
         {
             try
             {
-                var productData = await _pmcService.ConvertToSchedulingAnalysisList(requestDto);
+                var productData = await _pmcService.GetSchedulingAnalysisList(requestDto);
                 return Ok(new ApiResponse<object>
                 {
                     Success = true,
@@ -339,6 +339,31 @@ namespace LocalDataApi.Controllers
                     Success = true,
                     Message = "查询成功！",
                     Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = $"错误提示：{e.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 批量删除工单销控表数据
+        /// </summary>
+        [HttpPost("DeleteWorkOrderSalesControlList")]
+        public async Task<ActionResult<ApiResponse<object>>> DeleteWorkOrderSalesControlList(List<string> ids)
+        {
+            try
+            {
+                await _pmcService.DeleteWorkOrderSalesControlList(ids);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "删除成功！"
                 });
             }
             catch (Exception e)

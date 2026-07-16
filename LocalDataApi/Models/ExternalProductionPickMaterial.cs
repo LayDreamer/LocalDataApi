@@ -10,5 +10,8 @@ namespace LocalDataApi.Models
         public string? 货号 { get; set; }
         public string? 需求量 { get; set; }
         public string? 出库数量 { get; set; }
+        public string? 分析单号 { get; set; }
+        public string? 父级编号 { get; set; }
+        public string ? 来源编号 { get; set; }
     }
 }

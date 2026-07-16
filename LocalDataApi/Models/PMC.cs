@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -127,6 +127,14 @@ namespace LocalDataApi.Models
         public string? 来源 { get; set; }
     }
 
+    //仓库信息
+    public class WarehouseInfo : ERPBase
+    {
+        public string? 名称 { get; set; }
+        public string? 仓库类型 { get; set; }
+        public string? 纳入需求计算 { get; set; }
+    }
+
 
     //在产需求量
     public class ProductionDemand
@@ -134,7 +142,7 @@ namespace LocalDataApi.Models
         public string? 货号 { get; set; }
         public string? 成品货号 { get; set; }
         public string? 排产编号 { get; set; }
-        public double? 需求量 { get; set; }
+        public double? 在产需求 { get; set; }
     }
 
     //在途数
@@ -143,7 +151,7 @@ namespace LocalDataApi.Models
         public string? 货号 { get; set; }
         public string? 成品货号 { get; set; }
         public string? 排产编号 { get; set; }
-        public double? 在产量 { get; set; }
+        public double? 在途数 { get; set; }
     }
 
     //外产_订单(信息交期评审)

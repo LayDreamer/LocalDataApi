@@ -24,6 +24,7 @@ namespace LocalDataApi.Data
         public DbSet<ProductData> 产品资料 { get; set; }
 
         public DbSet<WarehouseGoods> 仓库货品 { get; set; }
+        public DbSet<WarehouseInfo> 仓库信息 { get; set; }
         public DbSet<ProductDataAssembly> 产品资料装配 { get; set; }
 
         public DbSet<ProductDataAssemblyList> 产品资料装配清单 { get; set; }
@@ -133,6 +134,11 @@ namespace LocalDataApi.Data
             });
 
             modelBuilder.Entity<WarehouseGoods>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+
+            modelBuilder.Entity<WarehouseInfo>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });
