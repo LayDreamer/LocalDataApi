@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Newtonsoft.Json;
+using LocalDataApi.Utils;
 
 namespace LocalDataApi.Services
 {
@@ -118,6 +119,45 @@ namespace LocalDataApi.Services
                 var reviewedOrdersSet = new HashSet<string>(reviewedOrders.Where(x => x != null)!.Cast<string>());
                 // 提取查询需要的货号列表
                 var itemNos = userProductInfos.Select(e => e.货号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+
+                // 根据货号查询外销合同产品表中的排产用户：取实际完成日期有值且最近的第一个，构建 货号 -> 排产用户 字典
+                var schedulingUserDict = new Dictionary<string, string>();
+                if (itemNos.Count > 0)
+                {
+                    var productUsers = await _context.外销合同产品
+                        .AsNoTracking()
+                        .Where(e => !string.IsNullOrEmpty(e.货号)
+                            && !string.IsNullOrEmpty(e.排产用户)
+                            && !string.IsNullOrEmpty(e.实际完成日期))
+                        .WhereInBatchesAsync(itemNos, e => e.货号, e => new { e.货号, e.排产用户, e.实际完成日期 });
+
+                    // 每个货号取实际完成日期最近的一条对应的排产用户（日期为字符串，按序数比较降序）
+                    schedulingUserDict = productUsers
+                        .GroupBy(x => x.货号!)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.OrderByDescending(x => x.实际完成日期, StringComparer.Ordinal).First().排产用户!);
+                }
+
+                // 提前查询货号对应的合同号在外销合同基本信息中的生产类型，构建 合同号 -> 生产类型 字典
+                var contractNos = userProductInfos.Select(e => e.合同号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                var productionTypeDict = new Dictionary<string, string>();
+                if (contractNos.Count > 0)
+                {
+                    var contractInfos = await _context.外销合同基本信息
+                        .AsNoTracking()
+                        .Where(e => !string.IsNullOrEmpty(e.合同号))
+                        .WhereInBatchesAsync(contractNos, e => e.合同号, e => new { e.合同号, e.生产类型 });
+
+                    foreach (var info in contractInfos)
+                    {
+                        if (!string.IsNullOrEmpty(info.合同号))
+                        {
+                            productionTypeDict[info.合同号] = info.生产类型 ?? "";
+                        }
+                    }
+                }
+
                 var sourceInfoDict = new Dictionary<string, string>();
                 if (itemNos.Count > 0)
                 {
@@ -184,11 +224,13 @@ namespace LocalDataApi.Services
                         排产编号 = schedulingNumber,
                         交货日期 = item.货好日期,
                         数量 = item.数量,
+                        特殊要求=item.备注,                        
                         // 工单单号 = workOrder,
                         线圈货号 = coilNumber,
                         来源 = source,
+                        生产类型 = productionTypeDict.GetValueOrDefault(item.合同号) ?? "",                        
+                        排产用户 = schedulingUserDict.GetValueOrDefault(item.货号) ?? "",
                         状态 = "待评审",
-                        // 排产用户 = orderUser
                     };
                     data.Add(review);
                 }
@@ -226,25 +268,26 @@ namespace LocalDataApi.Services
             }
             else
             {
-                //创建新的排产分析单号
-                //var analysisNum = await GenerateAnalysisOrderNumberAsync(deliveryReview.排产用户);
-
-                // 创建排产分析单并保存到数据库
-                //  var scheduling = await SaveSchedulingAnalysisAsync(deliveryReview);
-
-                // 使用排产分析单的编号作为交期评审的编号
-                // deliveryReview.编号 = scheduling.编号; 
-
-                // deliveryReview.分析单号 = analysisNum;
-
                 deliveryReview.编号 = Guid.NewGuid().ToString();
                 deliveryReview.创建时间 = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
                 // 新增
                 await _context.外产_订单.AddAsync(deliveryReview);
             }
 
-            // 保存到数据库
+            // 如果状态为「评审驳回」，将备注作为驳回原因回写到外销合同客户产品（按 合同号+货号 匹配）
+            if (deliveryReview.状态 == "评审驳回")
+            {
+                var userProducts = await _context.外销合同客户产品
+                    .Where(e => e.合同号 == deliveryReview.合同号 && e.货号 == deliveryReview.货号)
+                    .ToListAsync();
+
+                foreach (var up in userProducts)
+                {
+                    up.驳回原因 = deliveryReview.备注;
+                }
+            }
+
+            // 一次性保存：主记录（新增/更新）与驳回原因回写，处于同一事务
             await _context.SaveChangesAsync();
 
             // 返回更新或新增后的实体（如果是更新，返回 existing 更准确）
@@ -305,17 +348,20 @@ namespace LocalDataApi.Services
 
             // 3. 查询产品和仓库数据
             var productTask = await _context.外销合同产品
-                .Where(p => contractNos.Contains(p.合同号) && allItemNos.Contains(p.货号))
                 .AsNoTracking()
-                .Select(p => new PMCProductInfo
-                {
-                    合同号 = p.合同号,
-                    货号 = p.货号,
-                    数量 = p.数量,
-                    发运数量 = p.发运数量,
-                    在产需求量 = p.在产需求量
-                })
-                .ToListAsync();
+                .WhereInBatchesAsync(
+                    allItemNos,
+                    p => p.货号,
+                    contractNos,
+                    p => p.合同号,
+                    p => new PMCProductInfo
+                    {
+                        合同号 = p.合同号,
+                        货号 = p.货号,
+                        数量 = p.数量,
+                        发运数量 = p.发运数量,
+                        在产需求量 = p.在产需求量
+                    });
 
             var warehouseTask = await _context.仓库货品
                 .Where(w => allItemNos.Contains(w.货号))
@@ -2211,10 +2257,6 @@ namespace LocalDataApi.Services
      
         #region 外产BOM
 
-        /// <summary>
-        /// 根据成品货号生成并保存外产BOM结构
-
-
         // public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(string? itemNo)
         // {
         //     var bomRecords = await GetExternalProductionBOM(itemNo);
@@ -2647,13 +2689,33 @@ namespace LocalDataApi.Services
                 return false;
             }
             var query = _context.产品资料.AsNoTracking()
-                .Where(p => (!string.IsNullOrEmpty(p.产品类别) && p.产品类别.StartsWith("线圈")) && p.停用 != "1")
+                .Where(p => !string.IsNullOrEmpty(p.产品类别) && p.产品类别.StartsWith("线圈") && p.停用 != "1")
                 .Where(p => p.货号 == keyword);
             if (!await query.AnyAsync())
             {
                 return false;
             }
             return true;
+        }
+
+        // 按关键字模糊查询产品资料中的线圈（货号包含 keyword 即可），最多返回 50 条
+        public async Task<List<ProductData>> SearchCoilsByKeyword(string? keyword)
+        {
+            var empty = new List<ProductData>();
+
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return empty;
+            }
+
+            var query = _context.产品资料.AsNoTracking()
+                .Where(p => !string.IsNullOrEmpty(p.产品类别) && p.产品类别.StartsWith("线圈") && p.停用 != "1")
+                .Where(p => !string.IsNullOrEmpty(p.货号) && p.货号.Contains(keyword!))
+                .OrderBy(p => p.货号)
+                .Take(50);
+
+            var list = await query.ToListAsync();
+            return list.Count == 0 ? empty : list;
         }
 
         #region BOM结构工序

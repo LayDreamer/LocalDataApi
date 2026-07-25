@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenchDataRequest.Types;
 
 namespace LocalDataApi.Models
@@ -25,6 +25,8 @@ namespace LocalDataApi.Models
         public string? 排产用户 { get; set; }
         public string? 状态 { get; set; }
 
+        public string? 实际完成日期 { get; set; }
+
         public string? 数量 { get; set; }
 
         public string? 发运数量 { get; set; }
@@ -49,19 +51,20 @@ namespace LocalDataApi.Models
         public string? 中文规格 { get; set; }
         public string? 电压 { get; set; }       
         public string? 序号 { get; set; } 
-        public string? 货好日期 { get; set; }     
+        public string? 货好日期 { get; set; } 
+        public string? 备注 { get; set; }     
+        public string? 驳回原因 { get; set; }     
     }
 
-
+    /// <summary>
+    /// 外销合同基本信息
+    /// </summary>
     public class PMCBasicInfo : ERPBase
     {
         public string? 合同号 { get; set; }
         public string? 合同状态 { get; set; }
-        public string? 客户公司 { get; set; }
-        public string? 签订日期 { get; set; }
-        public string? 交货日期 { get; set; }
         public string? 业务员 { get; set; }
-
+        public string? 生产类型 { get; set; }
     }
 
     /// <summary>
@@ -103,6 +106,8 @@ namespace LocalDataApi.Models
         public string? 单位 { get; set; }
 
         public string? 来源 { get; set; }
+
+        public string? 中间件 { get; set; }
     }
 
     //仓库货品
@@ -171,7 +176,8 @@ namespace LocalDataApi.Models
         public string? 线圈货号 { get; set; }
         public string? 电压 { get; set; }
         public string? 交货日期 { get; set; }
-        
+        public string? 生产类型 { get; set; }
+
         public string? 排产用户 { get; set; }
         public string? 状态 { get; set; } //待评审,评审通过,评审驳回
         public string? 物料货号 { get; set; }
@@ -255,6 +261,7 @@ namespace LocalDataApi.Models
         public string? 分析日期 { get; set; }
         public string? 生产完成率 { get; set; }
         public string? 层 { get; set; }
+        public string? 排产用户 { get; set; }
 
     }
 
@@ -274,6 +281,7 @@ namespace LocalDataApi.Models
         public string? 父级编号 { get; set; }
         public string? 分析单号 { get; set; }
 
+         public string? 排产用户 { get; set; }
     }   
 
     /// <summary>

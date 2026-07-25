@@ -13,6 +13,7 @@ namespace LocalDataApi.Services
         Task<List<PMCProductInfo>> GetPMCProductListInfo(PMCRequestDto request);
         Task<List<ProductDataAssemblyList>> GetProductDataAssemblyList(string? itemNo);
         Task<bool> SearchCoils(string? keyword);
+        Task<List<ProductData>> SearchCoilsByKeyword(string? keyword);
          Task<List<PMCDeliveryReview>> GetPMCDeliveryReviewList(PMCRequestDto request);      
         Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request);         
         Task<PMCDeliveryReview> AddPMCDeliveryReview(PMCDeliveryReview review);

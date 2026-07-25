@@ -46,6 +46,8 @@ builder.Services.AddDbContext<AppDbContext>
             sqlOptions =>
             {
                 sqlOptions.MaxBatchSize(maxBatchSize);
+                // 将内存集合翻译为 IN 常量列表而非 OPENJSON，兼容低版本 SQL Server（同时避免手写分批）
+                sqlOptions.TranslateParameterizedCollectionsToConstants();
                 // 启用连接弹性（连接失败自动重试）
                 sqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,           // 最多重试 5 次
@@ -88,6 +90,7 @@ builder.Services.AddSingleton(new WechatWorkClient(new WechatWorkClientOptions
 builder.Services.AddSingleton<WechatWorkTokenProvider>();
 // 3.4 注册自定义服务
 builder.Services.AddScoped<WeChatWorkService>();
+builder.Services.AddScoped<WeChatWorkLoginService>();
 
 /// 配置控制器和JSON选项
 builder.Services.AddControllers()
@@ -111,6 +114,14 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "API接口文档"
     });
+
+    // 加载 XML 注释文件，使 Swagger UI 显示控制器/接口的中文说明
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
 });
 
 builder.Services.AddCors(options =>

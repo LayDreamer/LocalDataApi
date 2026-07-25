@@ -125,6 +125,30 @@ namespace LocalDataApi.Controllers
         }
 
         /// <summary>
+        /// 按关键字模糊查询产品资料中的线圈（货号包含关键字即可），最多返回 50 条
+        /// </summary>
+        [HttpPost("SearchCoilsByKeyword")]
+        public async Task<ActionResult<ApiResponse<object>>> SearchCoilsByKeyword(PMCRequestDto requestDto)
+        {
+            if (string.IsNullOrWhiteSpace(requestDto.线圈货号))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "线圈货号（关键字）不能为空！"
+                });
+            }
+
+            var result = await _pmcService.SearchCoilsByKeyword(requestDto.线圈货号);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "查询成功！",
+                Data = result
+            });
+        }
+
+        /// <summary>
         /// 获取交期评审列表
         /// </summary>
         [HttpPost("PMCDeliveryReviewList")]
@@ -180,7 +204,7 @@ namespace LocalDataApi.Controllers
 
 
         /// <summary>
-        /// 
+        /// 新增成品销控表主表数据
         /// </summary>
         [HttpPost("AddPMCSalesControlList")]
         public async Task<ActionResult<ApiResponse<object>>> AddPMCSalesControlList()
@@ -201,6 +225,11 @@ namespace LocalDataApi.Controllers
             }
         }
 
+/// <summary>
+/// 获取成品销控表主表数据
+/// </summary>
+/// <param name="requestDto"></param>
+/// <returns></returns>
         [HttpPost("GetPMCSalesControlList")]
         public async Task<ActionResult<ApiResponse<object>>> GetPMCSalesControlList(PMCRequestDto requestDto)
         {
@@ -240,6 +269,12 @@ namespace LocalDataApi.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// 根据货号获取产品资料
+        /// </summary>
+        /// <param name="requestDto"></param>
+        /// <returns></returns>
         [HttpPost("GetPMCProductData")]
         public async Task<ActionResult<ApiResponse<object>>> GetPMCProductData(PMCRequestDto requestDto)
         {
@@ -280,6 +315,11 @@ namespace LocalDataApi.Controllers
             }
         }
 
+/// <summary>
+/// 获取排产分析列表
+/// </summary>
+/// <param name="requestDto"></param>
+/// <returns></returns>
         [HttpPost("SchedulingAnalysisList")]
         public async Task<ActionResult<ApiResponse<object>>> GetSchedulingAnalysisList(PMCRequestDto requestDto)
         {
@@ -947,7 +987,7 @@ namespace LocalDataApi.Controllers
         /// <summary>
         /// 获取所有BOM结构工序数据
         /// </summary>
-        [HttpGet("GetBOMStructureProcessList")]
+        [HttpPost("GetBOMStructureProcessList")]
         public async Task<ActionResult<ApiResponse<object>>> GetBOMStructureProcessList()
         {
             try

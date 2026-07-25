@@ -24,8 +24,6 @@ namespace LocalDataApi.Controllers
         /// <summary>
         /// 获取指定部门下的成员列表（包含详情）
         /// </summary>
-        /// <param name="departmentId">部门ID，默认根部门(1)</param>
-        /// <returns></returns>
         [HttpPost("users")]
         public async Task<ActionResult<ApiResponse<object>>> GetUsers([FromBody] DepartmentRequestDto departmentRequest)
         {
