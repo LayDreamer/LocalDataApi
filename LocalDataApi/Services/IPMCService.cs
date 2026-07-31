@@ -12,8 +12,10 @@ namespace LocalDataApi.Services
         /// <returns>返回PMC产品信息列表的异步任务</returns>
         Task<List<PMCProductInfo>> GetPMCProductListInfo(PMCRequestDto request);
         Task<List<ProductDataAssemblyList>> GetProductDataAssemblyList(string? itemNo);
+        Task<List<ProductDataAssemblyList>> GetProductDataAssemblyListByItemNo(string? itemNo);
         Task<bool> SearchCoils(string? keyword);
         Task<List<ProductData>> SearchCoilsByKeyword(string? keyword);
+        Task<List<ProductData>> SearchProductDataByKeyword(string? keyword);
          Task<List<PMCDeliveryReview>> GetPMCDeliveryReviewList(PMCRequestDto request);      
         Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request);         
         Task<PMCDeliveryReview> AddPMCDeliveryReview(PMCDeliveryReview review);

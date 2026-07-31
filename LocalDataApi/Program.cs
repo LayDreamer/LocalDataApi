@@ -64,6 +64,7 @@ builder.Services.AddDbContext<AppDbContext>
 builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
 builder.Services.AddScoped<IPMCService, PMCService>();
 builder.Services.AddScoped<ERPBaseService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // ========== 3. 企业微信客户端配置 ==========
 // 3.1 读取配置并验证（如果值为空，可提前抛出异常或日志）

@@ -33,6 +33,7 @@ namespace LocalDataApi.Data
 
         public DbSet<ERPId> tb_control_id { get; set; }
 
+        public DbSet<User> 用户管理 { get; set; }
         
         public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
         
@@ -125,6 +126,12 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<ERPId>(entity =>
             {
                 entity.HasKey(e => e.ID);
+            });
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.UserName).IsUnique();
             });
 
 

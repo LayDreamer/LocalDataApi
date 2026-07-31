@@ -1,4 +1,4 @@
-﻿namespace LocalDataApi.Dto
+namespace LocalDataApi.Dto
 {
     public class SchedulingAnalysisDto
     {
@@ -30,6 +30,8 @@
         public string? 生产数 { get; set; }
         public string? 采购数 { get; set; }
         public string? 生产损耗 { get; set; }
+        public string? 中间件 { get; set; }
+        public string? 配料数 { get; set; }
 
         public List<SchedulingAnalysisDto>? 子集 { get; set; }
     }

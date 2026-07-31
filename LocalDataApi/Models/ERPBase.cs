@@ -26,7 +26,7 @@ namespace LocalDataApi.Models
         public string? ID { get; set; }
         public string? username { get; set; }
         public string? usercode { get; set; }
-      
+        public string? upwd { get; set; }
     }
 
     /// <summary>

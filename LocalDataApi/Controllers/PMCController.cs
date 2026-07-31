@@ -101,6 +101,41 @@ namespace LocalDataApi.Controllers
         }
 
         /// <summary>
+        /// 根据货号获取产品资料装配清单中中间件等于 0 的记录
+        /// </summary>
+        [HttpPost("ProductDataAssemblyListByItemNo")]
+        public async Task<ActionResult<ApiResponse<object>>> GetProductDataAssemblyListByItemNo(PMCRequestDto requestDto)
+        {
+            if (string.IsNullOrWhiteSpace(requestDto.货号))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "货号不能为空！"
+                });
+            }
+
+            try
+            {
+                var result = await _pmcService.GetProductDataAssemblyListByItemNo(requestDto.货号);
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "服务器内部错误"
+                });
+            }
+        }
+
+        /// <summary>
         /// 检查线圈货号是否存在于装配清单中
         /// </summary>
         [HttpPost("CheckAssemblyList")]
@@ -140,6 +175,30 @@ namespace LocalDataApi.Controllers
             }
 
             var result = await _pmcService.SearchCoilsByKeyword(requestDto.线圈货号);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "查询成功！",
+                Data = result
+            });
+        }
+
+        /// <summary>
+        /// 按货号模糊查询产品资料（不区分线圈，货号包含关键字即可），最多返回 50 条
+        /// </summary>
+        [HttpPost("SearchProductDataByKeyword")]
+        public async Task<ActionResult<ApiResponse<object>>> SearchProductDataByKeyword(PMCRequestDto requestDto)
+        {
+            if (string.IsNullOrWhiteSpace(requestDto.货号))
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "货号不能为空！"
+                });
+            }
+
+            var result = await _pmcService.SearchProductDataByKeyword(requestDto.货号);
             return Ok(new ApiResponse<object>
             {
                 Success = true,
@@ -315,11 +374,11 @@ namespace LocalDataApi.Controllers
             }
         }
 
-/// <summary>
-/// 获取排产分析列表
-/// </summary>
-/// <param name="requestDto"></param>
-/// <returns></returns>
+        /// <summary>
+        /// 获取排产分析列表
+        /// </summary>
+        /// <param name="requestDto"></param>
+        /// <returns></returns>
         [HttpPost("SchedulingAnalysisList")]
         public async Task<ActionResult<ApiResponse<object>>> GetSchedulingAnalysisList(PMCRequestDto requestDto)
         {

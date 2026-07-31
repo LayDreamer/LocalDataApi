@@ -49,8 +49,8 @@ namespace LocalDataApi.Services
             if (!response.IsSuccessful())
             {
                 _logger.LogError(
-                    "获取部门列表失败: [{ErrorCode}] {ErrorMessage} (提示: 错误码 60011 表示服务器出口IP未配置可信IP)",
-                    response.ErrorCode, response.ErrorMessage);
+                    "获取部门列表失败: [{ErrorCode}] {ErrorMessage}。{ErrorHint}",
+                    response.ErrorCode, response.ErrorMessage, GetWechatWorkErrorHint(response.ErrorCode));
             }
 
             return response;
@@ -217,8 +217,8 @@ namespace LocalDataApi.Services
             if (!response.IsSuccessful())
             {
                 _logger.LogError(
-                    "获取部门成员失败: [{ErrorCode}] {ErrorMessage} (提示: 错误码 60011 表示服务器出口IP未配置可信IP)",
-                    response.ErrorCode, response.ErrorMessage);
+                    "获取部门成员失败: [{ErrorCode}] {ErrorMessage}。部门ID: {DepartmentId}, 是否递归子部门: {FetchChild}。{ErrorHint}",
+                    response.ErrorCode, response.ErrorMessage, departmentId, fetchChild, GetWechatWorkErrorHint(response.ErrorCode));
             }
 
             return response;
@@ -1143,6 +1143,21 @@ namespace LocalDataApi.Services
             }
 
             return response;
+        }
+
+        private static string GetWechatWorkErrorHint(int errorCode)
+        {
+            return errorCode switch
+            {
+                60020 => "提示: 当前服务器出口公网 IP 未配置到企业微信应用的可信 IP 白名单，请将错误信息中的 from ip 加入可信 IP，或固定后端出口 IP。",
+                60011 => "提示: 当前应用没有访问该成员、部门或标签的权限，请检查企业微信应用的可见范围、通讯录权限和所选部门 ID。",
+                40014 => "提示: AccessToken 不合法，系统已自动刷新并重试一次；若仍失败，请检查 CorpId、AgentId、AgentSecret 是否匹配当前企业微信应用。",
+                42001 => "提示: AccessToken 已过期，系统已自动刷新并重试一次；若仍失败，请检查服务器时间和 token 缓存。",
+                40013 => "提示: CorpId 可能无效，请检查 WechatWork:CorpId 配置。",
+                40001 => "提示: AgentSecret 可能错误，或 Secret 与当前 AgentId/CorpId 不匹配。",
+                60003 => "提示: 部门 ID 不存在，请检查前端传入的部门 ID 是否来自当前企业的部门列表。",
+                _ => "提示: 请根据企业微信返回的 errcode 排查应用权限、IP 白名单、参数和 token 状态。"
+            };
         }
 
         #endregion

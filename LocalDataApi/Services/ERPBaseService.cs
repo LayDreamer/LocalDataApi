@@ -127,5 +127,43 @@ namespace LocalDataApi.Services
             // 只保留数字
             return new string(workOrder.Where(char.IsDigit).ToArray());
         }
+
+        /// <summary>
+        /// 获取 tb_control_user 表中所有用户的 username 列表。
+        /// </summary>
+        /// <returns>username 字符串列表</returns>
+        public async Task<List<string>> GetAllUsersAsync()
+        {
+            return await _context.tb_control_user
+                .AsNoTracking()
+                .Select(u => u.username!)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// 校验 ERP 用户（tb_control_user）：按 username 定位，再比对 upwd。
+        /// 用户名不存在返回“用户名错误”，密码不匹配返回“密码错误”。
+        /// </summary>
+        /// <param name="username">登录用户名</param>
+        /// <param name="upwd">密码</param>
+        /// <returns>(是否成功, 提示信息, 匹配的用户)</returns>
+        public async Task<(bool Success, string Message, ERPUser? User)> ValidateUserAsync(string username, string upwd)
+        {
+            // 入参去除首尾空白，避免空格导致的匹配失败
+            var userNameTrim = (username ?? string.Empty).Trim();
+            var upwdTrim = (upwd ?? string.Empty).Trim();
+
+            var user = await _context.tb_control_user
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => (u.username ?? string.Empty).Trim() == userNameTrim);
+
+            if (user == null)
+                return (false, "用户名错误", null);
+
+            if ((user.upwd ?? string.Empty).Trim() != upwdTrim)
+                return (false, "密码错误", null);
+
+            return (true, "校验成功", user);
+        }
     }
 }
