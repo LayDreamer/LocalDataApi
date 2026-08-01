@@ -261,6 +261,49 @@ namespace LocalDataApi.Controllers
             }
         }
 
+        /// <summary>
+        /// 将已通过的交期评审退回待评审，并删除本次分析关联数据
+        /// </summary>
+        [HttpPost("ReturnDeliveryReview")]
+        public async Task<ActionResult<ApiResponse<ReturnDeliveryReviewResultDto>>> ReturnDeliveryReview(
+            ReturnDeliveryReviewRequestDto request)
+        {
+            try
+            {
+                var result = await _pmcService.ReturnDeliveryReview(request);
+                return Ok(new ApiResponse<ReturnDeliveryReviewResultDto>
+                {
+                    Success = true,
+                    Message = "已退回待评审",
+                    Data = result
+                });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ApiResponse<ReturnDeliveryReviewResultDto>
+                {
+                    Success = false,
+                    Message = e.Message
+                });
+            }
+            catch (ConflictException e)
+            {
+                return Conflict(new ApiResponse<ReturnDeliveryReviewResultDto>
+                {
+                    Success = false,
+                    Message = e.Message
+                });
+            }
+            catch (ValidationException e)
+            {
+                return BadRequest(new ApiResponse<ReturnDeliveryReviewResultDto>
+                {
+                    Success = false,
+                    Message = e.Message
+                });
+            }
+        }
+
 
         /// <summary>
         /// 新增成品销控表主表数据

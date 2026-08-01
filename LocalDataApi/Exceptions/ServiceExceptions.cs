@@ -28,4 +28,12 @@ namespace LocalDataApi.Exceptions
         {
         }
     }
+
+    public class ConflictException : ServiceException
+    {
+        public ConflictException(string message)
+            : base(message)
+        {
+        }
+    }
 }

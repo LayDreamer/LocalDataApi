@@ -300,6 +300,190 @@ namespace LocalDataApi.Services
             return existing ?? deliveryReview;
         }
 
+        public async Task<ReturnDeliveryReviewResultDto> ReturnDeliveryReview(ReturnDeliveryReviewRequestDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ReviewId))
+            {
+                throw new ValidationException("评审编号不能为空");
+            }
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                var review = await _context.外产_订单
+                    .FirstOrDefaultAsync(x => x.编号 == request.ReviewId);
+                if (review == null)
+                {
+                    throw new NotFoundException("评审记录不存在或已退回");
+                }
+                if (review.状态 != "评审通过")
+                {
+                    throw new ConflictException("仅评审通过的数据可以退回待评审");
+                }
+
+                var schedulingNo = review.排产编号 ?? string.Empty;
+                var schedulingAnalyses = string.IsNullOrWhiteSpace(schedulingNo)
+                    ? new List<SchedulingAnalysis>()
+                    : await _context.排产分析单.Where(x => x.排产编号 == schedulingNo).ToListAsync();
+                var analysisNos = schedulingAnalyses
+                    .Select(x => x.分析单号)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x!)
+                    .Distinct()
+                    .ToList();
+
+                var bomItems = analysisNos.Count == 0
+                    ? new List<ExternalProductionBOM>()
+                    : await _context.外产_BOM.Where(x => x.分析单号 != null && analysisNos.Contains(x.分析单号)).ToListAsync();
+                var details = await _context.工单销控表明细
+                    .Where(x => (!string.IsNullOrEmpty(schedulingNo) && x.排产编号 == schedulingNo)
+                        || (x.分析单号 != null && analysisNos.Contains(x.分析单号)))
+                    .ToListAsync();
+                var pickMaterials = analysisNos.Count == 0
+                    ? new List<ExternalProductionPickMaterial>()
+                    : await _context.外产_领料.Where(x => x.分析单号 != null && analysisNos.Contains(x.分析单号)).ToListAsync();
+                var warehousingItems = analysisNos.Count == 0
+                    ? new List<ExternalProductionWarehousing>()
+                    : await _context.外产_入库.Where(x => x.分析单号 != null && analysisNos.Contains(x.分析单号)).ToListAsync();
+                var productionItems = await _context.外产_生产
+                    .Where(x => (!string.IsNullOrEmpty(schedulingNo) && x.排产编号 == schedulingNo)
+                        || (x.分析单号 != null && analysisNos.Contains(x.分析单号)))
+                    .ToListAsync();
+                var shipmentItems = await _context.外产_发运
+                    .Where(x => (!string.IsNullOrEmpty(schedulingNo) && x.排产编号 == schedulingNo)
+                        || (x.分析单号 != null && analysisNos.Contains(x.分析单号)))
+                    .ToListAsync();
+
+                var blockers = new List<string>();
+                AddBlocker(blockers, "领料", pickMaterials.Select(x => x.出库数量));
+                AddBlocker(blockers, "入库", warehousingItems.Select(x => x.入库数量));
+                AddBlocker(blockers, "生产", productionItems.Select(x => x.生产数量));
+                AddBlocker(blockers, "发运", shipmentItems.Select(x => x.发运数量));
+                AddBlocker(blockers, "工单入库", details.Select(x => x.入库数));
+                if (blockers.Count > 0)
+                {
+                    throw new ConflictException($"该评审已产生下游实绩（{string.Join("、", blockers)}），不能退回");
+                }
+
+                var detailIds = details.Select(x => x.编号).Where(x => x != null).Select(x => x!).ToList();
+                var parentIds = details.Select(x => x.父级编号).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().ToList();
+                var workOrders = parentIds.Count == 0
+                    ? new List<WorkOrderSalesControl>()
+                    : await _context.工单销控表.Where(x => parentIds.Contains(x.编号)).ToListAsync();
+                var remainingParentIds = parentIds.Count == 0
+                    ? new HashSet<string>()
+                    : (await _context.工单销控表明细
+                        .Where(x => x.父级编号 != null && parentIds.Contains(x.父级编号)
+                            && (x.编号 == null || !detailIds.Contains(x.编号)))
+                        .Select(x => x.父级编号!)
+                        .Distinct()
+                        .ToListAsync())
+                        .ToHashSet();
+                var quantityByParent = details
+                    .Where(x => !string.IsNullOrWhiteSpace(x.父级编号))
+                    .GroupBy(x => x.父级编号!)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => ParseRequiredQuantity(x.生产数, "工单明细生产数")));
+
+                var updatedWorkOrderCount = 0;
+                var deletedWorkOrderCount = 0;
+                foreach (var workOrder in workOrders)
+                {
+                    var oldTotal = ParseRequiredQuantity(workOrder.工单总数, "工单总数");
+                    var returnedQuantity = quantityByParent.GetValueOrDefault(workOrder.编号 ?? string.Empty);
+                    var newTotal = Math.Max(0d, oldTotal - returnedQuantity);
+                    if (newTotal <= 0d && !remainingParentIds.Contains(workOrder.编号 ?? string.Empty))
+                    {
+                        _context.工单销控表.Remove(workOrder);
+                        deletedWorkOrderCount++;
+                        continue;
+                    }
+
+                    workOrder.工单总数 = FormatQuantity(newTotal);
+                    workOrder.在产数量 = FormatQuantity(Math.Max(0d, newTotal - ParseRequiredQuantity(workOrder.已入库数, "工单已入库数")));
+                    updatedWorkOrderCount++;
+                }
+
+                var productionIds = productionItems
+                    .Select(x => x.编号)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x!)
+                    .Distinct()
+                    .ToList();
+                var productionDeletedCount = productionIds.Count == 0
+                    ? 0
+                    : await _context.外产_生产
+                        .Where(x => productionIds.Contains(x.编号))
+                        .ExecuteDeleteAsync();
+                if (productionDeletedCount != productionIds.Count)
+                {
+                    throw new ConflictException("外产生产数据删除不完整，退回操作已回滚，请重试");
+                }
+
+                _context.外产_发运.RemoveRange(shipmentItems);
+                _context.外产_入库.RemoveRange(warehousingItems);
+                _context.外产_领料.RemoveRange(pickMaterials);
+                _context.工单销控表明细.RemoveRange(details);
+                _context.外产_BOM.RemoveRange(bomItems);
+                _context.排产分析单.RemoveRange(schedulingAnalyses);
+                _context.外产_订单.Remove(review);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return new ReturnDeliveryReviewResultDto
+                {
+                    ReviewId = request.ReviewId,
+                    SchedulingNo = schedulingNo,
+                    AnalysisNos = analysisNos,
+                    ReviewDeletedCount = 1,
+                    SchedulingAnalysisDeletedCount = schedulingAnalyses.Count,
+                    BomDeletedCount = bomItems.Count,
+                    WorkOrderDetailDeletedCount = details.Count,
+                    PickMaterialDeletedCount = pickMaterials.Count,
+                    WarehousingDeletedCount = warehousingItems.Count,
+                    ProductionDeletedCount = productionDeletedCount,
+                    ShipmentDeletedCount = shipmentItems.Count,
+                    WorkOrderUpdatedCount = updatedWorkOrderCount,
+                    WorkOrderDeletedCount = deletedWorkOrderCount
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+            });
+        }
+
+        private static void AddBlocker(List<string> blockers, string name, IEnumerable<string?> values)
+        {
+            if (values.Any(HasBusinessQuantity))
+            {
+                blockers.Add(name);
+            }
+        }
+
+        private static bool HasBusinessQuantity(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            return !double.TryParse(value, out var quantity) || quantity > 0d;
+        }
+
+        private static double ParseRequiredQuantity(string? value, string fieldName)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return 0d;
+            if (double.TryParse(value, out var quantity)) return quantity;
+            throw new ConflictException($"{fieldName}存在无法识别的数量，不能退回");
+        }
+
+        private static string FormatQuantity(double value)
+        {
+            return value.ToString("0.################", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         //PMC交期评审列表
         public async Task<List<PMCDeliveryReview>> GetPMCDeliveryReviewList(PMCRequestDto request)
         {
