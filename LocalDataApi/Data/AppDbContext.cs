@@ -55,17 +55,11 @@ namespace LocalDataApi.Data
 
         public DbSet<DeliveryPlan> 交货计划 { get; set; }
 
-        public DbSet<PMCSalesControl> 产品销控表 { get; set; }
-
         public DbSet<WorkOrderSalesControl> 工单销控表 { get; set; }
 
         public DbSet<WorkOrderSalesControlDetail> 工单销控表明细 { get; set; }
 
-        public DbSet<ProductSalesControlDetail> 成品销控表明细 { get; set; }
-
         public DbSet<BOMStructureProcess> BOM结构工序 { get; set; }
-
-        // public DbSet<PMCWorkOrder> 工单管理 { get; set; }
 
         public DbSet<ProductionDemand> 在产需求量 { get; set; }
        public DbSet<InTransitQuantity> 在途数 { get; set; }
@@ -141,11 +135,6 @@ namespace LocalDataApi.Data
             });
 
 
-            modelBuilder.Entity<PMCSalesControl>(entity =>
-            {
-                entity.HasKey(e => e.货号);
-            });
-
             modelBuilder.Entity<WarehouseGoods>(entity =>
             {
                 entity.HasKey(e => e.编号);
@@ -163,11 +152,6 @@ namespace LocalDataApi.Data
             });
 
             modelBuilder.Entity<WorkOrderSalesControlDetail>(entity =>
-            {
-                entity.HasKey(e => e.编号);
-            });
-
-            modelBuilder.Entity<ProductSalesControlDetail>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });

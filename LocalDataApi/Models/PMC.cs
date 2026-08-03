@@ -196,32 +196,6 @@ namespace LocalDataApi.Models
         public string? 排产编号 { get; set; }
     }
 
-    //产品销控表
-    public class PMCSalesControl : ERPBase
-    {
-        //合同号
-        public string? 合同号 { get; set; }
-        public string? 排产编号 { get; set; }
-        public string? 层 { get; set; }
-        public string? 货号 { get; set; }
-        public string? 中文品名 { get; set; }
-        public string? 中文规格 { get; set; }
-        public string? 分析单号 { get; set; }
-        public string? 父级货号 { get; set; }
-        public string? 物料货号 { get; set; }
-        public string? 订单总需求 { get; set; }
-
-        public string? 仓库数 { get; set; }
-
-        public string? 在产数 { get; set; }
-        public string? 初始可用量 { get; set; }
-
-        public string? 缺量 { get; set; }
-        public string? 交货计划 { get; set; }
-
-        public string? 商品属性 { get; set; }
-    }
-
     //交货计划
     public class DeliveryPlan : ERPBase
     {
@@ -283,24 +257,6 @@ namespace LocalDataApi.Models
         public string? 分析单号 { get; set; }
          public string? 排产用户 { get; set; }
     }   
-
-    /// <summary>
-    /// 成品销控表明细
-    /// </summary>
-    public class ProductSalesControlDetail : ERPBase
-    {
-        public string? 合同号 { get; set; }
-        public string? 业务员 { get; set; }
-        public string? 交货日期 { get; set; }
-        public string? 订单数量 { get; set; }
-        public string? 已发数量 { get; set; }
-        public string? 待发数量 { get; set; }
-        public string? 状态 { get; set; }
-        public string? 货号 { get; set; }
-        public string? 品名 { get; set; }
-        public string? 规格 { get; set; }
-        public string? 父级编号 { get; set; }
-    }
 
     /// <summary>
     /// BOM结构工序

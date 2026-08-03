@@ -20,9 +20,7 @@ namespace LocalDataApi.Services
         Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request);         
         Task<PMCDeliveryReview> AddPMCDeliveryReview(PMCDeliveryReview review);
         Task<ProductionTypeOverride> SaveProductionTypeOverride(ProductionTypeOverride overrideEntity);
-        Task<List<PMCSalesControl>> AddPMCSalesControlList();
         Task<ReturnDeliveryReviewResultDto> ReturnDeliveryReview(ReturnDeliveryReviewRequestDto request);
-        Task<List<PMCSalesControl>> GetPMCSalesControlList(string? number);
         Task<ProductData?> GetProductData(string? itemNo);
 
         Task<List<SchedulingAnalysisDto>> GetSchedulingAnalysisList(PMCRequestDto request);
@@ -37,17 +35,6 @@ namespace LocalDataApi.Services
         Task<List<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(string? itemNo);
         Task<List<WorkOrderSalesControlDetail>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list);
         Task DeleteWorkOrderSalesControlDetailList(List<string> ids);
-        #endregion
-
-        #region 成品销控表主表
-        /// 更新成品销控表主表 - 若总需求数=0，删除该货号在成品销控表及明细表中的所有记录
-        Task UpdatePMCSalesControl(string itemNo);
-        #endregion
-
-        #region 成品销控表明细
-        Task<List<ProductSalesControlDetail>> GetProductSalesControlDetailList(string? itemNo);
-        Task<List<ProductSalesControlDetail>> AddOrUpdateProductSalesControlDetailList(List<ProductSalesControlDetail> list);
-        Task DeleteProductSalesControlDetailList(List<string> ids);
         #endregion
 
         #region 外产发运
