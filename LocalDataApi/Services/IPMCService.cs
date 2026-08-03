@@ -19,6 +19,7 @@ namespace LocalDataApi.Services
          Task<List<PMCDeliveryReview>> GetPMCDeliveryReviewList(PMCRequestDto request);      
         Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request);         
         Task<PMCDeliveryReview> AddPMCDeliveryReview(PMCDeliveryReview review);
+        Task<ProductionTypeOverride> SaveProductionTypeOverride(ProductionTypeOverride overrideEntity);
         Task<List<PMCSalesControl>> AddPMCSalesControlList();
         Task<ReturnDeliveryReviewResultDto> ReturnDeliveryReview(ReturnDeliveryReviewRequestDto request);
         Task<List<PMCSalesControl>> GetPMCSalesControlList(string? number);

@@ -262,6 +262,37 @@ namespace LocalDataApi.Controllers
         }
 
         /// <summary>
+        /// 新增或修改生产类型覆盖（交期评审生产类型手动覆盖，按合同号+排产编号+货号匹配）
+        /// </summary>
+        [HttpPost("SaveProductionTypeOverride")]
+        public async Task<ActionResult<ApiResponse<object>>> SaveProductionTypeOverride(ProductionTypeOverride overrideEntity)
+        {
+            try
+            {
+                var result = await _pmcService.SaveProductionTypeOverride(overrideEntity);
+                if (result == null)
+                {
+                    return Ok(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "保存失败，未返回有效数据！"
+                    });
+                }
+
+                return Ok(new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = "保存成功！",
+                    Data = result
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest($"错误提示：{e.Message}");
+            }
+        }
+
+        /// <summary>
         /// 将已通过的交期评审退回待评审，并删除本次分析关联数据
         /// </summary>
         [HttpPost("ReturnDeliveryReview")]

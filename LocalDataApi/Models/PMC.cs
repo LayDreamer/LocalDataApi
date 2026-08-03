@@ -315,4 +315,17 @@ namespace LocalDataApi.Models
         public string? 执行日期 { get; set; }
         public string? 执行车间 { get; set; }
     }
+
+    /// <summary>
+    /// 生产类型覆盖（交期评审生产类型手动覆盖）
+    /// </summary>
+    public class ProductionTypeOverride : ERPBase
+    {
+        public string? 合同号 { get; set; }
+        public string? 排产编号 { get; set; }
+        public string? 货号 { get; set; }
+        public string? 生产类型 { get; set; }
+        public string? 修改人 { get; set; }
+        public string? 修改时间 { get; set; }
+    }
 }

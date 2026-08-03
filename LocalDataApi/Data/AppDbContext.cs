@@ -40,6 +40,8 @@ namespace LocalDataApi.Data
         // public DbSet<PMCDeliveryReview> 信息交期评审 { get; set; }
 
         public DbSet<PMCDeliveryReview> 外产_订单 { get; set; }
+
+        public DbSet<ProductionTypeOverride> 生产类型修改 { get; set; }
          
         public DbSet<ExternalProductionShipment> 外产_发运 { get; set; }
 
@@ -111,6 +113,10 @@ namespace LocalDataApi.Data
                 entity.HasKey(e => e.编号);
             });
             modelBuilder.Entity<PMCDeliveryReview>(entity =>
+            {
+                entity.HasKey(e => e.编号);
+            });
+            modelBuilder.Entity<ProductionTypeOverride>(entity =>
             {
                 entity.HasKey(e => e.编号);
             });

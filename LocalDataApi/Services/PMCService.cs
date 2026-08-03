@@ -158,6 +158,26 @@ namespace LocalDataApi.Services
                     }
                 }
 
+                // 提前查询生产类型修改表（交期评审生产类型手动覆盖），构建 (合同号,排产编号,货号) -> 生产类型 字典
+                var overrideDict = new Dictionary<(string, string, string), string>();
+                var overrideContracts = userProductInfos.Select(e => e.合同号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                var overrideSchedulingNos = userProductInfos.Select(e => $"{e.合同号}-{e.序号}").Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                var overrideItemNos = userProductInfos.Select(e => e.货号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                if (overrideContracts.Count > 0 && overrideSchedulingNos.Count > 0 && overrideItemNos.Count > 0)
+                {
+                    var overrides = await _context.生产类型修改
+                        .AsNoTracking()
+                        .WhereInBatchesAsync(overrideContracts, e => e.合同号, e => new { e.合同号, e.排产编号, e.货号, e.生产类型 });
+
+                    foreach (var o in overrides)
+                    {
+                        if (!string.IsNullOrEmpty(o.合同号) && !string.IsNullOrEmpty(o.排产编号) && !string.IsNullOrEmpty(o.货号))
+                        {
+                            overrideDict[(o.合同号!, o.排产编号!, o.货号!)] = o.生产类型 ?? "";
+                        }
+                    }
+                }
+
                 var sourceInfoDict = new Dictionary<string, string>();
                 if (itemNos.Count > 0)
                 {
@@ -228,7 +248,10 @@ namespace LocalDataApi.Services
                         // 工单单号 = workOrder,
                         线圈货号 = coilNumber,
                         来源 = source,
-                        生产类型 = productionTypeDict.GetValueOrDefault(item.合同号) ?? "",                        
+                        // 默认取外销合同基本信息的生产类型；若生产类型修改表存在 (合同号,排产编号,货号) 一致的记录，则以其覆盖
+                        // 注意：合同号或货号为 null/空 时不会匹配到覆盖表（overrideDict 仅收录非空记录），故保持原生产类型
+                        生产类型 = overrideDict.GetValueOrDefault((item.合同号 ?? "", schedulingNumber, item.货号 ?? ""),
+                            productionTypeDict.GetValueOrDefault(item.合同号) ?? ""),
                         排产用户 = schedulingUserDict.GetValueOrDefault(item.货号) ?? "",
                         状态 = "待评审",
                     };
@@ -298,6 +321,63 @@ namespace LocalDataApi.Services
 
             // 返回更新或新增后的实体（如果是更新，返回 existing 更准确）
             return existing ?? deliveryReview;
+        }
+
+        // 新增/修改生产类型覆盖（交期评审生产类型手动覆盖）
+        public async Task<ProductionTypeOverride> SaveProductionTypeOverride(ProductionTypeOverride overrideEntity)
+        {
+            if (overrideEntity == null)
+            {
+                throw new ArgumentNullException(nameof(overrideEntity), "生产类型覆盖信息不能为空");
+            }
+            if (string.IsNullOrWhiteSpace(overrideEntity.合同号))
+            {
+                throw new ArgumentException("合同号不能为空");
+            }
+            if (string.IsNullOrWhiteSpace(overrideEntity.排产编号))
+            {
+                throw new ArgumentException("排产编号不能为空");
+            }
+            if (string.IsNullOrWhiteSpace(overrideEntity.货号))
+            {
+                throw new ArgumentException("货号不能为空");
+            }
+
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // 按 合同号 + 排产编号 + 货号 匹配是否已存在
+            var existing = await _context.生产类型修改
+                .FirstOrDefaultAsync(x => x.合同号 == overrideEntity.合同号
+                    && x.排产编号 == overrideEntity.排产编号
+                    && x.货号 == overrideEntity.货号);
+
+            if (existing != null)
+            {
+                // 更新：仅覆盖业务字段，保留原有主键与创建时间
+                // （不能用 SetValues(overrideEntity)，否则会把 detach 实体的空 编号 写回，导致主键冲突）
+                existing.合同号 = overrideEntity.合同号;
+                existing.排产编号 = overrideEntity.排产编号;
+                existing.货号 = overrideEntity.货号;
+                existing.生产类型 = overrideEntity.生产类型;
+                existing.修改人 = overrideEntity.修改人;
+                existing.修改时间 = string.IsNullOrWhiteSpace(overrideEntity.修改时间) ? now : overrideEntity.修改时间;
+                if (string.IsNullOrWhiteSpace(existing.创建时间))
+                {
+                    existing.创建时间 = now;
+                }
+
+                _context.Entry(existing).State = EntityState.Modified;
+            }
+            else
+            {
+                overrideEntity.编号 = Guid.NewGuid().ToString();
+                overrideEntity.创建时间 = now;
+                await _context.生产类型修改.AddAsync(overrideEntity);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return existing ?? overrideEntity;
         }
 
         public async Task<ReturnDeliveryReviewResultDto> ReturnDeliveryReview(ReturnDeliveryReviewRequestDto request)
