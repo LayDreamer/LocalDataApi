@@ -162,6 +162,10 @@ namespace LocalDataApi.Models
     //外产_订单(信息交期评审)
     public class PMCDeliveryReview : ERPBase
     {
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[]? RowVersion { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public byte[]? ProductionTypeOverrideRowVersion { get; set; }
         //合同号
         public string? 合同号 { get; set; }
         public string? 排产编号 { get; set; }
@@ -219,6 +223,8 @@ namespace LocalDataApi.Models
     /// </summary>
     public class WorkOrderSalesControl : ERPBase
     {
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[]? RowVersion { get; set; }
         public string? 车间名称 { get; set; }
         public string? 工单单号 { get; set; }
         public string? 商品属性 { get; set; }
@@ -244,6 +250,8 @@ namespace LocalDataApi.Models
     /// </summary>
     public class WorkOrderSalesControlDetail : ERPBase
     {
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[]? RowVersion { get; set; }
         public string? 货号 { get; set; }
         public string? 品名 { get; set; }
         public string? 规格 { get; set; }
@@ -277,6 +285,8 @@ namespace LocalDataApi.Models
     /// </summary>
     public class ProductionTypeOverride : ERPBase
     {
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[]? RowVersion { get; set; }
         public string? 合同号 { get; set; }
         public string? 排产编号 { get; set; }
         public string? 货号 { get; set; }

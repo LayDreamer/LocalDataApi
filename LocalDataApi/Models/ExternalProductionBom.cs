@@ -25,5 +25,9 @@ namespace LocalDataApi.Models
         public string? 分析单号 { get; set; }
 
         public string ?交货日期{get;set;}
+        public string? 产品属性 { get; set; }
+        public string? 来源 { get; set; }
+        public string? 单位 { get; set; }
+        public string? 备注 { get; set; }
     }
 }

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Newtonsoft.Json;
 using LocalDataApi.Utils;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace LocalDataApi.Services
 {
@@ -14,19 +15,22 @@ namespace LocalDataApi.Services
     {
         private readonly AppDbContext _context;
         private readonly ERPBaseService _erpBaseService;
+        private readonly IMemoryCache _cache;
 
-        public PMCService(AppDbContext context, ERPBaseService erpBaseService)
+        public PMCService(AppDbContext context, ERPBaseService erpBaseService, IMemoryCache cache)
         {
             _context = context;
             _erpBaseService = erpBaseService;
+            _cache = cache;
         }
 
         // 获取外销合同产品列表(测试根据分析单号来获取)
-        public async Task<List<PMCProductInfo>> GetPMCProductListInfo(PMCRequestDto request)
+        public async Task<PagedResult<PMCProductInfo>> GetPMCProductListInfo(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外销合同产品
                 .AsNoTracking()
-                .Where(e => e.分析单号 == "PCZY126030646" && e.层 == "0")
+                .Where(e => e.层 == "0")
                 .AsQueryable();
             if (!string.IsNullOrEmpty(request.分析单号))
             {
@@ -49,20 +53,17 @@ namespace LocalDataApi.Services
                 query = query.Where(e => e.线圈 == request.线圈货号);
             }
 
-            var total = await query.CountAsync();
-
-            if (total == 0)
-            {
-                return new();
-            }
-            var data = await query.ToListAsync();
-            return data;
+            return await query
+                .OrderByDescending(e => e.创建时间)
+                .ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         #region PMC交期评审相关
 
         // 获取外销合同客户产品列表
-        public async Task<List<PMCUserProductInfo>> GetPMCUserProductInfoList(PMCRequestDto request)
+        public async Task<IReadOnlyList<PMCUserProductInfo>> GetPMCUserProductInfoList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外销合同客户产品
                .AsNoTracking()
@@ -77,23 +78,105 @@ namespace LocalDataApi.Services
             // 使用字符串比较来过滤日期
             query = query.Where(e => string.Compare(e.创建时间, sixMonthsAgoStr) >= 0);
 
-            // // 合同号过滤
-            // if (!string.IsNullOrEmpty(request.合同号))
-            // {
-            //     query = query.Where(e => e.合同号.Contains(request.合同号));
-            // }
+            // 必须在分页前排除已评审订单，否则页面条数和 Total 都会不准确。
+            query = query.Where(product => !_context.外产_订单.Any(order =>
+                order.状态 == "评审通过"
+                && order.排产编号 == product.合同号 + "-" + product.序号));
 
-            // 限制返回1000条数据
-            var data = await query.ToListAsync();
+            query = query.Where(product =>
+                _context.生产类型修改.Any(overrideItem =>
+                    overrideItem.合同号 == product.合同号
+                    && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                    && overrideItem.货号 == product.货号
+                    && (overrideItem.生产类型 == "普通订单" || overrideItem.生产类型 == "样品"))
+                || (!_context.生产类型修改.Any(overrideItem =>
+                        overrideItem.合同号 == product.合同号
+                        && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                        && overrideItem.货号 == product.货号)
+                    && _context.外销合同基本信息.Any(contract =>
+                        contract.合同号 == product.合同号
+                        && (contract.生产类型 == "普通订单" || contract.生产类型 == "样品"))));
+
+            if (!string.IsNullOrEmpty(request.合同号)) query = query.Where(e => e.合同号 == request.合同号);
+            if (!string.IsNullOrEmpty(request.货号)) query = query.Where(e => e.货号 == request.货号);
+            // 根据生产类型过滤：覆盖值优先，未覆盖时取外销合同基本信息中的生产类型
+            if (!string.IsNullOrEmpty(request.生产类型))
+            {
+                query = query.Where(product =>
+                    _context.生产类型修改.Any(overrideItem =>
+                        overrideItem.合同号 == product.合同号
+                        && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                        && overrideItem.货号 == product.货号
+                        && overrideItem.生产类型 == request.生产类型)
+                    || (!_context.生产类型修改.Any(overrideItem =>
+                            overrideItem.合同号 == product.合同号
+                            && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                            && overrideItem.货号 == product.货号)
+                        && _context.外销合同基本信息.Any(contract =>
+                            contract.合同号 == product.合同号
+                            && contract.生产类型 == request.生产类型)));
+            }
+
+            var data = await query
+                .OrderByDescending(e => e.创建时间)
+                .ThenBy(e => e.编号)
+                .ToPageItemsAsync(request, cancellationToken);
             return data;
         }
 
 
-        public async Task<List<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(PMCRequestDto request)
+        public async Task<PagedResult<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
-            // 参考 GetPMCUserProductInfoList 方法的实现
-            var userProductInfos = await GetPMCUserProductInfoList(request);
-            return await ConvertToPMCDeliveryReviewList(userProductInfos);
+            var sixMonthsAgoStr = DateTime.Now.AddMonths(-6).ToString("yyyy-MM-dd");
+            var countQuery = _context.外销合同客户产品.AsNoTracking()
+                .Where(e => string.Compare(e.创建时间, sixMonthsAgoStr) >= 0)
+                .Where(product => !_context.外产_订单.Any(order =>
+                    order.状态 == "评审通过"
+                    && order.排产编号 == product.合同号 + "-" + product.序号))
+                .Where(product =>
+                    _context.生产类型修改.Any(overrideItem =>
+                        overrideItem.合同号 == product.合同号
+                        && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                        && overrideItem.货号 == product.货号
+                        && (overrideItem.生产类型 == "普通订单" || overrideItem.生产类型 == "样品"))
+                    || (!_context.生产类型修改.Any(overrideItem =>
+                            overrideItem.合同号 == product.合同号
+                            && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                            && overrideItem.货号 == product.货号)
+                        && _context.外销合同基本信息.Any(contract =>
+                            contract.合同号 == product.合同号
+                            && (contract.生产类型 == "普通订单" || contract.生产类型 == "样品"))));
+            if (!string.IsNullOrEmpty(request.合同号)) countQuery = countQuery.Where(e => e.合同号 == request.合同号);
+            if (!string.IsNullOrEmpty(request.货号)) countQuery = countQuery.Where(e => e.货号 == request.货号);
+            // 根据生产类型过滤：覆盖值优先，未覆盖时取外销合同基本信息中的生产类型
+            if (!string.IsNullOrEmpty(request.生产类型))
+            {
+                countQuery = countQuery.Where(product =>
+                    _context.生产类型修改.Any(overrideItem =>
+                        overrideItem.合同号 == product.合同号
+                        && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                        && overrideItem.货号 == product.货号
+                        && overrideItem.生产类型 == request.生产类型)
+                    || (!_context.生产类型修改.Any(overrideItem =>
+                            overrideItem.合同号 == product.合同号
+                            && overrideItem.排产编号 == product.合同号 + "-" + product.序号
+                            && overrideItem.货号 == product.货号)
+                        && _context.外销合同基本信息.Any(contract =>
+                            contract.合同号 == product.合同号
+                            && contract.生产类型 == request.生产类型)));
+            }
+
+            var total = await countQuery.CountAsync(cancellationToken);
+            var userProductInfos = await GetPMCUserProductInfoList(request, cancellationToken);
+            var items = await ConvertToPMCDeliveryReviewList(userProductInfos.ToList());
+            return new PagedResult<PMCDeliveryReview>
+            {
+                Items = items,
+                Total = total,
+                Page = request.Page,
+                PageSize = request.PageSize
+            };
         }
 
         // 根据PMC客户产品列表转换为交期评审信息
@@ -109,16 +192,9 @@ namespace LocalDataApi.Services
                     return data;
                 }
 
-                // 查询外产_订单表中状态为已评审的记录，使用HashSet提高查找效率
-                var reviewedOrders = await _context.外产_订单
-                    .AsNoTracking()
-                    .Where(e => e.状态 == "评审通过")
-                    .Select(e => e.排产编号)
-                    .ToListAsync();
-                // 转换为HashSet，将查找时间复杂度从O(n)降为O(1)，并排除null
-                var reviewedOrdersSet = new HashSet<string>(reviewedOrders.Where(x => x != null)!.Cast<string>());
                 // 提取查询需要的货号列表
                 var itemNos = userProductInfos.Select(e => e.货号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
+                var itemNoSet = itemNos.ToHashSet(StringComparer.Ordinal);
 
                 // 根据货号查询外销合同产品表中的排产用户：取实际完成日期有值且最近的第一个，构建 货号 -> 排产用户 字典
                 var schedulingUserDict = new Dictionary<string, string>();
@@ -159,7 +235,7 @@ namespace LocalDataApi.Services
                 }
 
                 // 提前查询生产类型修改表（交期评审生产类型手动覆盖），构建 (合同号,排产编号,货号) -> 生产类型 字典
-                var overrideDict = new Dictionary<(string, string, string), string>();
+                var overrideDict = new Dictionary<(string, string, string), (string Type, byte[]? RowVersion)>();
                 var overrideContracts = userProductInfos.Select(e => e.合同号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
                 var overrideSchedulingNos = userProductInfos.Select(e => $"{e.合同号}-{e.序号}").Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
                 var overrideItemNos = userProductInfos.Select(e => e.货号).Where(e => !string.IsNullOrEmpty(e)).Distinct().ToList();
@@ -167,13 +243,16 @@ namespace LocalDataApi.Services
                 {
                     var overrides = await _context.生产类型修改
                         .AsNoTracking()
-                        .WhereInBatchesAsync(overrideContracts, e => e.合同号, e => new { e.合同号, e.排产编号, e.货号, e.生产类型 });
+                        .WhereInBatchesAsync(
+                            overrideContracts, e => e.合同号,
+                            overrideItemNos, e => e.货号,
+                            e => new { e.合同号, e.排产编号, e.货号, e.生产类型, e.RowVersion });
 
                     foreach (var o in overrides)
                     {
                         if (!string.IsNullOrEmpty(o.合同号) && !string.IsNullOrEmpty(o.排产编号) && !string.IsNullOrEmpty(o.货号))
                         {
-                            overrideDict[(o.合同号!, o.排产编号!, o.货号!)] = o.生产类型 ?? "";
+                            overrideDict[(o.合同号!, o.排产编号!, o.货号!)] = (o.生产类型 ?? "", o.RowVersion);
                         }
                     }
                 }
@@ -183,14 +262,12 @@ namespace LocalDataApi.Services
                 {
                     var sourceInfo = await _context.产品资料
                         .AsNoTracking()
-                        .Select(e => new { e.货号, e.制造方式 })
-                        .Distinct()
-                        .ToListAsync();
+                        .WhereInBatchesAsync(itemNos, e => e.货号, e => new { e.货号, e.制造方式 });
 
                     // 构建字典，便于快速查询
                     foreach (var info in sourceInfo)
                     {
-                        if (!string.IsNullOrEmpty(info.货号) && itemNos.Contains(info.货号))
+                        if (!string.IsNullOrEmpty(info.货号) && itemNoSet.Contains(info.货号))
                         {
                             sourceInfoDict[info.货号] = info.制造方式 ?? "";
                         }
@@ -204,13 +281,10 @@ namespace LocalDataApi.Services
                 {
                     string schedulingNumber = $"{item.合同号}-{item.序号}";
                     string source = sourceInfoDict.GetValueOrDefault(item.货号) ?? "";
+                    var overrideKey = (item.合同号 ?? "", schedulingNumber, item.货号 ?? "");
+                    var hasOverride = overrideDict.TryGetValue(overrideKey, out var overrideValue);
                     //string source="";
-                    // 检查是否存在排产编号一致且状态为已评审的记录，使用HashSet提高查找效率
-                    if (reviewedOrdersSet.Contains(schedulingNumber))
-                    {
-                        // 如果存在，跳过该记录
-                        continue;
-                    }
+                    // 已评审订单已在数据库分页查询前排除，此处只负责本页数据转换。
                     // 计算工单工号
                     // string workOrder = _erpBaseService.CalculateWorkOrder(item.编号);
 
@@ -250,17 +324,16 @@ namespace LocalDataApi.Services
                         来源 = source,
                         // 默认取外销合同基本信息的生产类型；若生产类型修改表存在 (合同号,排产编号,货号) 一致的记录，则以其覆盖
                         // 注意：合同号或货号为 null/空 时不会匹配到覆盖表（overrideDict 仅收录非空记录），故保持原生产类型
-                        生产类型 = overrideDict.GetValueOrDefault((item.合同号 ?? "", schedulingNumber, item.货号 ?? ""),
-                            productionTypeDict.GetValueOrDefault(item.合同号) ?? ""),
+                        生产类型 = hasOverride
+                            ? overrideValue.Type
+                            : productionTypeDict.GetValueOrDefault(item.合同号) ?? "",
+                        ProductionTypeOverrideRowVersion = hasOverride ? overrideValue.RowVersion : null,
                         排产用户 = schedulingUserDict.GetValueOrDefault(item.货号) ?? "",
                         状态 = "待评审",
                     };
                     data.Add(review);
                 }
-                // 过滤掉生产类型不是“普通订单”或“样品”的记录
-                return data
-                    .Where(x => x.生产类型 == "普通订单" || x.生产类型 == "样品")
-                    .ToList();
+                return data;
             }
             catch (Exception ex)
             {
@@ -288,6 +361,7 @@ namespace LocalDataApi.Services
                 .FirstOrDefaultAsync(x => x.编号 == deliveryReview.编号);
             if (existing != null)
             {
+                ApplyClientRowVersion(existing, deliveryReview.RowVersion);
                 // 更新现有实体：将传入实体的所有属性值复制到现有实体
                 // 保留原创建时间；若原为空则用当前时间回填
                 deliveryReview.创建时间 = string.IsNullOrWhiteSpace(existing.创建时间) ? now : existing.创建时间;
@@ -353,6 +427,7 @@ namespace LocalDataApi.Services
 
             if (existing != null)
             {
+                ApplyClientRowVersion(existing, overrideEntity.RowVersion);
                 // 更新：仅覆盖业务字段，保留原有主键与创建时间
                 // （不能用 SetValues(overrideEntity)，否则会把 detach 实体的空 编号 写回，导致主键冲突）
                 existing.合同号 = overrideEntity.合同号;
@@ -565,7 +640,8 @@ namespace LocalDataApi.Services
         }
 
         //PMC交期评审列表
-        public async Task<List<PMCDeliveryReview>> GetPMCDeliveryReviewList(PMCRequestDto request)
+        public async Task<PagedResult<PMCDeliveryReview>> GetPMCDeliveryReviewList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_订单
                .AsNoTracking()
@@ -574,9 +650,17 @@ namespace LocalDataApi.Services
             {
                 query = query.Where(e => e.合同号 == request.合同号);
             }
+            if (!string.IsNullOrEmpty(request.排产编号)) query = query.Where(e => e.排产编号 == request.排产编号);
+            if (!string.IsNullOrEmpty(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+            if (!string.IsNullOrEmpty(request.货号)) query = query.Where(e => e.货号 == request.货号);
+            // 根据生产类型过滤：直接匹配 PMCDeliveryReview 自身生产类型字段
+            if (!string.IsNullOrEmpty(request.生产类型))
+            {
+                query = query.Where(e => e.生产类型 == request.生产类型);
+            }
 
-            var data = await query.ToListAsync();
-            return data;
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         #endregion
@@ -1390,6 +1474,7 @@ namespace LocalDataApi.Services
                 }
                 if (existingDict.TryGetValue(item.货号, out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     // 货号已存在：工单总数累加（先读原值，再覆盖）
                     var newTotal = ParseDouble(existing.工单总数) + ParseDouble(item.工单总数);
                     // 保留原创建时间；若原为空则用当前时间回填
@@ -1432,16 +1517,36 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 根据货号查询工单销控表列表
         /// </summary>
-        public async Task<List<WorkOrderSalesControl>> GetWorkOrderSalesControlList(string? itemNo)
+        public async Task<PagedResult<WorkOrderSalesControl>> GetWorkOrderSalesControlList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.工单销控表.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
+
+            if (!string.IsNullOrWhiteSpace(request.货号))
             {
-                query = query.Where(e => e.货号 == itemNo);
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.补充数据))
+            {
+                var keyword = request.补充数据.Trim();
+                query = query.Where(e =>
+                    (e.货号 != null && e.货号.Contains(keyword))
+                    || (e.品名 != null && e.品名.Contains(keyword))
+                    || (e.规格 != null && e.规格.Contains(keyword)));
+            }
+            if (!string.IsNullOrWhiteSpace(request.排产编号))
+            {
+                var schedulingNo = request.排产编号.Trim();
+                query = query.Where(main => _context.工单销控表明细.Any(detail =>
+                    detail.货号 == main.货号
+                    && detail.排产编号 != null
+                    && detail.排产编号.Contains(schedulingNo)));
             }
 
-            return await query.ToListAsync();
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -1508,6 +1613,7 @@ namespace LocalDataApi.Services
                 var dictKey = (item.货号!, item.分析单号);
                 if (existingDict.TryGetValue(dictKey, out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     // 更新已有记录：先对齐主键编号，再 SetValues
                     item.编号 = existing.编号;
                     // 保留原创建时间；若原为空则用当前时间回填
@@ -1535,16 +1641,22 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 根据货号查询工单销控表明细列表
         /// </summary>
-        public async Task<List<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(string? itemNo)
+        public async Task<PagedResult<WorkOrderSalesControlDetail>> GetWorkOrderSalesControlDetailList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.工单销控表明细.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
-            {
-                query = query.Where(e => e.货号 == itemNo);
-            }
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
 
-            return await query.ToListAsync();
+            if (!string.IsNullOrWhiteSpace(request.货号))
+            {
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.排产编号)) query = query.Where(e => e.排产编号 == request.排产编号);
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -1609,6 +1721,7 @@ namespace LocalDataApi.Services
 
                 if (existingDict.TryGetValue((item.分析单号!, item.货号!), out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     // 货号和分析单号一致：更新已有数据
                     item.编号 = existing.编号;
                     // 保留原创建时间；若原为空则用当前时间回填
@@ -1636,16 +1749,22 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 根据货号查询外产发运列表
         /// </summary>
-        public async Task<List<ExternalProductionShipment>> GetExternalProductionShipmentList(string? itemNo)
+        public async Task<PagedResult<ExternalProductionShipment>> GetExternalProductionShipmentList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_发运.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
-            {
-                query = query.Where(e => e.货号 == itemNo);
-            }
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
 
-            return await query.ToListAsync();
+            if (!string.IsNullOrWhiteSpace(request.货号))
+            {
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.排产编号)) query = query.Where(e => e.排产编号 == request.排产编号);
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -1715,6 +1834,7 @@ namespace LocalDataApi.Services
                 // 编号存在：更新已存在记录的出库数量（需求量不在后端计算）
                 if (existingDict.TryGetValue(item.编号!, out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     existing.出库数量 = item.出库数量;
                     // 原创建时间为空则回填当前时间
                     existing.创建时间 = string.IsNullOrWhiteSpace(existing.创建时间) ? now : existing.创建时间;
@@ -1740,16 +1860,21 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 根据货号查询外产领料列表
         /// </summary>
-        public async Task<List<ExternalProductionPickMaterial>> GetExternalProductionPickMaterialList(string? itemNo)
+        public async Task<PagedResult<ExternalProductionPickMaterial>> GetExternalProductionPickMaterialList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_领料.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
-            {
-                query = query.Where(e => e.货号 == itemNo);
-            }
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
 
-            return await query.ToListAsync();
+            if (!string.IsNullOrWhiteSpace(request.货号))
+            {
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -1829,6 +1954,7 @@ namespace LocalDataApi.Services
                     && ParseDouble(item.入库数量) > 0
                     && existingDict.TryGetValue(item.编号!, out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     // 原创建时间为空则回填当前时间
                     existing.创建时间 = string.IsNullOrWhiteSpace(existing.创建时间) ? now : existing.创建时间;
                     // 同步更新工单销控表明细的入库数（按编号匹配）；入库数>=生产数则删除该明细
@@ -1889,16 +2015,20 @@ namespace LocalDataApi.Services
                     .Where(x => parentList.Contains(x.编号))
                     .ToListAsync();
 
+                var allParentDetails = await _context.工单销控表明细
+                    .Where(x => x.父级编号 != null && parentList.Contains(x.父级编号))
+                    .ToListAsync();
+                var detailsByParent = allParentDetails
+                    .Where(x => !string.IsNullOrWhiteSpace(x.父级编号))
+                    .GroupBy(x => x.父级编号!)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
                 foreach (var main in mainRecords)
                 {
                     if (string.IsNullOrWhiteSpace(main.编号)) continue;
-
-                    var details = await _context.工单销控表明细
-                        .Where(x => x.父级编号 == main.编号)
-                        .ToListAsync();
-
-                    // 汇总入库数：该父级下所有明细的入库数之和
-                    var totalInStock = details.Sum(d => ParseDouble(d.入库数));
+                    var totalInStock = detailsByParent.TryGetValue(main.编号, out var details)
+                        ? details.Sum(d => ParseDouble(d.入库数))
+                        : 0d;
 
                     main.已入库数 = totalInStock.ToString();
                     main.在产数量 = (ParseDouble(main.工单总数) - totalInStock).ToString();
@@ -1918,19 +2048,33 @@ namespace LocalDataApi.Services
             return double.TryParse(value, out var d) ? d : 0d;
         }
 
+        private void ApplyClientRowVersion<TEntity>(TEntity trackedEntity, byte[]? clientRowVersion)
+            where TEntity : class
+        {
+            if (clientRowVersion is { Length: > 0 })
+            {
+                _context.Entry(trackedEntity).Property("RowVersion").OriginalValue = clientRowVersion;
+            }
+        }
+
         /// <summary>
         /// 根据货号查询外产入库列表
         /// </summary>
-        public async Task<List<ExternalProductionWarehousing>> GetExternalProductionWarehousingList(string? itemNo)
+        public async Task<PagedResult<ExternalProductionWarehousing>> GetExternalProductionWarehousingList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_入库.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
-            {
-                query = query.Where(e => e.货号 == itemNo);
-            }
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
 
-            return await query.ToListAsync();
+            if (!string.IsNullOrWhiteSpace(request.货号))
+            {
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -1996,6 +2140,7 @@ namespace LocalDataApi.Services
 
                 if (existingDict.TryGetValue((item.分析单号!, item.货号!), out var existing))
                 {
+                    ApplyClientRowVersion(existing, item.RowVersion);
                     // 货号和分析单号一致：更新已有数据
                     item.编号 = existing.编号;
                     // 保留原创建时间；若原为空则用当前时间回填
@@ -2023,16 +2168,37 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 根据货号查询外产生产列表
         /// </summary>
-        public async Task<List<ExternalProduction>> GetExternalProductionList(string? itemNo)
+        public async Task<PagedResult<ExternalProduction>> GetExternalProductionList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_生产.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
+
+            if (!string.IsNullOrWhiteSpace(request.货号))
             {
-                query = query.Where(e => e.货号 == itemNo);
+                query = query.Where(e => e.货号 == request.货号);
+            }
+            if (!string.IsNullOrWhiteSpace(request.排产编号)) query = query.Where(e => e.排产编号 == request.排产编号);
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
+        }
+
+        /// <summary>
+        /// 根据编号查询单条外产生产数据
+        /// </summary>
+        public async Task<ExternalProduction?> GetExternalProductionByNo(string 编号)
+        {
+            if (string.IsNullOrWhiteSpace(编号))
+            {
+                throw new ArgumentException("编号不能为空", nameof(编号));
             }
 
-            return await query.ToListAsync();
+            return await _context.外产_生产
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.编号 == 编号);
         }
 
         /// <summary>
@@ -2069,7 +2235,27 @@ namespace LocalDataApi.Services
         //     return bomRecords;
         // }
 
-        public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(List<ExternalProductionBOM> bomList, string username, string schedulingNo)
+        public async Task<List<ExternalProductionBOM>> SaveExternalProductionBOM(
+            List<ExternalProductionBOM> bomList, string username, string schedulingNo)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                await _context.Database.ExecuteSqlRawAsync(
+                    "DECLARE @lockResult int; " +
+                    "EXEC @lockResult = sp_getapplock @Resource = N'PMC:BOM:AtomicNumber', " +
+                    "@LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 30000; " +
+                    "IF @lockResult < 0 RAISERROR(N'无法获得BOM原子取号锁，请稍后重试。', 16, 1);");
+
+                var result = await SaveExternalProductionBOMCore(bomList, username, schedulingNo);
+                await transaction.CommitAsync();
+                return result;
+            });
+        }
+
+        private async Task<List<ExternalProductionBOM>> SaveExternalProductionBOMCore(
+            List<ExternalProductionBOM> bomList, string username, string schedulingNo)
         {
             if (bomList == null || bomList.Count == 0 || string.IsNullOrEmpty(schedulingNo))
             {
@@ -2144,20 +2330,31 @@ namespace LocalDataApi.Services
         /// <summary>
         /// 查询父级编号关联的外产BOM列表
         /// </summary>
-        public async Task<List<ExternalProductionBOM>> GetExternalProductionBOMList(string? itemNo)
+        public async Task<PagedResult<ExternalProductionBOM>> GetExternalProductionBOMList(
+            PMCRequestDto request, CancellationToken cancellationToken = default)
         {
             var query = _context.外产_BOM.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(itemNo))
+            if (!string.IsNullOrWhiteSpace(request.编号)) query = query.Where(e => e.编号 == request.编号);
+
+            if (!string.IsNullOrWhiteSpace(request.货号))
             {
-                var parent = query.Where(e => e.货号 == itemNo).FirstOrDefault();
-                if (parent == null)
+                var parentId = await query.Where(e => e.货号 == request.货号)
+                    .Select(e => e.编号)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (parentId == null)
                 {
-                    return new List<ExternalProductionBOM>();
+                    return new PagedResult<ExternalProductionBOM>
+                    {
+                        Items = Array.Empty<ExternalProductionBOM>(), Total = 0,
+                        Page = request.Page, PageSize = request.PageSize
+                    };
                 }
-                query = query.Where(e => e.父级编号 == parent.编号);
+                query = query.Where(e => e.父级编号 == parentId);
             }
-            return await query.ToListAsync();
+            if (!string.IsNullOrWhiteSpace(request.分析单号)) query = query.Where(e => e.分析单号 == request.分析单号);
+            return await query.OrderByDescending(e => e.创建时间).ThenBy(e => e.编号)
+                .ToPagedResultAsync(request, cancellationToken);
         }
 
         /// <summary>
@@ -2564,9 +2761,15 @@ namespace LocalDataApi.Services
         /// </summary>
         public async Task<List<BOMStructureProcess>> GetBOMStructureProcessList()
         {
-            return await _context.BOM结构工序
-                .AsNoTracking()
-                .ToListAsync();
+            const string cacheKey = "pmc:bom-structure-processes";
+            if (_cache.TryGetValue(cacheKey, out List<BOMStructureProcess>? cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var data = await _context.BOM结构工序.AsNoTracking().ToListAsync();
+            _cache.Set(cacheKey, data, TimeSpan.FromMinutes(5));
+            return data;
         }
 
         #endregion

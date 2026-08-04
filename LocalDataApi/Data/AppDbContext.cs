@@ -89,6 +89,7 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<PMCProductInfo>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.货号, e.合同号, e.分析单号, e.层 });
             });
             modelBuilder.Entity<PMCBasicInfo>(entity =>
             {
@@ -109,14 +110,18 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<PMCDeliveryReview>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.状态, e.排产编号, e.货号 });
             });
             modelBuilder.Entity<ProductionTypeOverride>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.合同号, e.排产编号, e.货号 }).IsUnique();
             });
             modelBuilder.Entity<SchedulingAnalysis>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => e.分析单号).IsUnique();
+                entity.HasIndex(e => e.排产编号);
             });
             modelBuilder.Entity<ERPUser>(entity =>
             {
@@ -149,11 +154,14 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<WorkOrderSalesControl>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => e.货号).IsUnique();
             });
 
             modelBuilder.Entity<WorkOrderSalesControlDetail>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.货号, e.分析单号 }).IsUnique();
+                entity.HasIndex(e => e.父级编号);
             });
 
             modelBuilder.Entity<BOMStructureProcess>(entity =>
@@ -164,26 +172,34 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<ExternalProductionShipment>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.分析单号, e.货号 }).IsUnique();
+                entity.HasIndex(e => new { e.排产编号, e.货号 });
             });
 
             modelBuilder.Entity<ExternalProduction>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.分析单号, e.货号 }).IsUnique();
+                entity.HasIndex(e => new { e.排产编号, e.货号 });
             });
 
             modelBuilder.Entity<ExternalProductionWarehousing>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.分析单号, e.货号 });
             });
 
             modelBuilder.Entity<ExternalProductionPickMaterial>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.分析单号, e.货号 });
             });
 
             modelBuilder.Entity<ExternalProductionBOM>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.分析单号, e.货号 });
+                entity.HasIndex(e => e.父级编号);
             });
 
             modelBuilder.Entity<DeliveryPlan>(entity =>
@@ -194,6 +210,7 @@ namespace LocalDataApi.Data
             modelBuilder.Entity<PMCUserProductInfo>(entity =>
             {
                 entity.HasKey(e => e.编号);
+                entity.HasIndex(e => new { e.创建时间, e.合同号, e.货号 });
             });
 
             // 尝试使用dbo模式前缀，确保视图名称正确

@@ -10,6 +10,10 @@ using SKIT.FlurlHttpClient.Wechat.Work.Settings;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Text.Json.Serialization;
 using System.Reflection;
+using System.Threading.RateLimiting;
+using LocalDataApi.Middlewares;
+using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +23,11 @@ builder.Logging.AddConsole(); // 将日志输出到控制台
 
 // 检测 SQL Server 版本，动态设置批量插入大小
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "缺少数据库连接字符串，请配置环境变量 ConnectionStrings__DefaultConnection。");
+}
 int maxBatchSize = 1; // 默认保守：低版本单条插入
 
 try
@@ -39,28 +48,53 @@ catch
 }
 
 // 配置数据库连接
-builder.Services.AddDbContext<AppDbContext>
+builder.Services.AddDbContextPool<AppDbContext>
     (options =>
     {
         options.UseSqlServer(connectionString,
             sqlOptions =>
             {
                 sqlOptions.MaxBatchSize(maxBatchSize);
+                sqlOptions.UseCompatibilityLevel(100);
                 // 将内存集合翻译为 IN 常量列表而非 OPENJSON，兼容低版本 SQL Server（同时避免手写分批）
                 sqlOptions.TranslateParameterizedCollectionsToConstants();
                 // 启用连接弹性（连接失败自动重试）
                 sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,           // 最多重试 5 次
-                    maxRetryDelay: TimeSpan.FromSeconds(10),  // 每次重试间隔最大 10 秒
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(2),
                     errorNumbersToAdd: null);   // 要额外处理的 SQL 错误号（null 用默认）
-                sqlOptions.CommandTimeout(120); // 命令超时设置为 120 秒
+                sqlOptions.CommandTimeout(30);
             });
         // 在开发环境启用敏感数据日志，便于调试
         if (builder.Environment.IsDevelopment())
         {
             options.EnableSensitiveDataLogging();
         }
+    }, poolSize: 256);
+builder.Services.AddMemoryCache();
+
+var databaseConcurrency = builder.Configuration.GetValue("Performance:DatabaseConcurrency", 64);
+var databaseQueue = builder.Configuration.GetValue("Performance:DatabaseQueue", 256);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = "1";
+        await context.HttpContext.Response.WriteAsJsonAsync(new ApiResponse<object>
+        {
+            Success = false,
+            Message = "系统繁忙，请稍后重试。",
+            Data = new { TraceId = context.HttpContext.TraceIdentifier }
+        }, cancellationToken);
+    };
+    options.AddConcurrencyLimiter("DatabaseHeavy", limiter =>
+    {
+        limiter.PermitLimit = databaseConcurrency;
+        limiter.QueueLimit = databaseQueue;
+        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
+});
 builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
 builder.Services.AddScoped<IPMCService, PMCService>();
 builder.Services.AddScoped<ERPBaseService>();
@@ -165,6 +199,10 @@ if (app.Environment.IsDevelopment()||app.Environment.IsProduction())
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
+
+app.UseRouting();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseRateLimiter();
 
 app.UseAuthorization();
 

@@ -3,11 +3,13 @@ using LocalDataApi.Exceptions;
 using LocalDataApi.Models;
 using LocalDataApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LocalDataApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting("DatabaseHeavy")]
     public class PMCController : ControllerBase
     {
         private readonly IPMCService _pmcService;
@@ -21,22 +23,22 @@ namespace LocalDataApi.Controllers
         /// 转换交期评审列表(根据外销合同客户产品表)
         /// </summary>
         [HttpPost("ConvertToPMCDeliveryReviewList")]
-        public async Task<ActionResult<ApiResponse<List<PMCDeliveryReview>>>>
+        public async Task<ActionResult<ApiResponse<PagedResult<PMCDeliveryReview>>>>
             ConvertToPMCDeliveryReviewList(PMCRequestDto requestDto)
         {
             try
             {
-                var userProductList = await _pmcService.ConvertToPMCDeliveryReviewList(requestDto);
-                return Ok(new ApiResponse<List<PMCDeliveryReview>>()
+                var userProductList = await _pmcService.ConvertToPMCDeliveryReviewList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<PMCDeliveryReview>>()
                 {
                     Success = true,
                     Message = "获取成功！",
                     Data = userProductList // 空列表也正常返回
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-               return BadRequest($"错误提示：{e.Message}");
+                throw;
             }
         }
 
@@ -45,11 +47,11 @@ namespace LocalDataApi.Controllers
         /// 获取产品信息列表
         /// </summary>
         [HttpPost("ProductListInfo")]
-        public async Task<ActionResult<ApiResponse<object>>> GetPMCProductInfo(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<PMCProductInfo>>>> GetPMCProductInfo(PMCRequestDto requestDto)
         {
-            var basicInfo = await _pmcService.GetPMCProductListInfo(requestDto);
+            var basicInfo = await _pmcService.GetPMCProductListInfo(requestDto, HttpContext.RequestAborted);
             // 无论是否有数据，都视为查询成功
-            return Ok(new ApiResponse<object>
+            return Ok(new ApiResponse<PagedResult<PMCProductInfo>>
             {
                 Success = true,
                 Message = "查询成功！",
@@ -211,21 +213,21 @@ namespace LocalDataApi.Controllers
         /// 获取交期评审列表
         /// </summary>
         [HttpPost("PMCDeliveryReviewList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetPMCDeliveryReviewList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<PMCDeliveryReview>>>> GetPMCDeliveryReviewList(PMCRequestDto requestDto)
         {
             try
             {
-                var reviewList = await _pmcService.GetPMCDeliveryReviewList(requestDto);
-                return Ok(new ApiResponse<object>
+                var reviewList = await _pmcService.GetPMCDeliveryReviewList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<PMCDeliveryReview>>
                 {
                     Success = true,
                     Message = "获取成功！",
                     Data = reviewList // 空列表也正常返回
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest($"错误提示：{e.Message}");
+                throw;
             }
         }
 
@@ -254,10 +256,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-              return BadRequest($"错误提示：{e.Message}");
-
+                throw;
             }
         }
 
@@ -286,9 +287,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest($"错误提示：{e.Message}");
+                throw;
             }
         }
 
@@ -399,9 +400,9 @@ namespace LocalDataApi.Controllers
                     Data = productData // 空列表也正常返回
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest($"错误提示：{e.Message}");
+                throw;
             }
         }
 
@@ -421,13 +422,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -435,25 +432,21 @@ namespace LocalDataApi.Controllers
         /// 获取工单销控表列表
         /// </summary>
         [HttpPost("GetWorkOrderSalesControlList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetWorkOrderSalesControlList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderSalesControl>>>> GetWorkOrderSalesControlList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetWorkOrderSalesControlList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetWorkOrderSalesControlList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<WorkOrderSalesControl>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -472,13 +465,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -498,13 +487,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -512,25 +497,21 @@ namespace LocalDataApi.Controllers
         /// 获取工单销控表明细列表
         /// </summary>
         [HttpPost("GetWorkOrderSalesControlDetailList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetWorkOrderSalesControlDetailList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderSalesControlDetail>>>> GetWorkOrderSalesControlDetailList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetWorkOrderSalesControlDetailList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetWorkOrderSalesControlDetailList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<WorkOrderSalesControlDetail>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -549,13 +530,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -576,13 +553,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -602,13 +575,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -628,13 +597,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -654,13 +619,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -670,25 +631,21 @@ namespace LocalDataApi.Controllers
         /// 获取外产发运列表
         /// </summary>
         [HttpPost("GetExternalProductionShipmentList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionShipmentList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionShipment>>>> GetExternalProductionShipmentList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetExternalProductionShipmentList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetExternalProductionShipmentList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<ExternalProductionShipment>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -707,13 +664,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -725,25 +678,21 @@ namespace LocalDataApi.Controllers
         /// 获取外产领料列表
         /// </summary>
         [HttpPost("GetExternalProductionPickMaterialList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionPickMaterialList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionPickMaterial>>>> GetExternalProductionPickMaterialList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetExternalProductionPickMaterialList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetExternalProductionPickMaterialList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<ExternalProductionPickMaterial>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -762,13 +711,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -780,25 +725,52 @@ namespace LocalDataApi.Controllers
         /// 获取外产生产列表
         /// </summary>
         [HttpPost("GetExternalProductionList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<ExternalProduction>>>> GetExternalProductionList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetExternalProductionList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetExternalProductionList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<ExternalProduction>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 根据编号查询单条外产生产数据
+        /// </summary>
+        [HttpPost("GetExternalProductionByNo")]
+        public async Task<ActionResult<ApiResponse<ExternalProduction>>> GetExternalProductionByNo([FromBody] string 编号)
+        {
+            try
+            {
+                var result = await _pmcService.GetExternalProductionByNo(编号);
+                if (result == null)
                 {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
+                    return Ok(new ApiResponse<ExternalProduction>
+                    {
+                        Success = false,
+                        Message = "未找到指定编号的数据",
+                        Data = null
+                    });
+                }
+                return Ok(new ApiResponse<ExternalProduction>
+                {
+                    Success = true,
+                    Message = "查询成功！",
+                    Data = result
                 });
+            }
+            catch (Exception)
+            {
+                throw;
             }
         }
 
@@ -817,13 +789,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -835,25 +803,21 @@ namespace LocalDataApi.Controllers
         /// 获取外产入库列表
         /// </summary>
         [HttpPost("GetExternalProductionWarehousingList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionWarehousingList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionWarehousing>>>> GetExternalProductionWarehousingList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetExternalProductionWarehousingList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetExternalProductionWarehousingList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<ExternalProductionWarehousing>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -872,13 +836,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -902,13 +862,9 @@ namespace LocalDataApi.Controllers
                     Data = savedList
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -919,25 +875,21 @@ namespace LocalDataApi.Controllers
         /// 获取外产BOM列表
         /// </summary>
         [HttpPost("GetExternalProductionBOMList")]
-        public async Task<ActionResult<ApiResponse<object>>> GetExternalProductionBOMList(PMCRequestDto requestDto)
+        public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionBOM>>>> GetExternalProductionBOMList(PMCRequestDto requestDto)
         {
             try
             {
-                var result = await _pmcService.GetExternalProductionBOMList(requestDto.货号);
-                return Ok(new ApiResponse<object>
+                var result = await _pmcService.GetExternalProductionBOMList(requestDto, HttpContext.RequestAborted);
+                return Ok(new ApiResponse<PagedResult<ExternalProductionBOM>>
                 {
                     Success = true,
                     Message = "查询成功！",
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -956,13 +908,9 @@ namespace LocalDataApi.Controllers
                     Message = "删除成功！"
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 
@@ -986,13 +934,9 @@ namespace LocalDataApi.Controllers
                     Data = result
                 });
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                return BadRequest(new ApiResponse<object>
-                {
-                    Success = false,
-                    Message = $"错误提示：{e.Message}"
-                });
+                throw;
             }
         }
 

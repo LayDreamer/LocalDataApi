@@ -7,6 +7,8 @@ namespace LocalDataApi.Models
     /// </summary>
     public class ExternalProductionWarehousing : ERPBase
     {
+        [System.ComponentModel.DataAnnotations.Timestamp]
+        public byte[]? RowVersion { get; set; }
         public string? 货号 { get; set; }    
         public string? 需求量 { get; set; }
         public string? 入库数量 { get; set; }
