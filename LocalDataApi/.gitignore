@@ -1,0 +1,80 @@
+## .NET / Visual Studio / Rider / VS Code
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+*.userprefs
+*.swp
+*.tmp
+*.dbmdl
+*.dbproj.schemaview
+*.jfm
+*.pfx
+*.publishsettings
+publish/
+.vs/
+.vscode/
+.idea/
+.vs/
+*.sln.docstates
+*.userprefs
+*.lock.json
+node_modules/
+
+## 自动生成
+*.Generated.cs
+*.designer.cs
+*.g.cs
+*.g.i.cs
+
+## 测试结果
+TestResults/
+[Tt]est[Rr]esult*/
+*.coverage
+*.coveragexml
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+## 发布/发布配置
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+*.pubxml
+*.pubxml.user
+*.pubxml.lock
+**/*.azurePubxml
+*.pubxml.user
+
+## 调试与分析
+*.pdb
+*.dll
+*.exe
+*.cache
+*.tlog
+
+## 系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## 本地配置
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.env
+.env
+.env.*
+
+## 迁移脚本输出（Migrations 目录需要保留，但生成的 SQL 临时文件可忽略）
+*.mdf
+*.ldf
+*.ndf
