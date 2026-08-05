@@ -1,7 +1,7 @@
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 
-namespace LocalDataApi.Application.Ppc.Contracts;
+namespace LocalDataApi.Application.Pmc.Contracts;
 
 /// <summary>
 /// 产品资料与装配清单查询用例。

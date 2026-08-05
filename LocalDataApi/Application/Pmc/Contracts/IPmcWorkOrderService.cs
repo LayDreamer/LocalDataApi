@@ -1,7 +1,7 @@
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 
-namespace LocalDataApi.Application.Ppc.Contracts;
+namespace LocalDataApi.Application.Pmc.Contracts;
 
 /// <summary>
 /// 工单销控用例:工单销控表与其明细的批量增改、分页查询、批量删除。

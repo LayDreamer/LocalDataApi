@@ -1,17 +1,17 @@
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 using LocalDataApi.Utils;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 产品资料与装配清单查询用例实现。
 /// </summary>
-public class PmcProductService : PpcServiceBase, IPmcProductService
+public class PmcProductService : PmcServiceBase, IPmcProductService
 {
     public PmcProductService(AppDbContext context) : base(context)
     {

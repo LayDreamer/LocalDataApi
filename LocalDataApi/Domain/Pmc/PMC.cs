@@ -3,7 +3,7 @@ using static SKIT.FlurlHttpClient.Wechat.Work.Models.CgibinAgentBatchSetWorkbenc
 
 using LocalDataApi.Domain.Erp;
 
-namespace LocalDataApi.Domain.Ppc
+namespace LocalDataApi.Domain.Pmc
 {
     /// <summary>
     /// 外销合同产品

@@ -1,5 +1,5 @@
 using LocalDataApi.Application.Common;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;

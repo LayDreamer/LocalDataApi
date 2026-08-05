@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 using LocalDataApi.Domain.Erp;
 
-namespace LocalDataApi.Domain.Ppc
+namespace LocalDataApi.Domain.Pmc
 {
     /// <summary>
     /// 外产_生产
@@ -28,5 +28,9 @@ namespace LocalDataApi.Domain.Ppc
         public string? 仓库名称 { get; set; }
         public string? 备注 { get; set; }
         public string? 用量 { get; set; }
+        /// <summary>
+        /// 打印时间(前端触发打印动作时更新该列)
+        /// </summary>
+        public string? 打印时间 { get; set; }
     }
 }

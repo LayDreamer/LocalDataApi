@@ -1,15 +1,15 @@
 using LocalDataApi.Infrastructure.Data;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// PMC 域应用服务基类:共享 DbContext 与行版本(乐观并发)处理逻辑。
 /// </summary>
-public abstract class PpcServiceBase
+public abstract class PmcServiceBase
 {
     protected readonly AppDbContext _context;
 
-    protected PpcServiceBase(AppDbContext context)
+    protected PmcServiceBase(AppDbContext context)
     {
         _context = context;
     }

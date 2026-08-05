@@ -1,7 +1,7 @@
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 
-namespace LocalDataApi.Application.Ppc.Contracts;
+namespace LocalDataApi.Application.Pmc.Contracts;
 
 /// <summary>
 /// 排产分析用例:根据成品货号构建嵌套的排产分析树。

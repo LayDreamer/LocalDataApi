@@ -1,18 +1,18 @@
 using LocalDataApi.Application.Common;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using LocalDataApi.Utils;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 交期评审用例实现。
 /// </summary>
-public class PmcDeliveryReviewService : PpcServiceBase, IPmcDeliveryReviewService
+public class PmcDeliveryReviewService : PmcServiceBase, IPmcDeliveryReviewService
 {
     public PmcDeliveryReviewService(AppDbContext context) : base(context)
     {
@@ -26,12 +26,12 @@ public class PmcDeliveryReviewService : PpcServiceBase, IPmcDeliveryReviewServic
            .AsNoTracking()
            .AsQueryable();
 
-        // 只获取最近6个月的数据
-        var sixMonthsAgo = DateTime.Now.AddMonths(-6);
-        var sixMonthsAgoStr = sixMonthsAgo.ToString("yyyy-MM-dd");
+        // 只获取最近一年的数据
+        var oneYearAgo = DateTime.Now.AddYears(-1);
+        var oneYearAgoStr = oneYearAgo.ToString("yyyy-MM-dd");
 
         // 使用字符串比较来过滤日期
-        query = query.Where(e => string.Compare(e.创建时间, sixMonthsAgoStr) >= 0);
+        query = query.Where(e => string.Compare(e.创建时间, oneYearAgoStr) >= 0);
 
         // 必须在分页前排除已评审订单,否则页面条数和 Total 都会不准确。
         query = query.Where(product => !_context.外产_订单.Any(order =>
@@ -83,9 +83,9 @@ public class PmcDeliveryReviewService : PpcServiceBase, IPmcDeliveryReviewServic
     public async Task<PagedResult<PMCDeliveryReview>> ConvertToPMCDeliveryReviewList(
         PMCRequestDto request, CancellationToken cancellationToken = default)
     {
-        var sixMonthsAgoStr = DateTime.Now.AddMonths(-6).ToString("yyyy-MM-dd");
+        var oneYearAgoStr = DateTime.Now.AddYears(-1).ToString("yyyy-MM-dd");
         var countQuery = _context.外销合同客户产品.AsNoTracking()
-            .Where(e => string.Compare(e.创建时间, sixMonthsAgoStr) >= 0)
+            .Where(e => string.Compare(e.创建时间, oneYearAgoStr) >= 0)
             .Where(product => !_context.外产_订单.Any(order =>
                 order.状态 == "评审通过"
                 && order.排产编号 == product.合同号 + "-" + product.序号))

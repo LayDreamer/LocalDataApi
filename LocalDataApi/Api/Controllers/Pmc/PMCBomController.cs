@@ -1,7 +1,7 @@
 using LocalDataApi.Application.Common;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 

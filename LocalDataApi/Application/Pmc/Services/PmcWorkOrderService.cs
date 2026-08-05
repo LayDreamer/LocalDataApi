@@ -1,18 +1,18 @@
 using LocalDataApi.Application.Erp;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 using LocalDataApi.Utils;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 工单销控用例实现。
 /// </summary>
-public class PmcWorkOrderService : PpcServiceBase, IPmcWorkOrderService
+public class PmcWorkOrderService : PmcServiceBase, IPmcWorkOrderService
 {
     private readonly ERPBaseService _erpBaseService;
 

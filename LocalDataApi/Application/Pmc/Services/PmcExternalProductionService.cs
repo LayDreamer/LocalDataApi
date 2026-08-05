@@ -1,18 +1,18 @@
 using LocalDataApi.Application.Erp;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 using LocalDataApi.Utils;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 外产管理用例实现(发运 / 领料 / 生产 / 入库)。
 /// </summary>
-public class PmcExternalProductionService : PpcServiceBase, IPmcExternalProductionService
+public class PmcExternalProductionService : PmcServiceBase, IPmcExternalProductionService
 {
     private readonly ERPBaseService _erpBaseService;
 
@@ -73,6 +73,7 @@ public class PmcExternalProductionService : PpcServiceBase, IPmcExternalProducti
                 {
                     item.编号 = Guid.NewGuid().ToString();
                 }
+                
                 item.创建时间 = now;
                 await _context.外产_发运.AddAsync(item);
                 result.Add(item);
@@ -269,6 +270,15 @@ public class PmcExternalProductionService : PpcServiceBase, IPmcExternalProducti
                 item.编号 = existing.编号;
                 // 保留原创建时间;若原为空则用当前时间回填
                 item.创建时间 = string.IsNullOrWhiteSpace(existing.创建时间) ? now : existing.创建时间;
+                // 打印时间:前端传入"更新"表示触发打印动作,后端直接以当前时间赋值;否则保留原值
+                if (string.Equals(item.打印时间, "更新", StringComparison.Ordinal))
+                {
+                    item.打印时间 = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                }
+                else
+                {
+                    item.打印时间 = existing.打印时间;
+                }
                 _context.Entry(existing).CurrentValues.SetValues(item);
                 result.Add(existing);
             }
@@ -278,6 +288,7 @@ public class PmcExternalProductionService : PpcServiceBase, IPmcExternalProducti
                 {
                     item.编号 = Guid.NewGuid().ToString();
                 }
+                item.工单单号 = _erpBaseService.CalculateWorkOrder(item.编号);
                 item.创建时间 = now;
                 await _context.外产_生产.AddAsync(item);
                 result.Add(item);

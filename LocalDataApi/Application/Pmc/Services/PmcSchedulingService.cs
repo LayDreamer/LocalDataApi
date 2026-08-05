@@ -1,17 +1,17 @@
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 using LocalDataApi.Utils;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 排产分析用例实现:外产 BOM 扁平记录 → 装配树 → 嵌套排产分析 DTO。
 /// </summary>
-public class PmcSchedulingService : PpcServiceBase, IPmcSchedulingService
+public class PmcSchedulingService : PmcServiceBase, IPmcSchedulingService
 {
     private readonly IPmcBomService _bomService;
 

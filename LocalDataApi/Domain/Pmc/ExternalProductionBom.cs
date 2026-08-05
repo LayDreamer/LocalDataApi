@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 using LocalDataApi.Domain.Erp;
 
-namespace LocalDataApi.Domain.Ppc
+namespace LocalDataApi.Domain.Pmc
 {
     /// <summary>
     /// 外产_BOM

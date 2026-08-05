@@ -9,8 +9,8 @@
 
 ## 架构(2026-08-05 重构后)
 - `Api/` 控制器 + GlobalExceptionMiddleware + Program.cs
-- `Application/`:Blf、Identity、Erp、Ppc(6 个 Pmc*Service,接口在 Contracts/)、WeChatWork(5 个服务 + WechatWorkServiceBase)
-- `Domain/`:实体按 Blf/Erp/Identity/Ppc/WeChatWork 子域;Common 下有 IRepository/IUnitOfWork 抽象(暂未接入实现)
+- `Application/`:Blf、Identity、Erp、Pmc(6 个 Pmc*Service,接口在 Contracts/)、WeChatWork(5 个服务 + WechatWorkServiceBase)
+- `Domain/`:实体按 Blf/Erp/Identity/Pmc/WeChatWork 子域;Common 下有 IRepository/IUnitOfWork 抽象(暂未接入实现)
 - `Infrastructure/`:Data(AppDbContext、Migrations)、WeChatWork(WechatWorkTokenProvider,单例)
 - 保留:`Dto/`(前端契约)、`Utils/`(PagingExtensions、QueryBatchExtensions、TokenHelper 等)、`WeChatWork/WechatWorkMessageType.cs`
 - 说明:PmcBomService 内含排产分析单号生成逻辑(SaveSchedulingAnalysisAsync),因 Scheduling 服务反向依赖其 GetBomByItemNo,合置避免循环依赖

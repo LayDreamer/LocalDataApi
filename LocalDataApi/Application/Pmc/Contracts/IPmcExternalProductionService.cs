@@ -1,7 +1,7 @@
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 
-namespace LocalDataApi.Application.Ppc.Contracts;
+namespace LocalDataApi.Application.Pmc.Contracts;
 
 /// <summary>
 /// 外产管理用例:发运 / 领料 / 生产 / 入库 的批量增改、分页查询、批量删除。

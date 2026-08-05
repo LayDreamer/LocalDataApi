@@ -60,6 +60,7 @@ IF COL_LENGTH(N'工单销控表', N'RowVersion') IS NULL ALTER TABLE [工单销�
 IF COL_LENGTH(N'工单销控表明细', N'RowVersion') IS NULL ALTER TABLE [工单销控表明细] ADD [RowVersion] rowversion NOT NULL;
 IF COL_LENGTH(N'外产_发运', N'RowVersion') IS NULL ALTER TABLE [外产_发运] ADD [RowVersion] rowversion NOT NULL;
 IF COL_LENGTH(N'外产_生产', N'RowVersion') IS NULL ALTER TABLE [外产_生产] ADD [RowVersion] rowversion NOT NULL;
+IF COL_LENGTH(N'外产_生产', N'打印时间') IS NULL ALTER TABLE [外产_生产] ADD [打印时间] NVARCHAR(50) NULL;
 IF COL_LENGTH(N'外产_领料', N'RowVersion') IS NULL ALTER TABLE [外产_领料] ADD [RowVersion] rowversion NOT NULL;
 IF COL_LENGTH(N'外产_入库', N'RowVersion') IS NULL ALTER TABLE [外产_入库] ADD [RowVersion] rowversion NOT NULL;
 

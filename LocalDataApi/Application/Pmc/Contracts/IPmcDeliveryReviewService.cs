@@ -1,7 +1,7 @@
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 
-namespace LocalDataApi.Application.Ppc.Contracts;
+namespace LocalDataApi.Application.Pmc.Contracts;
 
 /// <summary>
 /// 交期评审用例:外销合同客户产品 → 交期评审、生产类型覆盖、退回待评审。

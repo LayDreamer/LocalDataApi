@@ -4,3 +4,77 @@ GET {{LocalDataApi_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# ============================================================
+# 外产生产 - 批量新增/更新(AddOrUpdateExternalProductionList)
+# POST api/PMC/AddOrUpdateExternalProductionList
+# 入参: ExternalProduction[] (直接传实体数组,无 DTO 包装)
+#
+# 说明:
+#  - 普通 ERP 同步导入:不要传 "打印时间" 字段,后端保留数据库原值。
+#  - 打印动作:把要打印的那一行 "打印时间" 设为 "更新" 字符串,
+#    后端忽略具体值,直接用 DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") 写入。
+#  - 更新已存在记录时需带正确的 RowVersion(乐观并发令牌, byte[] -> base64 字符串);
+#    普通新增(不存在的记录)可不带或留空。
+# ============================================================
+
+# --- 示例1:普通 ERP 同步导入(不更新打印时间) ---
+POST {{LocalDataApi_HostAddress}}/api/PMC/AddOrUpdateExternalProductionList
+Content-Type: application/json
+
+[
+  {
+    "编号": "test-001",
+    "分析单号": "FX20260805-001",
+    "货号": "HG-001",
+    "排产编号": "PC-001",
+    "需求量": "100",
+    "生产数量": "100",
+    "工单单号": "WO-001",
+    "来源": "ERP",
+    "打印时间": null
+  }
+]
+
+###
+
+# --- 示例2:触发打印动作(更新打印时间) ---
+# 仅把要打印的那一行 "打印时间" 设为 "更新" 即可,后端自动写入当前时间
+POST {{LocalDataApi_HostAddress}}/api/PMC/AddOrUpdateExternalProductionList
+Content-Type: application/json
+
+[
+  {
+    "编号": "test-001",
+    "分析单号": "FX20260805-001",
+    "货号": "HG-001",
+    "排产编号": "PC-001",
+    "RowVersion": "AAAAAAAAAAE=",
+    "打印时间": "更新"
+  }
+]
+
+###
+
+# --- 示例3:混合(一行打印 + 一行普通导入) ---
+POST {{LocalDataApi_HostAddress}}/api/PMC/AddOrUpdateExternalProductionList
+Content-Type: application/json
+
+[
+  {
+    "编号": "test-001",
+    "分析单号": "FX20260805-001",
+    "货号": "HG-001",
+    "RowVersion": "AAAAAAAAAAE=",
+    "打印时间": "更新"
+  },
+  {
+    "编号": "test-002",
+    "分析单号": "FX20260805-002",
+    "货号": "HG-002",
+    "打印时间": null
+  }
+]
+
+###
+

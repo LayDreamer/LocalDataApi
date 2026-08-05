@@ -1,21 +1,21 @@
 using LocalDataApi.Application.Erp;
-using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
-using LocalDataApi.Domain.Ppc;
+using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
 using LocalDataApi.Utils;
 
-namespace LocalDataApi.Application.Ppc.Services;
+namespace LocalDataApi.Application.Pmc.Services;
 
 /// <summary>
 /// 外产 BOM 用例实现。
 /// 含"排产分析单号生成"(SaveSchedulingAnalysisAsync 系列),因为 BOM 保存必须先取分析单号,
 /// 且排产分析服务会反向依赖 GetBomByItemNo,二者放同一服务避免循环依赖。
 /// </summary>
-public class PmcBomService : PpcServiceBase, IPmcBomService
+public class PmcBomService : PmcServiceBase, IPmcBomService
 {
     private readonly ERPBaseService _erpBaseService;
     private readonly IMemoryCache _cache;
