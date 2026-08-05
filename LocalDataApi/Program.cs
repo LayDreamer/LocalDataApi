@@ -1,34 +1,38 @@
-using LocalDataApi.Data;
-using LocalDataApi.Models;
-using LocalDataApi.Services;
-using LocalDataApi.WeChatWork;
+using LocalDataApi.Api.Middlewares;
+using LocalDataApi.Application.Blf;
+using LocalDataApi.Application.Common;
+using LocalDataApi.Application.Erp;
+using LocalDataApi.Application.Identity;
+using LocalDataApi.Application.Ppc.Contracts;
+using LocalDataApi.Application.Ppc.Services;
+using LocalDataApi.Application.WeChatWork;
+using LocalDataApi.Infrastructure.Data;
+using LocalDataApi.Infrastructure.WeChatWork;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using SKIT.FlurlHttpClient.Wechat.Work;
 using SKIT.FlurlHttpClient.Wechat.Work.Settings;
 using Swashbuckle.AspNetCore.SwaggerUI;
-using System.Text.Json.Serialization;
 using System.Reflection;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using LocalDataApi.Middlewares;
-using Microsoft.AspNetCore.RateLimiting;
-using LocalDataApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ========== 1. 配置日志（用于调试 SDK 内部请求） ==========
+// ========== 1. 配置日志 ==========
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole(); // 将日志输出到控制台
+builder.Logging.AddConsole();
 
-// 检测 SQL Server 版本，动态设置批量插入大小
+// ========== 2. 配置数据库(动态探测 SQL Server 版本,设置批量插入大小) ==========
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
-        "缺少数据库连接字符串，请配置环境变量 ConnectionStrings__DefaultConnection。");
+        "缺少数据库连接字符串,请配置环境变量 ConnectionStrings__DefaultConnection。");
 }
-int maxBatchSize = 1; // 默认保守：低版本单条插入
+int maxBatchSize = 1; // 默认保守:低版本单条插入
 
 try
 {
@@ -47,7 +51,6 @@ catch
     maxBatchSize = 1;
 }
 
-// 配置数据库连接
 builder.Services.AddDbContextPool<AppDbContext>
     (options =>
     {
@@ -56,16 +59,16 @@ builder.Services.AddDbContextPool<AppDbContext>
             {
                 sqlOptions.MaxBatchSize(maxBatchSize);
                 sqlOptions.UseCompatibilityLevel(100);
-                // 将内存集合翻译为 IN 常量列表而非 OPENJSON，兼容低版本 SQL Server（同时避免手写分批）
+                // 将内存集合翻译为 IN 常量列表而非 OPENJSON,兼容低版本 SQL Server(同时避免手写分批)
                 sqlOptions.TranslateParameterizedCollectionsToConstants();
-                // 启用连接弹性（连接失败自动重试）
+                // 启用连接弹性(连接失败自动重试)
                 sqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 3,
                     maxRetryDelay: TimeSpan.FromSeconds(2),
-                    errorNumbersToAdd: null);   // 要额外处理的 SQL 错误号（null 用默认）
+                    errorNumbersToAdd: null);
                 sqlOptions.CommandTimeout(30);
             });
-        // 在开发环境启用敏感数据日志，便于调试
+        // 在开发环境启用敏感数据日志,便于调试
         if (builder.Environment.IsDevelopment())
         {
             options.EnableSensitiveDataLogging();
@@ -73,6 +76,7 @@ builder.Services.AddDbContextPool<AppDbContext>
     }, poolSize: 256);
 builder.Services.AddMemoryCache();
 
+// ========== 3. 数据库密集型接口限流 ==========
 var databaseConcurrency = builder.Configuration.GetValue("Performance:DatabaseConcurrency", 64);
 var databaseQueue = builder.Configuration.GetValue("Performance:DatabaseQueue", 256);
 builder.Services.AddRateLimiter(options =>
@@ -84,7 +88,7 @@ builder.Services.AddRateLimiter(options =>
         await context.HttpContext.Response.WriteAsJsonAsync(new ApiResponse<object>
         {
             Success = false,
-            Message = "系统繁忙，请稍后重试。",
+            Message = "系统繁忙,请稍后重试。",
             Data = new { TraceId = context.HttpContext.TraceIdentifier }
         }, cancellationToken);
     };
@@ -95,13 +99,22 @@ builder.Services.AddRateLimiter(options =>
         limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
 });
-builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
-builder.Services.AddScoped<IPMCService, PMCService>();
-builder.Services.AddScoped<ERPBaseService>();
-builder.Services.AddScoped<IUserService, UserService>();
 
-// ========== 3. 企业微信客户端配置 ==========
-// 3.1 读取配置并验证（如果值为空，可提前抛出异常或日志）
+// ========== 4. 应用层服务注册(按业务模块) ==========
+builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ERPBaseService>();
+
+// PMC 域
+builder.Services.AddScoped<IPmcProductService, PmcProductService>();
+builder.Services.AddScoped<IPmcDeliveryReviewService, PmcDeliveryReviewService>();
+builder.Services.AddScoped<IPmcBomService, PmcBomService>();
+builder.Services.AddScoped<IPmcSchedulingService, PmcSchedulingService>();
+builder.Services.AddScoped<IPmcWorkOrderService, PmcWorkOrderService>();
+builder.Services.AddScoped<IPmcExternalProductionService, PmcExternalProductionService>();
+
+// ========== 5. 企业微信客户端与基础设施注册 ==========
+// 5.1 读取配置并验证
 var wechatWorkSection = builder.Configuration.GetSection("WechatWork");
 if (!wechatWorkSection.Exists())
 {
@@ -110,36 +123,44 @@ if (!wechatWorkSection.Exists())
 var wechatWorkOptions = wechatWorkSection.Get<WechatWorkClientOptions>();
 if (wechatWorkOptions == null || string.IsNullOrEmpty(wechatWorkOptions.CorpId) || wechatWorkOptions.AgentId == null || string.IsNullOrEmpty(wechatWorkOptions.AgentSecret))
 {
-    throw new InvalidOperationException("企业微信配置缺失或不完整，请检查 appsettings.json 中的 WechatWork 节。");
+    throw new InvalidOperationException("企业微信配置缺失或不完整,请检查 appsettings.json 中的 WechatWork 节。");
 }
-// 注册 IHttpClientFactory（必须！）
+// 注册 IHttpClientFactory(必须!)
 builder.Services.AddHttpClient();
-// 3.2 注册企业微信客户端（单例，并传入日志工厂以便 SDK 输出内部日志）
+// 命名客户端:供 TokenProvider 拉取 jsapi_ticket 复用连接池
+builder.Services.AddHttpClient("WechatWork", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+// 5.2 注册企业微信客户端(单例,并传入日志工厂以便 SDK 输出内部日志)
 builder.Services.AddSingleton(new WechatWorkClient(new WechatWorkClientOptions
 {
     CorpId = wechatWorkOptions.CorpId,
     AgentId = wechatWorkOptions.AgentId,
     AgentSecret = wechatWorkOptions.AgentSecret
 }));
-// 3.3 注册 Token 提供者（单例，线程安全）
+// 5.3 注册 Token 提供者(单例,线程安全;内部使用 IHttpClientFactory)
 builder.Services.AddSingleton<WechatWorkTokenProvider>();
-// 3.4 注册自定义服务
-builder.Services.AddScoped<WeChatWorkService>();
-builder.Services.AddScoped<WeChatWorkLoginService>();
+// 5.4 注册企业微信应用服务(按子域拆分)
+builder.Services.AddScoped<WeChatWorkOrganizationService>();
+builder.Services.AddScoped<WeChatWorkMessageService>();
+builder.Services.AddScoped<WeChatWorkSmartSheetService>();
+builder.Services.AddScoped<WeChatWorkGroupChatService>();
+builder.Services.AddScoped<WeChatWorkJsSdkService>();
+builder.Services.AddScoped<IWechatWorkUserService, WechatWorkUserService>();
 
-/// 配置控制器和JSON选项
+// ========== 6. 控制器与 JSON 序列化 ==========
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy = null; // 保持属性名不变
-        options.JsonSerializerOptions.WriteIndented = true;// 美化JSON输出
-        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;  // 忽略空值属性
-        //options.JsonSerializerOptions.IgnoreReadOnlyProperties = false;
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;   // 处理循环引用
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // 保持属性名不变(前端契约依赖)
+        options.JsonSerializerOptions.WriteIndented = true; // 美化JSON输出
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull; // 忽略空值属性
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; // 处理循环引用
     });
 builder.Services.AddOpenApi();
 
-//Swagger 
+// ========== 7. Swagger(仅开发环境暴露) ==========
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -150,7 +171,7 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API接口文档"
     });
 
-    // 加载 XML 注释文件，使 Swagger UI 显示控制器/接口的中文说明
+    // 加载 XML 注释文件,使 Swagger UI 显示控制器/接口的中文说明
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -159,13 +180,11 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
+// ========== 8. CORS ==========
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", builder =>
     {
-        //builder.AllowAnyOrigin()
-        //       .AllowAnyMethod()
-        //       .AllowAnyHeader();
         builder.WithOrigins("http://localhost:5173", "http://192.168.1.110:1001", "http://192.168.1.110:1002")
              .AllowAnyHeader()
              .AllowAnyMethod()
@@ -175,27 +194,22 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// 在开发环境中启用Swagger中间件
-if (app.Environment.IsDevelopment()||app.Environment.IsProduction())
+// ========== 9. 中间件管道 ==========
+// 仅开发环境暴露 Swagger 文档
+if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    // Enable middleware to serve generated Swagger as a JSON endpoint
     app.UseSwagger();
-    // Enable middleware to serve Swagger UI (HTML, JS, CSS, etc.)
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Web API V1");
-        // 设置Swagger UI页面标题
         c.DocumentTitle = "API在线文档";
-        // 展开深度：None(不展开)、List(展开操作列表)、Full(展开所有)
         c.DocExpansion(DocExpansion.None);
-        // 显示请求持续时间（毫秒）
         c.DisplayRequestDuration();
-        c.RoutePrefix = string.Empty; // Make Swagger UI available at the root
+        c.RoutePrefix = string.Empty; // Swagger UI 在根路径可用
     });
 }
 
-//app.UseCors("AllowVueApp");
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
@@ -205,12 +219,6 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseRateLimiter();
 
 app.UseAuthorization();
-
-//// 启用静态文件服务（可选）
-//app.UseDefaultFiles();
-//app.UseStaticFiles();
-//// 启用路由和控制器映射
-//app.UseRouting();
 
 app.MapControllers();
 
