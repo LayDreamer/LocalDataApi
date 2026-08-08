@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Domain.Blf;
 using LocalDataApi.Domain.Erp;
@@ -289,6 +290,31 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => new { e.CreateTime, e.Action });
             });
+
+            // ========== EF 迁移边界配置(2026-08-08) ==========
+            // 本项目为 DB-First 混合模式:仅 BLF 三表与 RBAC 新表由 EF Migration 管理,
+            // 其余中文表/视图/用户表等均为数据库预存在实体,必须排除出迁移范围;
+            // 否则 dotnet ef migrations add 会为这些已存在的表生成 CREATE TABLE,
+            // 执行 database update 时因"对象已存在"而失败。
+            // 用户表 [用户管理] 的 RBAC 扩展列以手写 AddColumn 方式加入迁移(见 AddRbacTables 迁移)。
+            var typesManagedByMigrations = new HashSet<Type>
+            {
+                typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
+                typeof(Department), typeof(Role), typeof(Permission),
+                typeof(UserRole), typeof(RolePermission), typeof(AuditLog)
+            };
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                // 视图(ToView)天然不参与迁移,直接跳过(避免快照生成 ToTable(null) 报错)
+                if (!string.IsNullOrEmpty(entityType.GetViewName()))
+                {
+                    continue;
+                }
+                if (!typesManagedByMigrations.Contains(entityType.ClrType))
+                {
+                    entityType.SetIsTableExcludedFromMigrations(true);
+                }
+            }
 
             base.OnModelCreating(modelBuilder);
         }

@@ -80,7 +80,7 @@ namespace LocalDataApi.Utils
                 if (parts.Length != 4 && parts.Length != 6)
                     return false;
 
-                // 统一数据段: 新格式 5 段,旧格式 3 段
+                // 统一数据段: 新格式(6段)为前 5 段,旧格式(4段)为前 3 段
                 var dataParts = parts.Length == 6 ? parts[..5] : parts[..3];
                 var data = string.Join('|', dataParts);
                 var expected = Sign(data, secret);
@@ -89,8 +89,9 @@ namespace LocalDataApi.Utils
                         Encoding.UTF8.GetBytes(parts[^1])))
                     return false;
 
-                // 校验是否过期(新旧格式均为倒数第2段)
-                if (!long.TryParse(parts[^2], out var expiryTicks) || expiryTicks <= DateTime.UtcNow.Ticks)
+                // 校验是否过期: 新格式 expiry 在索引 3,旧格式在索引 2
+                var expiryIndex = parts.Length == 6 ? 3 : 2;
+                if (!long.TryParse(parts[expiryIndex], out var expiryTicks) || expiryTicks <= DateTime.UtcNow.Ticks)
                     return false;
 
                 if (parts.Length == 6)
