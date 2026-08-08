@@ -23,4 +23,9 @@ public interface IUserService
     /// 更新个人资料(显示名 / 邮箱 / 手机号)。
     /// </summary>
     Task<(bool Success, string Message)> UpdateProfileAsync(string userName, UpdateProfileDto dto);
+
+    /// <summary>
+    /// 企业微信工作台免登:通过授权 code 换取企微身份并登录(账号不存在时自动建号)。
+    /// </summary>
+    Task<LoginResultDto> LoginByWeChatWorkAsync(string code, string? ipAddress = null);
 }

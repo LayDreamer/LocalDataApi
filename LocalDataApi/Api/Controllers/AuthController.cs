@@ -3,6 +3,7 @@ using LocalDataApi.Application.Identity;
 using LocalDataApi.Dto;
 using LocalDataApi.Utils;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace LocalDataApi.Api.Controllers;
 
@@ -14,11 +15,13 @@ namespace LocalDataApi.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly ILogger<AuthController> _logger;
     private readonly string _tokenSecret;
 
-    public AuthController(IUserService userService, IConfiguration configuration)
+    public AuthController(IUserService userService, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _userService = userService;
+        _logger = logger;
         // 生产环境必须通过配置注入密钥;缺失时回退值仅用于本地调试
         _tokenSecret = configuration["Auth:Secret"]
                        ?? "LocalDataApi-Default-Dev-Secret-Change-Me";
@@ -141,6 +144,32 @@ public class AuthController : ControllerBase
         {
             Success = true,
             Message = message
+        });
+    }
+
+    /// <summary>企业微信工作台免登(携带授权 code 换取登录态)</summary>
+    [HttpPost("login-by-wechatwork")]
+    public async Task<ActionResult<ApiResponse<LoginResultDto>>> LoginByWeChatWork(WeChatWorkLoginDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Code))
+        {
+            _logger.LogWarning("企微免登请求未携带 Code");
+            return BadRequest(new ApiResponse<LoginResultDto>
+            {
+                Success = false,
+                Message = "授权 code 不能为空"
+            });
+        }
+
+        var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+        _logger.LogInformation("收到企微免登请求, Code={Code}, CodeLength={CodeLength}, RemoteIp={RemoteIp}", dto.Code, dto.Code.Length, remoteIp);
+
+        var result = await _userService.LoginByWeChatWorkAsync(dto.Code, remoteIp);
+        return Ok(new ApiResponse<LoginResultDto>
+        {
+            Success = result.Success,
+            Message = result.Message,
+            Data = result
         });
     }
 }

@@ -181,11 +181,14 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ========== 8. CORS ==========
+// 允许的来源从配置读取(默认含开发期 5173 与内网地址);生产环境请在 Cors:AllowedOrigins 中加入前端真实域名
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                  ?? new[] { "http://localhost:5173", "http://192.168.1.110:1001", "http://192.168.1.110:1002" };
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        builder.WithOrigins("http://localhost:5173", "http://192.168.1.110:1001", "http://192.168.1.110:1002")
+        policy.WithOrigins(corsOrigins)
              .AllowAnyHeader()
              .AllowAnyMethod()
              .AllowCredentials();
@@ -215,6 +218,30 @@ app.UseCors("AllowAll");
 app.UseHttpsRedirection();
 
 app.UseRouting();
+
+// 请求入口日志：记录所有到达后端的 HTTP 请求，便于排查前端是否真正发请求及请求内容
+app.Use(async (context, next) =>
+{
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    var origin = context.Request.Headers.Origin.ToString();
+    logger.LogInformation(
+        "[REQ] {Method} {Path}{Query} | RemoteIp={RemoteIp} | Origin={Origin}",
+        context.Request.Method,
+        context.Request.Path,
+        context.Request.QueryString,
+        context.Connection.RemoteIpAddress,
+        string.IsNullOrEmpty(origin) ? "(none)" : origin);
+
+    await next();
+
+    logger.LogInformation(
+        "[RES] {Method} {Path}{Query} | Status={StatusCode}",
+        context.Request.Method,
+        context.Request.Path,
+        context.Request.QueryString,
+        context.Response.StatusCode);
+});
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseRateLimiter();
 

@@ -88,4 +88,13 @@ namespace LocalDataApi.Dto
         public string? Username { get; set; }
         public string? Upwd { get; set; }
     }
+
+    /// <summary>
+    /// 企业微信工作台免登请求(携带网页授权 code)
+    /// </summary>
+    public class WeChatWorkLoginDto
+    {
+        // 企业微信 OAuth2 授权回调携带的 code
+        public string Code { get; set; } = "";
+    }
 }

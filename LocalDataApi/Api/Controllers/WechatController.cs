@@ -1,6 +1,9 @@
+using System;
+using System.Linq;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace LocalDataApi.Api.Controllers;
 
@@ -12,17 +15,36 @@ namespace LocalDataApi.Api.Controllers;
 public class WechatController : ControllerBase
 {
     private readonly IWechatWorkUserService _userService;
+    private readonly IConfiguration _configuration;
 
-    public WechatController(IWechatWorkUserService userService)
+    public WechatController(IWechatWorkUserService userService, IConfiguration configuration)
     {
         _userService = userService;
+        _configuration = configuration;
     }
 
-    /// <summary>生成授权跳转URL</summary>
+    /// <summary>生成授权跳转URL(redirectUri 须为可信域名白名单内)</summary>
     [HttpGet("authorize-url")]
     public IActionResult GetAuthorizeUrl([FromQuery] string redirectUri, [FromQuery] string state = "STATE")
     {
-        var url = _userService.GenerateAuthorizeUrl(redirectUri, state);
+        if (string.IsNullOrWhiteSpace(redirectUri))
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "redirectUri 不能为空"
+            });
+
+        // 前端可能已做 URL 编码,这里还原为原始 URL 后再校验、再生成企微授权链接
+        var actualRedirectUri = NormalizeRedirectUri(redirectUri);
+
+        if (!IsRedirectUriAllowed(actualRedirectUri))
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "redirectUri 不在可信域名白名单内"
+            });
+
+        var url = _userService.GenerateAuthorizeUrl(actualRedirectUri, state);
         return Ok(new { url });
     }
 
@@ -78,5 +100,42 @@ public class WechatController : ControllerBase
         {
             return StatusCode(500, new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// 校验 redirectUri 的 Host 是否在 WeChatWork:AllowedRedirectHosts 白名单内,防止开放重定向。
+    /// </summary>
+    private bool IsRedirectUriAllowed(string redirectUri)
+    {
+        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var uri))
+            return false;
+
+        var allowed = _configuration["WeChatWork:AllowedRedirectHosts"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                      ?? Array.Empty<string>();
+        return allowed.Any(h => string.Equals(h, uri.Host, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 将前端传过来的 redirectUri 还原为原始 URL。
+    /// 兼容情况:原始 URL、单次 URL 编码、双重 URL 编码。
+    /// </summary>
+    private static string NormalizeRedirectUri(string redirectUri)
+    {
+        var current = redirectUri;
+        // 最多解码两次,避免对已经是原始 URL 的字符串过度解码
+        for (var i = 0; i < 2; i++)
+        {
+            if (Uri.TryCreate(current, UriKind.Absolute, out _))
+                break;
+
+            var decoded = Uri.UnescapeDataString(current);
+            if (decoded == current)
+                break;
+
+            current = decoded;
+        }
+
+        return current;
     }
 }

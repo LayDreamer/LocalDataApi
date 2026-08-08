@@ -52,5 +52,8 @@ namespace LocalDataApi.Domain.Identity
 
         // 修改时间（存储 ISO8601 字符串）
         public string? ModifyDate { get; set; }
+
+        // 企业微信 UserId（工作台免登绑定，用于识别企微身份对应的系统账号）
+        public string? WeChatWorkUserId { get; set; }
     }
 }

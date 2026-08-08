@@ -1,8 +1,10 @@
+using LocalDataApi.Application.WeChatWork;
 using LocalDataApi.Domain.Identity;
 using LocalDataApi.Dto;
 using LocalDataApi.Infrastructure.Data;
 using LocalDataApi.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace LocalDataApi.Application.Identity;
 
@@ -12,19 +14,23 @@ namespace LocalDataApi.Application.Identity;
 public class UserService : IUserService
 {
     private readonly AppDbContext _context;
+    private readonly IWechatWorkUserService _wxUserService;
     private readonly string _tokenSecret;
+    private readonly int _tokenExpiryMinutes;
 
     // 连续登录失败达到该次数后锁定账号
     private const int MaxLoginFailCount = 5;
     // 锁定时长
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-    public UserService(AppDbContext context, IConfiguration configuration)
+    public UserService(AppDbContext context, IConfiguration configuration, IWechatWorkUserService wxUserService)
     {
         _context = context;
-        // 令牌签名密钥;生产环境必须通过配置注入,缺失时开发回退值仅用于本地调试
-        _tokenSecret = configuration["Auth:Secret"]
-                       ?? "LocalDataApi-Default-Dev-Secret-Change-Me";
+        _wxUserService = wxUserService;
+        // 令牌签名密钥;生产环境必须通过配置注入,缺失或为空时回退开发默认密钥
+        var secret = configuration["Auth:Secret"];
+        _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
+        _tokenExpiryMinutes = configuration.GetValue("Auth:TokenExpiryMinutes", 1440);
     }
 
     /// <summary>
@@ -90,7 +96,108 @@ public class UserService : IUserService
 
         result.Success = true;
         result.Message = "登录成功";
-        result.Token = TokenHelper.CreateToken(user.UserName!, _tokenSecret);
+        result.Token = TokenHelper.CreateToken(user.UserName!, _tokenSecret, _tokenExpiryMinutes);
+        result.User = new UserInfoDto
+        {
+            Id = user.Id,
+            UserName = user.UserName,
+            DisplayName = user.DisplayName,
+            Role = user.Role,
+            Email = user.Email
+        };
+        return result;
+    }
+
+    /// <summary>
+    /// 企业微信工作台免登:通过授权 code 换取企微身份并登录;账号不存在时自动建号绑定。
+    /// </summary>
+    public async Task<LoginResultDto> LoginByWeChatWorkAsync(string code, string? ipAddress = null)
+    {
+        var result = new LoginResultDto { Success = false };
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            result.Message = "授权 code 不能为空";
+            return result;
+        }
+
+        // 1. code → 企业微信用户身份
+        WechatWorkUserInfo wxUser;
+        try
+        {
+            wxUser = await _wxUserService.GetUserInfoByCodeAsync(code);
+        }
+        catch (Exception ex)
+        {
+            result.Message = $"企业微信授权校验失败: {ex.Message}";
+            return result;
+        }
+
+        if (string.IsNullOrWhiteSpace(wxUser.UserId))
+        {
+            result.Message = "未获取到企业微信用户身份";
+            return result;
+        }
+
+        // 2. 查找已绑定账号
+        var user = await _context.用户管理.AsTracking()
+            .FirstOrDefaultAsync(u => u.WeChatWorkUserId != null && u.WeChatWorkUserId == wxUser.UserId);
+
+        // 3. 未绑定 → 自动建号
+        if (user == null)
+        {
+            WechatWorkUserDetailInfo detail;
+            try
+            {
+                detail = await _wxUserService.GetUserDetailByUserIdAsync(wxUser.UserId);
+            }
+            catch (Exception ex)
+            {
+                result.Message = $"获取企业微信用户详情失败: {ex.Message}";
+                return result;
+            }
+
+            var userName = await EnsureUniqueUserName($"wx_{wxUser.UserId}");
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            user = new User
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserName = userName,
+                WeChatWorkUserId = wxUser.UserId,
+                DisplayName = detail.Name,
+                Email = detail.Email,
+                PhoneNumber = detail.Mobile,
+                Role = "User",
+                IsActive = "true",
+                CreateDate = now,
+                ModifyDate = now
+            };
+            _context.用户管理.Add(user);
+            await _context.SaveChangesAsync();
+        }
+
+        // 4. 复用登录风控(禁用 / 锁定)
+        if (user.IsActive != "true")
+        {
+            result.Message = "账号已被禁用";
+            return result;
+        }
+        if (!string.IsNullOrEmpty(user.LockoutEnd) && DateTime.Parse(user.LockoutEnd) > DateTime.Now)
+        {
+            result.Message = "账号已锁定,请稍后再试";
+            return result;
+        }
+
+        // 5. 登录审计
+        user.LastLoginTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        user.LastLoginIp = ipAddress;
+        user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        await _context.SaveChangesAsync();
+
+        // 6. 签发令牌
+        result.Success = true;
+        result.Message = "企业微信登录成功";
+        result.Token = TokenHelper.CreateToken(user.UserName!, _tokenSecret, _tokenExpiryMinutes);
         result.User = new UserInfoDto
         {
             Id = user.Id,
@@ -181,5 +288,19 @@ public class UserService : IUserService
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
         return (true, "资料更新成功");
+    }
+
+    /// <summary>
+    /// 生成不与其他账号冲突的用户名(自动建号时调用)。
+    /// </summary>
+    private async Task<string> EnsureUniqueUserName(string baseName)
+    {
+        var name = baseName;
+        var suffix = 1;
+        while (await _context.用户管理.AsNoTracking().AnyAsync(u => u.UserName != null && u.UserName == name))
+        {
+            name = $"{baseName}_{suffix++}";
+        }
+        return name;
     }
 }
