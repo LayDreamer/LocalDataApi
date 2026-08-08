@@ -1,0 +1,281 @@
+using LocalDataApi.Application.Common;
+using LocalDataApi.Domain.Identity;
+using LocalDataApi.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace LocalDataApi.Application.Identity
+{
+    /// <summary>
+    /// RBAC 初始化数据(启动时执行,幂等)。
+    /// 负责: 权限点初始化(PermissionSeeder) + 默认角色初始化(RoleSeeder) + 角色权限矩阵绑定 + 历史 Admin 用户兜底绑定。
+    /// 遵循约定: 不使用 Migration 维护业务权限数据;按 Code 检查存在性,可重复执行。
+    /// </summary>
+    public sealed class RbacSeeder
+    {
+        private readonly AppDbContext _context;
+        private readonly ILogger<RbacSeeder> _logger;
+
+        public RbacSeeder(AppDbContext context, ILogger<RbacSeeder> logger)
+        {
+            _context = context;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// 执行初始化(幂等)。任何失败仅记录警告,不阻断应用启动(便于 DB-First 部署分步执行 SQL 脚本)。
+        /// </summary>
+        public async Task SeedAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                await EnsurePermissionsAsync(ct);
+                var roles = await EnsureRolesAsync(ct);
+                await EnsureRolePermissionsAsync(roles, ct);
+                await EnsureLegacyAdminUsersAsync(ct);
+                _logger.LogInformation("RBAC 初始化数据检查完成。");
+            }
+            catch (Exception ex)
+            {
+                // RBAC 表可能尚未通过 SQL 脚本创建;降级为警告,不影响原有业务
+                _logger.LogWarning(ex, "RBAC 初始化数据执行失败(请确认已执行 DatabaseScripts/20260808_RbacTables.sql): {Message}", ex.Message);
+            }
+        }
+
+        // ---------- 1. 权限点初始化(幂等) ----------
+        private async Task EnsurePermissionsAsync(CancellationToken ct)
+        {
+            var defs = BuildPermissionDefinitions();
+            var existingCodes = await _context.Permissions.AsNoTracking()
+                .Select(p => p.Code).ToHashSetAsync(ct);
+
+            var now = DateTime.Now;
+            foreach (var def in defs)
+            {
+                if (existingCodes.Contains(def.Code))
+                    continue;
+                _context.Permissions.Add(new Permission
+                {
+                    Id = Guid.NewGuid(),
+                    Code = def.Code,
+                    Module = def.Module,
+                    Resource = def.Resource,
+                    Action = def.Action,
+                    DisplayName = def.DisplayName,
+                    Description = def.Description,
+                    Enabled = true,
+                    CreateTime = now,
+                    ModifyTime = now
+                });
+            }
+            await _context.SaveChangesAsync(ct);
+        }
+
+        /// <summary>全量权限定义(与 PermissionCodes.cs / 权限编码字典保持一致)。</summary>
+        private static IReadOnlyList<(string Code, string Module, string Resource, string Action, string DisplayName, string Description)> BuildPermissionDefinitions()
+        {
+            return new List<(string, string, string, string, string, string)>
+            {
+                // ===== Identity 用户管理 =====
+                (PermissionCodes.UserView, "Identity", "User", "View", "查看用户", "查看用户列表与详情"),
+                (PermissionCodes.UserCreate, "Identity", "User", "Create", "新增用户", "创建系统用户"),
+                (PermissionCodes.UserUpdate, "Identity", "User", "Update", "修改用户", "修改用户资料"),
+                (PermissionCodes.UserDelete, "Identity", "User", "Delete", "删除用户", "删除系统用户"),
+                (PermissionCodes.UserAssignRole, "Identity", "User", "AssignRole", "分配用户角色", "为用户分配/调整角色"),
+                // ===== Identity 角色管理 =====
+                (PermissionCodes.RoleView, "Identity", "Role", "View", "查看角色", "查看角色列表与详情"),
+                (PermissionCodes.RoleCreate, "Identity", "Role", "Create", "新增角色", "创建角色"),
+                (PermissionCodes.RoleUpdate, "Identity", "Role", "Update", "修改角色", "修改角色信息"),
+                (PermissionCodes.RoleDelete, "Identity", "Role", "Delete", "删除角色", "删除角色"),
+                (PermissionCodes.RoleAssignPermission, "Identity", "Role", "AssignPermission", "分配角色权限", "为角色分配权限点"),
+                // ===== Identity 权限管理 =====
+                (PermissionCodes.PermissionView, "Identity", "Permission", "View", "查看权限", "查看权限字典"),
+                (PermissionCodes.PermissionUpdate, "Identity", "Permission", "Update", "维护权限", "启用/停用权限点"),
+                // ===== Identity 部门管理 =====
+                (PermissionCodes.DepartmentView, "Identity", "Department", "View", "查看部门", "查看组织部门树"),
+                (PermissionCodes.DepartmentSync, "Identity", "Department", "Sync", "同步部门", "从企业微信同步组织架构"),
+                // ===== PMC 排产管理 =====
+                (PermissionCodes.ScheduleView, "PMC", "Schedule", "View", "查看排产", "查看排产数据"),
+                (PermissionCodes.ScheduleCreate, "PMC", "Schedule", "Create", "新建排产", "创建排产分析"),
+                (PermissionCodes.ScheduleUpdate, "PMC", "Schedule", "Update", "修改排产", "修改排产数据"),
+                (PermissionCodes.ScheduleDelete, "PMC", "Schedule", "Delete", "删除排产", "删除排产数据"),
+                (PermissionCodes.SchedulePublish, "PMC", "Schedule", "Publish", "发布排产", "发布排产计划"),
+                (PermissionCodes.ScheduleExport, "PMC", "Schedule", "Export", "导出排产", "导出排产数据"),
+                // ===== PMC 工单管理 =====
+                (PermissionCodes.WorkOrderView, "PMC", "WorkOrder", "View", "查看工单", "查看工单数据"),
+                (PermissionCodes.WorkOrderCreate, "PMC", "WorkOrder", "Create", "新建工单", "创建工单"),
+                (PermissionCodes.WorkOrderUpdate, "PMC", "WorkOrder", "Update", "修改工单", "修改工单数据"),
+                (PermissionCodes.WorkOrderDelete, "PMC", "WorkOrder", "Delete", "删除工单", "删除工单数据"),
+                (PermissionCodes.WorkOrderClose, "PMC", "WorkOrder", "Close", "关闭工单", "关闭工单"),
+                // ===== PMC 交期评审 =====
+                (PermissionCodes.DeliveryReviewView, "PMC", "DeliveryReview", "View", "查看交期评审", "查看交期评审数据"),
+                (PermissionCodes.DeliveryReviewCreate, "PMC", "DeliveryReview", "Create", "新建交期评审", "创建交期评审"),
+                (PermissionCodes.DeliveryReviewUpdate, "PMC", "DeliveryReview", "Update", "修改交期评审", "修改交期评审数据"),
+                (PermissionCodes.DeliveryReviewApprove, "PMC", "DeliveryReview", "Approve", "审核交期评审", "通过交期评审"),
+                (PermissionCodes.DeliveryReviewReject, "PMC", "DeliveryReview", "Reject", "驳回交期评审", "驳回交期评审"),
+                // ===== PMC 外产管理 =====
+                (PermissionCodes.ExternalProductionView, "PMC", "ExternalProduction", "View", "查看外产", "查看外产数据"),
+                (PermissionCodes.ExternalProductionCreate, "PMC", "ExternalProduction", "Create", "新建外产", "创建外产记录"),
+                (PermissionCodes.ExternalProductionUpdate, "PMC", "ExternalProduction", "Update", "修改外产", "修改外产数据"),
+                (PermissionCodes.ExternalProductionDelete, "PMC", "ExternalProduction", "Delete", "删除外产", "删除外产数据"),
+                (PermissionCodes.ExternalProductionApprove, "PMC", "ExternalProduction", "Approve", "审核外产", "审核外产记录"),
+                // ===== ERP 工单 =====
+                (PermissionCodes.ErpWorkOrderView, "ERP", "WorkOrder", "View", "查看ERP工单", "查看ERP工单数据"),
+                (PermissionCodes.ErpWorkOrderUpdate, "ERP", "WorkOrder", "Update", "修改ERP工单", "修改ERP工单数据"),
+                // ===== ERP 物料 =====
+                (PermissionCodes.ErpMaterialView, "ERP", "Material", "View", "查看物料", "查看物料数据"),
+                (PermissionCodes.ErpMaterialImport, "ERP", "Material", "Import", "导入物料", "导入物料数据"),
+                (PermissionCodes.ErpMaterialExport, "ERP", "Material", "Export", "导出物料", "导出物料数据"),
+                // ===== WeChatWork =====
+                (PermissionCodes.WeChatWorkMessageSend, "WeChatWork", "Message", "Send", "发送企微消息", "通过企业微信发送消息"),
+                (PermissionCodes.WeChatWorkDepartmentView, "WeChatWork", "Department", "View", "查看企微部门", "查看企业微信部门"),
+                (PermissionCodes.WeChatWorkDepartmentSync, "WeChatWork", "Department", "Sync", "同步企微部门", "同步企业微信部门"),
+                (PermissionCodes.WeChatWorkUserSync, "WeChatWork", "User", "Sync", "同步企微用户", "同步企业微信用户"),
+                (PermissionCodes.WeChatWorkSmartSheetView, "WeChatWork", "SmartSheet", "View", "查看智能表格", "查看企业微信智能表格"),
+                (PermissionCodes.WeChatWorkSmartSheetSync, "WeChatWork", "SmartSheet", "Sync", "同步智能表格", "同步企业微信智能表格")
+            };
+        }
+
+        // ---------- 2. 默认角色初始化(幂等) ----------
+        private async Task<Dictionary<string, Role>> EnsureRolesAsync(CancellationToken ct)
+        {
+            var now = DateTime.Now;
+            var roles = new Dictionary<string, Role>(StringComparer.OrdinalIgnoreCase);
+
+            var defs = new[]
+            {
+                (Code: "ADMIN", Name: "系统管理员", DisplayName: "系统管理员", Description: "系统管理员,拥有全部权限", IsSystem: true),
+                (Code: "PMC_ADMIN", Name: "PMC管理员", DisplayName: "PMC管理员", Description: "PMC模块管理员,拥有 PMC 全部权限", IsSystem: false),
+                (Code: "SCHEDULER", Name: "排产员", DisplayName: "排产员", Description: "负责排产操作", IsSystem: false),
+                (Code: "REVIEWER", Name: "审核员", DisplayName: "审核员", Description: "负责交期评审审核", IsSystem: false),
+                (Code: "OPERATOR", Name: "操作员", DisplayName: "操作员", Description: "生产操作人员", IsSystem: false),
+                (Code: "VIEWER", Name: "查看者", DisplayName: "查看者", Description: "默认普通用户,仅拥有查看权限", IsSystem: false)
+            };
+
+            foreach (var def in defs)
+            {
+                var role = await _context.Roles.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Code == def.Code, ct);
+                if (role == null)
+                {
+                    role = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Code = def.Code,
+                        Name = def.Name,
+                        DisplayName = def.DisplayName,
+                        Description = def.Description,
+                        IsBuiltIn = true,
+                        IsSystem = def.IsSystem,
+                        Enabled = true,
+                        CreateTime = now,
+                        ModifyTime = now
+                    };
+                    _context.Roles.Add(role);
+                    await _context.SaveChangesAsync(ct);
+                    _logger.LogInformation("RBAC 角色初始化: {Code}", def.Code);
+                }
+                roles[def.Code] = role;
+            }
+
+            return roles;
+        }
+
+        // ---------- 3. 角色权限矩阵绑定(幂等) ----------
+        private async Task EnsureRolePermissionsAsync(Dictionary<string, Role> roles, CancellationToken ct)
+        {
+            var permissions = await _context.Permissions.AsNoTracking().ToListAsync(ct);
+            var permissionByCode = permissions.ToDictionary(p => p.Code, StringComparer.Ordinal);
+            var now = DateTime.Now;
+
+            var matrix = new Dictionary<string, Func<string, bool>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Admin: 全部权限
+                ["ADMIN"] = code => true,
+                // PMCAdmin: PMC 模块全部权限
+                ["PMC_ADMIN"] = code => code.StartsWith("PMC.", StringComparison.Ordinal),
+                // Scheduler: 排产查看/新建/修改/导出
+                ["SCHEDULER"] = code => code is PermissionCodes.ScheduleView or PermissionCodes.ScheduleCreate or PermissionCodes.ScheduleUpdate or PermissionCodes.ScheduleExport,
+                // Reviewer: 交期评审查看/审核/驳回
+                ["REVIEWER"] = code => code is PermissionCodes.DeliveryReviewView or PermissionCodes.DeliveryReviewApprove or PermissionCodes.DeliveryReviewReject,
+                // Operator: 工单查看/修改
+                ["OPERATOR"] = code => code is PermissionCodes.WorkOrderView or PermissionCodes.WorkOrderUpdate,
+                // Viewer: 全部查看权限
+                ["VIEWER"] = code => code.EndsWith(".View", StringComparison.Ordinal)
+            };
+
+            foreach (var (roleCode, matcher) in matrix)
+            {
+                if (!roles.TryGetValue(roleCode, out var role))
+                    continue;
+
+                var targetCodes = permissions.Where(p => p.Enabled && matcher(p.Code)).Select(p => p.Code).ToHashSet(StringComparer.Ordinal);
+                var boundCodes = await (
+                    from rp in _context.RolePermissions
+                    join p in _context.Permissions on rp.PermissionId equals p.Id
+                    where rp.RoleId == role.Id
+                    select p.Code).ToListAsync(ct);
+
+                var missing = targetCodes.Except(boundCodes).ToList();
+                foreach (var code in missing)
+                {
+                    if (!permissionByCode.TryGetValue(code, out var permission))
+                        continue;
+                    _context.RolePermissions.Add(new RolePermission
+                    {
+                        Id = Guid.NewGuid(),
+                        RoleId = role.Id,
+                        PermissionId = permission.Id,
+                        CreateTime = now
+                    });
+                }
+                if (missing.Count > 0)
+                {
+                    await _context.SaveChangesAsync(ct);
+                    _logger.LogInformation("RBAC 角色权限绑定: {RoleCode} +{Count}", roleCode, missing.Count);
+                }
+            }
+        }
+
+        // ---------- 4. 历史 Admin 用户兜底绑定(防锁死) ----------
+        private async Task EnsureLegacyAdminUsersAsync(CancellationToken ct)
+        {
+            var adminRole = await _context.Roles.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Code == "ADMIN", ct);
+            if (adminRole == null)
+                return;
+
+            // 旧系统通过 User.Role="Admin" 标记管理员,迁移后自动绑定 Admin 角色
+            var legacyAdmins = await _context.用户管理.AsNoTracking()
+                .Where(u => u.Role == "Admin")
+                .Select(u => u.Id)
+                .ToListAsync(ct);
+
+            var boundUserIds = await _context.UserRoles.AsNoTracking()
+                .Where(ur => ur.RoleId == adminRole.Id && ur.IsActive)
+                .Select(ur => ur.UserId)
+                .ToHashSetAsync(ct);
+
+            var now = DateTime.Now;
+            var added = 0;
+            foreach (var userId in legacyAdmins)
+            {
+                if (userId == null || boundUserIds.Contains(userId))
+                    continue;
+                _context.UserRoles.Add(new UserRole
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    RoleId = adminRole.Id,
+                    AssignedAt = now,
+                    IsActive = true
+                });
+                added++;
+            }
+            if (added > 0)
+            {
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("RBAC 历史管理员绑定: {Count} 个用户绑定 ADMIN 角色", added);
+            }
+        }
+    }
+}

@@ -15,22 +15,34 @@ public class UserService : IUserService
 {
     private readonly AppDbContext _context;
     private readonly IWechatWorkUserService _wxUserService;
+    private readonly IUserRoleService _userRoleService;
+    private readonly AuthorizationService _authorization;
     private readonly string _tokenSecret;
     private readonly int _tokenExpiryMinutes;
+    private readonly string _defaultLoginRole;
 
     // 连续登录失败达到该次数后锁定账号
     private const int MaxLoginFailCount = 5;
     // 锁定时长
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-    public UserService(AppDbContext context, IConfiguration configuration, IWechatWorkUserService wxUserService)
+    public UserService(
+        AppDbContext context,
+        IConfiguration configuration,
+        IWechatWorkUserService wxUserService,
+        IUserRoleService userRoleService,
+        AuthorizationService authorization)
     {
         _context = context;
         _wxUserService = wxUserService;
+        _userRoleService = userRoleService;
+        _authorization = authorization;
         // 令牌签名密钥;生产环境必须通过配置注入,缺失或为空时回退开发默认密钥
         var secret = configuration["Auth:Secret"];
         _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
         _tokenExpiryMinutes = configuration.GetValue("Auth:TokenExpiryMinutes", 1440);
+        // 新用户默认角色(企微免登自动建号时绑定)
+        _defaultLoginRole = configuration.GetValue("Rbac:DefaultLoginRole", "VIEWER");
     }
 
     /// <summary>
@@ -94,17 +106,32 @@ public class UserService : IUserService
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
 
+        // 确保新账号已绑定默认角色(历史账号无 UserRole 记录时兜底)
+        await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
+
+        // 重新读取权限版本(绑定默认角色后已 +1)
+        var freshUser = await _context.用户管理.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == user.Id);
+        var (roles, permissions) = await _authorization.GetUserRolesAndPermissionsAsync(user.Id!, default);
+
         result.Success = true;
         result.Message = "登录成功";
-        result.Token = TokenHelper.CreateToken(user.UserName!, _tokenSecret, _tokenExpiryMinutes);
+        result.Token = TokenHelper.CreateToken(
+            user.Id!, user.UserName!, freshUser?.PermissionVersion ?? 0, _tokenSecret, _tokenExpiryMinutes);
         result.User = new UserInfoDto
         {
             Id = user.Id,
             UserName = user.UserName,
             DisplayName = user.DisplayName,
             Role = user.Role,
-            Email = user.Email
+            Email = user.Email,
+            PrimaryDepartmentName = user.PrimaryDepartmentName,
+            Position = user.Position
         };
+        result.UserId = user.Id;
+        result.UserName = user.DisplayName ?? user.UserName;
+        result.Roles = roles;
+        result.Permissions = permissions;
         return result;
     }
 
@@ -174,6 +201,9 @@ public class UserService : IUserService
             };
             _context.用户管理.Add(user);
             await _context.SaveChangesAsync();
+
+            // RBAC: 新用户自动绑定默认角色(如 Viewer),不触发企微全量部门同步
+            await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
         }
 
         // 4. 复用登录风控(禁用 / 锁定)
@@ -194,18 +224,29 @@ public class UserService : IUserService
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
 
-        // 6. 签发令牌
+        // 6. 签发令牌(令牌携带用户ID与权限版本,不含完整权限列表)
+        var freshUser = await _context.用户管理.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == user.Id);
+        var (roles, permissions) = await _authorization.GetUserRolesAndPermissionsAsync(user.Id!, default);
+
         result.Success = true;
         result.Message = "企业微信登录成功";
-        result.Token = TokenHelper.CreateToken(user.UserName!, _tokenSecret, _tokenExpiryMinutes);
+        result.Token = TokenHelper.CreateToken(
+            user.Id!, user.UserName!, freshUser?.PermissionVersion ?? 0, _tokenSecret, _tokenExpiryMinutes);
         result.User = new UserInfoDto
         {
             Id = user.Id,
             UserName = user.UserName,
             DisplayName = user.DisplayName,
             Role = user.Role,
-            Email = user.Email
+            Email = user.Email,
+            PrimaryDepartmentName = user.PrimaryDepartmentName,
+            Position = user.Position
         };
+        result.UserId = user.Id;
+        result.UserName = user.DisplayName ?? user.UserName;
+        result.Roles = roles;
+        result.Permissions = permissions;
         return result;
     }
 

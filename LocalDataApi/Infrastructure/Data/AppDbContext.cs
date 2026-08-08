@@ -38,6 +38,19 @@ namespace LocalDataApi.Infrastructure.Data
         public DbSet<ERPId> tb_control_id { get; set; }
 
         public DbSet<User> 用户管理 { get; set; }
+
+        // ========== RBAC 权限中心(2026-08-08 新增,表落地见 DatabaseScripts/20260808_RbacTables.sql) ==========
+        public DbSet<Department> Departments { get; set; }
+
+        public DbSet<Role> Roles { get; set; }
+
+        public DbSet<Permission> Permissions { get; set; }
+
+        public DbSet<UserRole> UserRoles { get; set; }
+
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
         
         public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
         
@@ -227,6 +240,54 @@ namespace LocalDataApi.Infrastructure.Data
             {
                 entity.HasKey(e => e.编号);
                 entity.HasIndex(e => e.ChatId).IsUnique();
+            });
+
+            // ========== RBAC 实体配置(2026-08-08) ==========
+            modelBuilder.Entity<Department>(entity =>
+            {
+                entity.ToTable("Department");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CorpDepartmentId).IsUnique();
+                entity.HasIndex(e => e.ParentId);
+                entity.HasIndex(e => e.Path);
+            });
+
+            modelBuilder.Entity<Role>(entity =>
+            {
+                entity.ToTable("Role");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Code).IsUnique();
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.ToTable("Permission");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Code).IsUnique();
+                entity.HasIndex(e => new { e.Module, e.Resource });
+            });
+
+            modelBuilder.Entity<UserRole>(entity =>
+            {
+                entity.ToTable("UserRole");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
+                entity.HasIndex(e => e.RoleId);
+            });
+
+            modelBuilder.Entity<RolePermission>(entity =>
+            {
+                entity.ToTable("RolePermission");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.RoleId, e.PermissionId }).IsUnique();
+            });
+
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.ToTable("AuditLog");
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.CreateTime, e.Action });
             });
 
             base.OnModelCreating(modelBuilder);

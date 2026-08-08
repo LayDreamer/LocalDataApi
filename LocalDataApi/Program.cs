@@ -105,6 +105,18 @@ builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ERPBaseService>();
 
+// Identity / RBAC 权限中心(2026-08-08)
+builder.Services.AddSingleton<PermissionCache>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<AuthorizationService>();
+builder.Services.AddScoped<CurrentUserService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<RbacSeeder>();
+builder.Services.AddHttpContextAccessor();
+
 // PMC 域
 builder.Services.AddScoped<IPmcProductService, PmcProductService>();
 builder.Services.AddScoped<IPmcDeliveryReviewService, PmcDeliveryReviewService>();
@@ -196,6 +208,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// ========== 8.5 RBAC 初始化数据(启动时执行,幂等;失败仅警告不阻断启动) ==========
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<LocalDataApi.Application.Identity.RbacSeeder>();
+    await seeder.SeedAsync();
+}
 
 // ========== 9. 中间件管道 ==========
 // 仅开发环境暴露 Swagger 文档

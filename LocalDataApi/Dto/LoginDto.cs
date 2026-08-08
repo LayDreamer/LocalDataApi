@@ -38,6 +38,10 @@ namespace LocalDataApi.Dto
         public string? DisplayName { get; set; }
         public string? Role { get; set; }
         public string? Email { get; set; }
+        /// <summary>主部门名称(RBAC)</summary>
+        public string? PrimaryDepartmentName { get; set; }
+        /// <summary>职位(RBAC)</summary>
+        public string? Position { get; set; }
     }
 
     /// <summary>
@@ -56,6 +60,20 @@ namespace LocalDataApi.Dto
 
         // 登录用户信息
         public UserInfoDto? User { get; set; }
+
+        // ========== RBAC 扩展(2026-08-08) ==========
+
+        // 用户ID(前端直接使用,无需再从 User 中取)
+        public string? UserId { get; set; }
+
+        // 用户显示名
+        public string? UserName { get; set; }
+
+        // 角色编码列表(如 ["Viewer"])
+        public List<string> Roles { get; set; } = new();
+
+        // 有效权限编码列表(如 ["PMC.Schedule.View"])
+        public List<string> Permissions { get; set; } = new();
     }
 
     /// <summary>

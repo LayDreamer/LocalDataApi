@@ -55,5 +55,22 @@ namespace LocalDataApi.Domain.Identity
 
         // 企业微信 UserId（工作台免登绑定，用于识别企微身份对应的系统账号）
         public string? WeChatWorkUserId { get; set; }
+
+        // ========== RBAC 扩展字段(2026-08-08 新增) ==========
+
+        // 主部门ID(页面展示与默认组织;不作为唯一权限依据)
+        public Guid? PrimaryDepartmentId { get; set; }
+
+        // 主部门名称缓存
+        public string? PrimaryDepartmentName { get; set; }
+
+        // 职位
+        public string? Position { get; set; }
+
+        // 是否部门主管
+        public bool IsLeader { get; set; }
+
+        // 权限版本号(角色/权限变化时 +1,用于令牌失效与权限缓存刷新)
+        public int PermissionVersion { get; set; }
     }
 }
