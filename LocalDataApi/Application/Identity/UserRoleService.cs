@@ -32,14 +32,14 @@ namespace LocalDataApi.Application.Identity
     public sealed class UserRoleService : IUserRoleService
     {
         private readonly AppDbContext _context;
-        private readonly PermissionCache _cache;
+        private readonly IPermissionCacheService _permissionCache;
         private readonly IAuditLogService _auditLog;
         private readonly AuthorizationService _authorization;
 
-        public UserRoleService(AppDbContext context, PermissionCache cache, IAuditLogService auditLog, AuthorizationService authorization)
+        public UserRoleService(AppDbContext context, IPermissionCacheService permissionCache, IAuditLogService auditLog, AuthorizationService authorization)
         {
             _context = context;
-            _cache = cache;
+            _permissionCache = permissionCache;
             _auditLog = auditLog;
             _authorization = authorization;
         }
@@ -211,12 +211,11 @@ namespace LocalDataApi.Application.Identity
                           targetSet.Any(r => !existingSet.Contains(r));
             if (changed)
             {
-                user.PermissionVersion += 1;
-                user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                // 统一缓存失效服务:权限版本 +1 并清除缓存(修改随本次 SaveChanges 提交)
+                await _permissionCache.ClearUserPermissionCacheAsync(userId, ct);
             }
 
             await _context.SaveChangesAsync(ct);
-            _cache.Remove(userId);
 
             await TryAuditAsync(operatorId, "AssignUserRole", "User", userId,
                 new { UserName = user.UserName, RoleIds = roleIds });
@@ -247,14 +246,9 @@ namespace LocalDataApi.Application.Identity
                 IsActive = true
             });
 
-            var user = await _context.用户管理.AsTracking()
-                .FirstOrDefaultAsync(u => u.Id == userId, ct);
-            if (user != null)
-            {
-                user.PermissionVersion += 1;
-            }
+            // 统一缓存失效服务:权限版本 +1 并清除缓存(修改随本次 SaveChanges 提交)
+            await _permissionCache.ClearUserPermissionCacheAsync(userId, ct);
             await _context.SaveChangesAsync(ct);
-            _cache.Remove(userId);
         }
 
         public async Task<MeResultDto?> GetCurrentUserInfoAsync(string userId, CancellationToken ct = default)

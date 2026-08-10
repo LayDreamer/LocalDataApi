@@ -57,6 +57,12 @@ namespace LocalDataApi.Dto
         public bool Enabled { get; set; }
     }
 
+    /// <summary>启用/停用权限点请求</summary>
+    public class UpdatePermissionRequestDto
+    {
+        public bool Enabled { get; set; }
+    }
+
     // ==================== 用户管理 ====================
 
     /// <summary>为用户分配角色请求(覆盖式更新)</summary>

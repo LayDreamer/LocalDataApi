@@ -1,3 +1,4 @@
+using LocalDataApi.Api.Attributes;
 using LocalDataApi.Api.Middlewares;
 using LocalDataApi.Application.Blf;
 using LocalDataApi.Application.Common;
@@ -8,6 +9,8 @@ using LocalDataApi.Application.Pmc.Services;
 using LocalDataApi.Application.WeChatWork;
 using LocalDataApi.Infrastructure.Data;
 using LocalDataApi.Infrastructure.WeChatWork;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -107,6 +110,7 @@ builder.Services.AddScoped<ERPBaseService>();
 
 // Identity / RBAC 权限中心(2026-08-08)
 builder.Services.AddSingleton<PermissionCache>();
+builder.Services.AddScoped<IPermissionCacheService, PermissionCacheService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<AuthorizationService>();
 builder.Services.AddScoped<CurrentUserService>();
@@ -267,5 +271,53 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ========== 10. Controller 权限覆盖检查(启动扫描,仅输出警告,不阻断启动) ==========
+// 目的:发现新增接口未声明权限控制(HasPermission),避免接口意外暴露。
+// 注意:PMC/ERP/WeChatWork 业务接口处于"权限未接入阶段"(Task-012/013 未执行),会集中告警,属预期。
+using (var scanScope = app.Services.CreateScope())
+{
+    var scanLogger = scanScope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    ScanControllersForMissingPermissionAttributes(scanLogger);
+}
+
+static void ScanControllersForMissingPermissionAttributes(ILogger logger)
+{
+    var assembly = typeof(Program).Assembly;
+    var controllerTypes = assembly.GetTypes()
+        .Where(t => typeof(ControllerBase).IsAssignableFrom(t) && !t.IsAbstract && t.IsPublic)
+        .ToList();
+
+    var missing = 0;
+    var missingList = new List<string>();
+    foreach (var controller in controllerTypes)
+    {
+        var controllerProtected = controller.GetCustomAttributes<HasPermissionAttribute>(true).Any();
+        var actions = controller.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(m => !m.IsSpecialName && m.GetCustomAttributes<HttpMethodAttribute>(true).Any());
+
+        foreach (var action in actions)
+        {
+            var isProtected = controllerProtected || action.GetCustomAttributes<HasPermissionAttribute>(true).Any();
+            if (!isProtected)
+            {
+                missing++;
+                missingList.Add($"{controller.Name}.{action.Name}");
+            }
+        }
+    }
+
+    if (missing > 0)
+    {
+        logger.LogWarning(
+            "[RBAC] 权限覆盖检查: {Missing}/{Total} 个接口缺少权限声明(含业务接口未接入阶段,属预期;新增接口请注意补加 [HasPermission])\n{List}",
+            missing, controllerTypes.Sum(c => c.GetMethods(BindingFlags.Public | BindingFlags.Instance).Count(m => !m.IsSpecialName && m.GetCustomAttributes<HttpMethodAttribute>(true).Any())),
+            string.Join("\n", missingList.Take(30)));
+    }
+    else
+    {
+        logger.LogInformation("[RBAC] 权限覆盖检查: 全部接口均已声明权限。");
+    }
+}
 
 app.Run();

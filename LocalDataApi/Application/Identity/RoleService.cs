@@ -31,13 +31,13 @@ namespace LocalDataApi.Application.Identity
     public sealed class RoleService : IRoleService
     {
         private readonly AppDbContext _context;
-        private readonly PermissionCache _cache;
+        private readonly IPermissionCacheService _permissionCache;
         private readonly IAuditLogService _auditLog;
 
-        public RoleService(AppDbContext context, PermissionCache cache, IAuditLogService auditLog)
+        public RoleService(AppDbContext context, IPermissionCacheService permissionCache, IAuditLogService auditLog)
         {
             _context = context;
-            _cache = cache;
+            _permissionCache = permissionCache;
             _auditLog = auditLog;
         }
 
@@ -226,46 +226,18 @@ namespace LocalDataApi.Application.Identity
                 });
             }
 
-            // 覆盖式更新:即使无变化也记录操作;有变化才刷新权限版本
+            // 覆盖式更新:即使无变化也记录操作;有变化才刷新权限版本与缓存
             var changed = toRemove.Count > 0 || targetSet.Any(p => !existingSet.Contains(p));
             if (changed)
             {
                 role.ModifyTime = DateTime.Now;
-                await RefreshBoundUsersPermissionVersionAsync(roleId, ct);
+                await _permissionCache.ClearRolePermissionCacheAsync(roleId, ct);
             }
 
             await _context.SaveChangesAsync(ct);
 
             await TryAuditAsync(operatorId, "AssignRolePermission", "Role", roleId.ToString(),
                 new { RoleCode = role.Code, PermissionIds = permissionIds });
-        }
-
-        /// <summary>将角色绑定的所有有效用户权限版本 +1 并清除缓存。</summary>
-        private async Task RefreshBoundUsersPermissionVersionAsync(Guid roleId, CancellationToken ct)
-        {
-            var userIds = await _context.UserRoles.AsNoTracking()
-                .Where(ur => ur.RoleId == roleId && ur.IsActive)
-                .Select(ur => ur.UserId)
-                .Distinct()
-                .ToListAsync(ct);
-
-            if (userIds.Count == 0)
-                return;
-
-            // 分页避免 IN 列表过大
-            foreach (var batch in userIds.Chunk(100))
-            {
-                var users = await _context.用户管理.AsTracking()
-                    .Where(u => batch.Contains(u.Id!))
-                    .ToListAsync(ct);
-                foreach (var user in users)
-                {
-                    user.PermissionVersion += 1;
-                    user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                }
-            }
-
-            _cache.RemoveMany(userIds);
         }
 
         /// <summary>审计日志失败不影响主流程。</summary>

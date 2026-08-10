@@ -9,7 +9,8 @@ namespace LocalDataApi.Api.Attributes
     /// 接口权限过滤器。用法: [HasPermission(PermissionCodes.ScheduleUpdate)]
     /// 多个权限编码之间为 OR 关系(满足任一即通过)。
     /// 未携带有效令牌 → 401;令牌有效但无权限 → 403。
-    /// 可通过配置 Rbac:PermissionCheckEnabled=false 一键关闭(上线灰度/回滚用)。
+    /// 权限检查总开关 Rbac:PermissionCheckEnabled 仅在开发环境可关闭,生产环境强制开启(防误配放行)。
+    /// 权限声明错误(空/未配置)采用 Fail Close:拒绝访问,而非放行。
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
     public sealed class HasPermissionAttribute : Attribute, IAsyncActionFilter
@@ -25,11 +26,26 @@ namespace LocalDataApi.Api.Attributes
         {
             var services = context.HttpContext.RequestServices;
 
-            // 权限检查总开关(回滚方案:出现大量误判 403 时关闭)
+            // 权限检查总开关:仅开发环境可关闭(回滚方案:开发期出现误判 403 时可关闭);生产环境强制校验
             var configuration = services.GetRequiredService<IConfiguration>();
-            if (!configuration.GetValue("Rbac:PermissionCheckEnabled", true))
+            var env = services.GetRequiredService<IHostEnvironment>();
+            var permissionCheckEnabled = configuration.GetValue("Rbac:PermissionCheckEnabled", true);
+            if (!permissionCheckEnabled && env.IsDevelopment())
             {
                 await next();
+                return;
+            }
+
+            // Fail Close:权限声明错误(未传或全为空) → 拒绝访问,避免接口因配置错误而暴露
+            if (_permissionCodes.Length == 0 || _permissionCodes.All(string.IsNullOrWhiteSpace))
+            {
+                context.Result = new ObjectResult(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "接口权限配置错误,请联系管理员",
+                    Data = new { code = "AUTH_PERMISSION_DENIED", permission = "EMPTY" }
+                })
+                { StatusCode = StatusCodes.Status403Forbidden };
                 return;
             }
 

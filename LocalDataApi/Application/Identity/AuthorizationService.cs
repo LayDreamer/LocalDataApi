@@ -45,21 +45,23 @@ namespace LocalDataApi.Application.Identity
             return set;
         }
 
-        /// <summary>判断用户是否拥有指定权限。</summary>
+        /// <summary>判断用户是否拥有指定权限(Fail Close:空权限声明拒绝访问)。</summary>
         public async Task<bool> HasPermissionAsync(string userId, string permissionCode, CancellationToken ct = default)
         {
+            // Fail Close:权限声明错误(空/空白) → 拒绝,而非放行
             if (string.IsNullOrWhiteSpace(permissionCode))
-                return true; // 未声明权限要求时放行
+                return false;
             var permissions = await GetUserPermissionsAsync(userId, ct);
             return permissions.Contains(permissionCode);
         }
 
-        /// <summary>判断用户是否拥有任一权限(多个权限编码为 OR 关系)。</summary>
+        /// <summary>判断用户是否拥有任一权限(多个权限编码为 OR 关系;空声明 Fail Close)。</summary>
         public async Task<bool> HasAnyPermissionAsync(string userId, IEnumerable<string> permissionCodes, CancellationToken ct = default)
         {
             var codes = permissionCodes?.Where(c => !string.IsNullOrWhiteSpace(c)).ToArray();
+            // Fail Close:未声明任何有效权限 → 拒绝
             if (codes == null || codes.Length == 0)
-                return true;
+                return false;
             var permissions = await GetUserPermissionsAsync(userId, ct);
             return codes.Any(c => permissions.Contains(c));
         }
