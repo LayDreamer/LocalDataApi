@@ -22,9 +22,10 @@ public class AuthController : ControllerBase
     {
         _userService = userService;
         _logger = logger;
-        // 生产环境必须通过配置注入密钥;缺失时回退值仅用于本地调试
-        _tokenSecret = configuration["Auth:Secret"]
-                       ?? "LocalDataApi-Default-Dev-Secret-Change-Me";
+        // 注意: IConfiguration[index] 在值为空字符串时返回 "" 而非 null,故用 IsNullOrWhiteSpace 判断回退,
+        // 必须与 UserService / CurrentUserService 的取值逻辑保持一致(否则签名密钥不一致导致令牌校验失败 → 401)。
+        var secret = configuration["Auth:Secret"];
+        _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
     }
 
     /// <summary>

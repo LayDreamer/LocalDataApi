@@ -1,6 +1,7 @@
 using LocalDataApi.Application.Common;
 using LocalDataApi.Domain.Identity;
 using LocalDataApi.Infrastructure.Data;
+using LocalDataApi.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace LocalDataApi.Application.Identity
@@ -14,11 +15,13 @@ namespace LocalDataApi.Application.Identity
     {
         private readonly AppDbContext _context;
         private readonly ILogger<RbacSeeder> _logger;
+        private readonly IConfiguration _configuration;
 
-        public RbacSeeder(AppDbContext context, ILogger<RbacSeeder> logger)
+        public RbacSeeder(AppDbContext context, ILogger<RbacSeeder> logger, IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -32,6 +35,7 @@ namespace LocalDataApi.Application.Identity
                 var roles = await EnsureRolesAsync(ct);
                 await EnsureRolePermissionsAsync(roles, ct);
                 await EnsureLegacyAdminUsersAsync(ct);
+                await EnsureDefaultAdminUserAsync(ct);
                 _logger.LogInformation("RBAC 初始化数据检查完成。");
             }
             catch (Exception ex)
@@ -276,6 +280,82 @@ namespace LocalDataApi.Application.Identity
                 await _context.SaveChangesAsync(ct);
                 _logger.LogInformation("RBAC 历史管理员绑定: {Count} 个用户绑定 ADMIN 角色", added);
             }
+        }
+
+        // ---------- 5. 默认管理员账号初始化(幂等,满足"首次部署可用") ----------
+        /// <summary>
+        /// 确保存在一个拥有 ADMIN 角色的管理员账号。
+        /// 场景: 全新环境数据库为空,既无 admin 用户也无任何 ADMIN 绑定用户时,自动创建 admin 账号,
+        /// 使用配置中的默认密码(未配置则回退开发默认),强制首次登录修改密码。
+        /// 已存在 ADMIN 角色用户(含历史绑定)时跳过,避免覆盖既有账号。
+        /// </summary>
+        private async Task EnsureDefaultAdminUserAsync(CancellationToken ct)
+        {
+            var adminRole = await _context.Roles.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Code == "ADMIN", ct);
+            if (adminRole == null)
+                return;
+
+            // 已存在绑定 ADMIN 的有效用户 → 跳过
+            var hasAdmin = await _context.UserRoles.AsNoTracking()
+                .AnyAsync(ur => ur.RoleId == adminRole.Id && ur.IsActive, ct);
+            if (hasAdmin)
+                return;
+
+            // 已存在 admin 用户名但可能未绑角色 → 仅补绑,不重建(防重复账号)
+            var existingAdmin = await _context.用户管理.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserName == "admin", ct);
+            if (existingAdmin != null)
+            {
+                _context.UserRoles.Add(new UserRole
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = existingAdmin.Id,
+                    RoleId = adminRole.Id,
+                    AssignedAt = DateTime.Now,
+                    IsActive = true
+                });
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("RBAC 默认管理员补绑: 已有 admin 账号绑定 ADMIN 角色");
+                return;
+            }
+
+            // 全新环境: 创建 admin 账号
+            // 注意: 配置为空字符串时 IConfiguration[index] 返回 "" 而非 null, 故用 IsNullOrEmpty 判断回退
+            var defaultPassword = _configuration["Rbac:DefaultAdminPassword"];
+            if (string.IsNullOrEmpty(defaultPassword))
+                defaultPassword = "Yc@Admin2026"; // 开发期回退默认密码;生产务必通过 Rbac__DefaultAdminPassword 注入强密码
+            PasswordHelper.CreateHash(defaultPassword, out var hash, out var salt);
+            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            var admin = new User
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserName = "admin",
+                DisplayName = "系统管理员",
+                PasswordHash = hash,
+                PasswordSalt = salt,
+                Role = "Admin",
+                IsActive = "true",
+                MustChangePassword = true,
+                CreateDate = now,
+                ModifyDate = now
+            };
+            _context.用户管理.Add(admin);
+            await _context.SaveChangesAsync(ct);
+
+            _context.UserRoles.Add(new UserRole
+            {
+                Id = Guid.NewGuid(),
+                UserId = admin.Id,
+                RoleId = adminRole.Id,
+                AssignedAt = DateTime.Now,
+                IsActive = true
+            });
+            await _context.SaveChangesAsync(ct);
+
+            _logger.LogWarning(
+                "RBAC 默认管理员已创建: 账号=admin, 默认密码已在配置/开发回退值中,首次登录将强制修改密码。请尽快在生产环境修改默认密码!");
         }
     }
 }

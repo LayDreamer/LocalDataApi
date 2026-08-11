@@ -72,5 +72,8 @@ namespace LocalDataApi.Domain.Identity
 
         // 权限版本号(角色/权限变化时 +1,用于令牌失效与权限缓存刷新)
         public int PermissionVersion { get; set; }
+
+        // 是否需要强制修改密码(种子 admin / 重置密码后置 true,首次登录后改密置 false)
+        public bool MustChangePassword { get; set; } = true;
     }
 }

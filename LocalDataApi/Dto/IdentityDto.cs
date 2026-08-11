@@ -42,6 +42,13 @@ namespace LocalDataApi.Dto
         public List<Guid> PermissionIds { get; set; } = new();
     }
 
+    /// <summary>复制角色请求;名称与编码为空时由系统自动生成。</summary>
+    public sealed class CopyRoleRequestDto
+    {
+        public string? Code { get; init; }
+        public string? Name { get; init; }
+    }
+
     // ==================== 权限管理 ====================
 
     /// <summary>权限点信息</summary>
@@ -52,9 +59,28 @@ namespace LocalDataApi.Dto
         public string Module { get; set; } = "";
         public string Resource { get; set; } = "";
         public string Action { get; set; } = "";
+        /// <summary>权限名称;与 DisplayName 保持一致,供权限中心统一使用。</summary>
+        public string Name { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string? Description { get; set; }
         public bool Enabled { get; set; }
+    }
+
+    /// <summary>权限树节点。模块/资源节点仅用于展示,只有 PermissionId 非空的叶子节点可保存。</summary>
+    public sealed class PermissionTreeNodeDto
+    {
+        public string Key { get; init; } = "";
+        public string Name { get; init; } = "";
+        public string NodeType { get; init; } = "";
+        public Guid? PermissionId { get; init; }
+        public string? Code { get; init; }
+        public string? Module { get; init; }
+        public string? Resource { get; init; }
+        public string? Action { get; init; }
+        public string? Description { get; init; }
+        public bool Enabled { get; init; } = true;
+        public bool Disabled { get; init; }
+        public List<PermissionTreeNodeDto> Children { get; init; } = new();
     }
 
     /// <summary>启用/停用权限点请求</summary>

@@ -1,0 +1,6 @@
+PUBLISH_PATH=D:\work2026\AICode\AI????\LocalDataApi\LocalDataApi\bin\Release\net10.0\publish
+EXISTS=True
+LocalDataApi.dll=True
+web.config=True
+FILE_COUNT=109
+TOTAL_BYTES=35928908

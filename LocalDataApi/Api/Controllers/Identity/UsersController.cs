@@ -17,11 +17,13 @@ namespace LocalDataApi.Api.Controllers.Identity
     {
         private readonly IUserRoleService _userRoleService;
         private readonly CurrentUserService _currentUser;
+        private readonly IUserService _userService;
 
-        public UsersController(IUserRoleService userRoleService, CurrentUserService currentUser)
+        public UsersController(IUserRoleService userRoleService, CurrentUserService currentUser, IUserService userService)
         {
             _userRoleService = userRoleService;
             _currentUser = currentUser;
+            _userService = userService;
         }
 
         /// <summary>分页查询用户列表(含角色编码)。</summary>
@@ -49,6 +51,19 @@ namespace LocalDataApi.Api.Controllers.Identity
         {
             await _userRoleService.AssignRolesAsync(id, dto, _currentUser.UserId, HttpContext.RequestAborted);
             return Ok(new ApiResponse<object> { Success = true, Message = "角色分配成功" });
+        }
+
+        /// <summary>管理员重置用户密码:生成随机临时密码并返回明文(需 UserUpdate 权限)。</summary>
+        [HttpPost("{id}/reset-password")]
+        [HasPermission(PermissionCodes.UserUpdate)]
+        public async Task<ActionResult<ApiResponse<string>>> ResetPassword(string id)
+        {
+            var (success, message, tempPassword) = await _userService.ResetPasswordAsync(id);
+            if (!success)
+            {
+                return Ok(new ApiResponse<string> { Success = false, Message = message });
+            }
+            return Ok(new ApiResponse<string> { Success = true, Message = message, Data = tempPassword });
         }
     }
 }

@@ -5,6 +5,8 @@ using LocalDataApi.Infrastructure.Data;
 using LocalDataApi.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace LocalDataApi.Application.Identity;
 
@@ -106,8 +108,13 @@ public class UserService : IUserService
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
 
-        // 确保新账号已绑定默认角色(历史账号无 UserRole 记录时兜底)
-        await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
+        // 仅对「零角色」用户兜底绑定默认角色;已有角色的用户(如 ADMIN)不再强行附加默认 VIEWER
+        var hasActiveRole = await _context.UserRoles.AsNoTracking()
+            .AnyAsync(ur => ur.UserId == user.Id && ur.IsActive, default);
+        if (!hasActiveRole && !string.IsNullOrWhiteSpace(_defaultLoginRole))
+        {
+            await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
+        }
 
         // 重新读取权限版本(绑定默认角色后已 +1)
         var freshUser = await _context.用户管理.AsNoTracking()
@@ -132,6 +139,7 @@ public class UserService : IUserService
         result.UserName = user.DisplayName ?? user.UserName;
         result.Roles = roles;
         result.Permissions = permissions;
+        result.MustChangePassword = user.MustChangePassword;
         return result;
     }
 
@@ -202,8 +210,13 @@ public class UserService : IUserService
             _context.用户管理.Add(user);
             await _context.SaveChangesAsync();
 
-            // RBAC: 新用户自动绑定默认角色(如 Viewer),不触发企微全量部门同步
-            await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
+            // RBAC: 新用户(零角色)自动绑定默认角色(如 Viewer),不触发企微全量部门同步
+            var hasActiveRole = await _context.UserRoles.AsNoTracking()
+                .AnyAsync(ur => ur.UserId == user.Id && ur.IsActive, default);
+            if (!hasActiveRole && !string.IsNullOrWhiteSpace(_defaultLoginRole))
+            {
+                await _userRoleService.EnsureUserHasRoleAsync(user.Id!, _defaultLoginRole, null);
+            }
         }
 
         // 4. 复用登录风控(禁用 / 锁定)
@@ -247,6 +260,7 @@ public class UserService : IUserService
         result.UserName = user.DisplayName ?? user.UserName;
         result.Roles = roles;
         result.Permissions = permissions;
+        result.MustChangePassword = user.MustChangePassword;
         return result;
     }
 
@@ -257,6 +271,10 @@ public class UserService : IUserService
     {
         if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrWhiteSpace(dto.Password))
             return (false, "用户名和密码不能为空");
+
+        var strength = PasswordValidation.Validate(dto.Password, dto.UserName);
+        if (!strength.Valid)
+            return (false, strength.Error);
 
         var exists = await _context.用户管理
             .AsNoTracking()
@@ -279,6 +297,7 @@ public class UserService : IUserService
             PhoneNumber = dto.PhoneNumber,
             Role = string.IsNullOrWhiteSpace(dto.Role) ? "User" : dto.Role,
             IsActive = "true",
+            MustChangePassword = false,
             CreateDate = now.ToString("yyyy-MM-dd HH:mm:ss"),
             ModifyDate = now.ToString("yyyy-MM-dd HH:mm:ss")
         });
@@ -288,12 +307,16 @@ public class UserService : IUserService
     }
 
     /// <summary>
-    /// 修改密码(需校验原密码,用户名取自登录令牌)。
+    /// 修改密码(需校验原密码,用户名取自登录令牌;强制密码强度;成功后清除强制改密标志)。
     /// </summary>
     public async Task<(bool Success, string Message)> ChangePasswordAsync(string userName, string oldPassword, string newPassword)
     {
         if (string.IsNullOrWhiteSpace(newPassword))
             return (false, "新密码不能为空");
+
+        var strength = PasswordValidation.Validate(newPassword, userName);
+        if (!strength.Valid)
+            return (false, strength.Error);
 
         var user = await _context.用户管理
             .AsTracking()
@@ -307,6 +330,7 @@ public class UserService : IUserService
         PasswordHelper.CreateHash(newPassword, out var hash, out var salt);
         user.PasswordHash = hash;
         user.PasswordSalt = salt;
+        user.MustChangePassword = false;
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
         return (true, "密码修改成功");
@@ -329,6 +353,91 @@ public class UserService : IUserService
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
         return (true, "资料更新成功");
+    }
+
+    /// <summary>
+    /// 管理员重置密码:生成随机临时密码并覆盖存储,清空登录失败计数与锁定,返回明文临时密码。
+    /// 不强制用户改密(MustChangePassword=false),用户可在「修改密码」中随时自行修改。
+    /// </summary>
+    public async Task<(bool Success, string Message, string? TempPassword)> ResetPasswordAsync(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return (false, "用户 ID 不能为空", null);
+
+        var user = await _context.用户管理
+            .AsTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+            return (false, "用户不存在", null);
+
+        // 生成满足强度策略的随机临时密码(大写/小写/数字/特殊字符,≥3 类);
+        // 二次兜底:若生成的密码恰好不满足弱密码规则,则重新生成(最多 20 次)
+        var tempPassword = GenerateRandomPassword(12);
+        var attempt = 0;
+        while (!PasswordValidation.Validate(tempPassword, user.UserName ?? string.Empty).Valid && attempt < 20)
+        {
+            tempPassword = GenerateRandomPassword(12);
+            attempt++;
+        }
+
+        PasswordHelper.CreateHash(tempPassword, out var hash, out var salt);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+        // 不强制改密:用户拿到临时密码后可自行决定是否立即修改
+        user.MustChangePassword = false;
+        // 重置失败计数并解除锁定,确保用户忘记密码多次尝试后仍能立即登录
+        user.LoginFailCount = "0";
+        user.LockoutEnd = null;
+        user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        await _context.SaveChangesAsync();
+
+        return (true, "密码重置成功", tempPassword);
+    }
+
+    /// <summary>
+    /// 生成随机临时密码:从 4 类字符(大写/小写/数字/特殊)中各取至少 1 个,总长度 length,
+    /// 并对结果做 Fisher–Yates 洗牌,避免弱密码规则(连续/重复序列)拦截。
+    /// </summary>
+    private static string GenerateRandomPassword(int length)
+    {
+        const string lower = "abcdefghijkmnpqrstuvwxyz";
+        const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const string digit = "23456789";
+        const string special = "!@#$%&*?";
+        var pools = new[] { lower, upper, digit, special };
+
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[1];
+
+        char RandomChar(string pool)
+        {
+            rng.GetBytes(bytes);
+            return pool[bytes[0] % pool.Length];
+        }
+
+        var sb = new StringBuilder();
+        // 每类至少取 1 个,保证 ≥3 类(实际 4 类)通过强度校验
+        foreach (var pool in pools)
+        {
+            sb.Append(RandomChar(pool));
+        }
+        // 剩余长度随机填充(每次随机选一个池再取字符)
+        while (sb.Length < length)
+        {
+            rng.GetBytes(bytes);
+            var pool = pools[bytes[0] % pools.Length];
+            sb.Append(RandomChar(pool));
+        }
+
+        // Fisher–Yates 洗牌,打散固定前缀
+        var arr = sb.ToString().ToCharArray();
+        for (int i = arr.Length - 1; i > 0; i--)
+        {
+            rng.GetBytes(bytes);
+            int j = bytes[0] % (i + 1);
+            (arr[i], arr[j]) = (arr[j], arr[i]);
+        }
+        return new string(arr);
     }
 
     /// <summary>

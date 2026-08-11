@@ -15,7 +15,10 @@ namespace LocalDataApi.Application.Identity
         public CurrentUserService(IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
         {
             _httpContextAccessor = httpContextAccessor;
-            _tokenSecret = configuration["Auth:Secret"] ?? "LocalDataApi-Default-Dev-Secret-Change-Me";
+            // 注意: IConfiguration[index] 在值为空字符串时返回 "" 而非 null,故用 IsNullOrWhiteSpace 判断回退,
+            // 必须与 UserService 构造函数的取值逻辑保持一致(否则签名密钥不一致导致所有令牌校验失败 → 401)。
+            var secret = configuration["Auth:Secret"];
+            _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
         }
 
         /// <summary>当前请求令牌载荷(未登录为 null)。</summary>

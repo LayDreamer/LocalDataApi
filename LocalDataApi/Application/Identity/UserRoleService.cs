@@ -211,11 +211,15 @@ namespace LocalDataApi.Application.Identity
                           targetSet.Any(r => !existingSet.Contains(r));
             if (changed)
             {
-                // 统一缓存失效服务:权限版本 +1 并清除缓存(修改随本次 SaveChanges 提交)
+                // 先保存角色关联,再提升权限版本并清缓存,避免旧权限被并发请求重新缓存。
+                await _context.SaveChangesAsync(ct);
                 await _permissionCache.ClearUserPermissionCacheAsync(userId, ct);
+                await _context.SaveChangesAsync(ct);
             }
-
-            await _context.SaveChangesAsync(ct);
+            else
+            {
+                await _context.SaveChangesAsync(ct);
+            }
 
             await TryAuditAsync(operatorId, "AssignUserRole", "User", userId,
                 new { UserName = user.UserName, RoleIds = roleIds });
@@ -231,22 +235,34 @@ namespace LocalDataApi.Application.Identity
             if (role == null)
                 return; // 默认角色未初始化时静默跳过
 
-            var exists = await _context.UserRoles.AsNoTracking()
-                .AnyAsync(ur => ur.UserId == userId && ur.RoleId == role.Id && ur.IsActive, ct);
-            if (exists)
-                return;
+            var existing = await _context.UserRoles.AsTracking()
+                .FirstOrDefaultAsync(ur => ur.UserId == userId && ur.RoleId == role.Id, ct);
 
-            _context.UserRoles.Add(new UserRole
+            if (existing != null)
             {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                RoleId = role.Id,
-                AssignedAt = DateTime.Now,
-                AssignedBy = operatorId,
-                IsActive = true
-            });
+                if (existing.IsActive)
+                    return; // 已存在且有效,无需重复绑定
 
-            // 统一缓存失效服务:权限版本 +1 并清除缓存(修改随本次 SaveChanges 提交)
+                // 复用已撤销记录,避免违反 (UserId,RoleId) 唯一索引
+                existing.IsActive = true;
+                existing.AssignedAt = DateTime.Now;
+                existing.AssignedBy = operatorId;
+                existing.RevokedAt = null;
+            }
+            else
+            {
+                _context.UserRoles.Add(new UserRole
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    RoleId = role.Id,
+                    AssignedAt = DateTime.Now,
+                    AssignedBy = operatorId,
+                    IsActive = true
+                });
+            }
+
+            await _context.SaveChangesAsync(ct);
             await _permissionCache.ClearUserPermissionCacheAsync(userId, ct);
             await _context.SaveChangesAsync(ct);
         }

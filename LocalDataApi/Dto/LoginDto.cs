@@ -74,6 +74,9 @@ namespace LocalDataApi.Dto
 
         // 有效权限编码列表(如 ["PMC.Schedule.View"])
         public List<string> Permissions { get; set; } = new();
+
+        // 是否需要强制修改密码(种子 admin / 被重置后为真,前端据此跳转改密页)
+        public bool MustChangePassword { get; set; }
     }
 
     /// <summary>

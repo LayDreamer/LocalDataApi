@@ -33,6 +33,24 @@ namespace LocalDataApi.Api.Controllers.Identity
             return Ok(new ApiResponse<List<RoleDto>> { Success = true, Data = roles });
         }
 
+        /// <summary>查询角色基础信息;与权限树、已选权限接口相互独立。</summary>
+        [HttpGet("{id:guid}")]
+        [HasPermission(PermissionCodes.RoleView)]
+        public async Task<ActionResult<ApiResponse<RoleDto>>> GetRole(Guid id)
+        {
+            var role = await _roleService.GetRoleAsync(id, HttpContext.RequestAborted);
+            return Ok(new ApiResponse<RoleDto> { Success = true, Data = role });
+        }
+
+        /// <summary>查询角色已绑定的权限ID。</summary>
+        [HttpGet("{id:guid}/permissions")]
+        [HasPermission(PermissionCodes.RoleView)]
+        public async Task<ActionResult<ApiResponse<List<Guid>>>> GetRolePermissions(Guid id)
+        {
+            var permissionIds = await _roleService.GetRolePermissionIdsAsync(id, HttpContext.RequestAborted);
+            return Ok(new ApiResponse<List<Guid>> { Success = true, Data = permissionIds });
+        }
+
         /// <summary>创建角色。</summary>
         [HttpPost]
         [HasPermission(PermissionCodes.RoleCreate)]
@@ -40,6 +58,15 @@ namespace LocalDataApi.Api.Controllers.Identity
         {
             var role = await _roleService.CreateRoleAsync(dto, _currentUser.UserId, HttpContext.RequestAborted);
             return Ok(new ApiResponse<RoleDto> { Success = true, Message = "角色创建成功", Data = role });
+        }
+
+        /// <summary>复制角色及其权限,自动生成不冲突的名称和编码。</summary>
+        [HttpPost("{id:guid}/copy")]
+        [HasPermission(PermissionCodes.RoleCreate)]
+        public async Task<ActionResult<ApiResponse<RoleDto>>> CopyRole(Guid id, CopyRoleRequestDto dto)
+        {
+            var role = await _roleService.CopyRoleAsync(id, dto, _currentUser.UserId, HttpContext.RequestAborted);
+            return Ok(new ApiResponse<RoleDto> { Success = true, Message = "角色复制成功", Data = role });
         }
 
         /// <summary>修改角色。</summary>

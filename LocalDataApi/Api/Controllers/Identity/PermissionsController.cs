@@ -27,10 +27,21 @@ namespace LocalDataApi.Api.Controllers.Identity
         /// <summary>查询权限字典(可按模块过滤)。</summary>
         [HttpGet]
         [HasPermission(PermissionCodes.PermissionView)]
-        public async Task<ActionResult<ApiResponse<List<PermissionDto>>>> GetPermissions([FromQuery] string? module)
+        public async Task<ActionResult<ApiResponse<List<PermissionDto>>>> GetPermissions(
+            [FromQuery] string? module,
+            [FromQuery] string? keyword)
         {
-            var permissions = await _permissionService.GetPermissionsAsync(module, HttpContext.RequestAborted);
+            var permissions = await _permissionService.GetPermissionsAsync(module, keyword, HttpContext.RequestAborted);
             return Ok(new ApiResponse<List<PermissionDto>> { Success = true, Data = permissions });
+        }
+
+        /// <summary>查询模块/资源/权限点三级权限树;可按名称、编码或说明过滤。</summary>
+        [HttpGet("tree")]
+        [HasPermission(PermissionCodes.PermissionView)]
+        public async Task<ActionResult<ApiResponse<List<PermissionTreeNodeDto>>>> GetPermissionTree([FromQuery] string? keyword)
+        {
+            var tree = await _permissionService.GetPermissionTreeAsync(keyword, HttpContext.RequestAborted);
+            return Ok(new ApiResponse<List<PermissionTreeNodeDto>> { Success = true, Data = tree });
         }
 
         /// <summary>

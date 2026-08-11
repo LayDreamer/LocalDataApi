@@ -438,6 +438,9 @@ namespace LocalDataApi.Migrations
                     b.Property<string>("WeChatWorkUserId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserName")
