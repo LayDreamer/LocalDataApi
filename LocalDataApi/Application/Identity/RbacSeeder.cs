@@ -97,6 +97,9 @@ namespace LocalDataApi.Application.Identity
                 // ===== Identity 部门管理 =====
                 (PermissionCodes.DepartmentView, "Identity", "Department", "View", "查看部门", "查看组织部门树"),
                 (PermissionCodes.DepartmentSync, "Identity", "Department", "Sync", "同步部门", "从企业微信同步组织架构"),
+                (PermissionCodes.PlatformLoginLogView, "Platform", "LoginLog", "View", "查看登录日志", "查询登录审计日志"),
+                (PermissionCodes.PlatformOperationLogView, "Platform", "OperationLog", "View", "查看操作日志", "查询操作审计日志"),
+                (PermissionCodes.PlatformDataChangeLogView, "Platform", "DataChangeLog", "View", "查看数据变更日志", "查询数据变更审计日志"),
                 // ===== PMC 排产管理 =====
                 (PermissionCodes.ScheduleView, "PMC", "Schedule", "View", "查看排产", "查看排产数据"),
                 (PermissionCodes.ScheduleCreate, "PMC", "Schedule", "Create", "新建排产", "创建排产分析"),

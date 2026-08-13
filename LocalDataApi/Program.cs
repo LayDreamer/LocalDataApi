@@ -2,6 +2,7 @@ using LocalDataApi.Api.Attributes;
 using LocalDataApi.Api.Filters;
 using LocalDataApi.Api.Middlewares;
 using LocalDataApi.Application.Blf;
+using LocalDataApi.Application.Audit;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Erp;
 using LocalDataApi.Application.Identity;
@@ -114,6 +115,7 @@ builder.Services.AddRateLimiter(options =>
 
 // ========== 4. 应用层服务注册(按业务模块) ==========
 builder.Services.AddScoped<IBLFParameterService, BLFParameterService>();
+builder.Services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ERPBaseService>();
 

@@ -86,6 +86,9 @@ namespace LocalDataApi.Application.Common
         public const string WeChatWorkGroupChatView = "WeChatWork.GroupChat.View";
         public const string WeChatWorkJsSdkView = "WeChatWork.JsSdk.View";
         public const string SystemTestAccess = "System.Test.Access";
+        public const string PlatformLoginLogView = "Platform.LoginLog.View";
+        public const string PlatformOperationLogView = "Platform.OperationLog.View";
+        public const string PlatformDataChangeLogView = "Platform.DataChangeLog.View";
 
         /// <summary>
         /// 全部权限编码集合(用于系统管理员 Admin 角色授予与初始化)。
@@ -101,6 +104,7 @@ namespace LocalDataApi.Application.Common
                     RoleView, RoleCreate, RoleUpdate, RoleDelete, RoleAssignPermission,
                     PermissionView, PermissionUpdate,
                     DepartmentView, DepartmentSync,
+                    PlatformLoginLogView, PlatformOperationLogView, PlatformDataChangeLogView,
                     // PMC
                     ScheduleView, ScheduleCreate, ScheduleUpdate, ScheduleDelete, SchedulePublish, ScheduleExport,
                     WorkOrderView, WorkOrderCreate, WorkOrderUpdate, WorkOrderDelete, WorkOrderClose,
