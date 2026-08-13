@@ -2,6 +2,7 @@ using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Erp;
 using LocalDataApi.Dto;
 using Microsoft.AspNetCore.Mvc;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers;
 
@@ -23,6 +24,7 @@ public class ERPController : ControllerBase
     /// 获取 tb_control_user 表中所有用户的 username 列表。
     /// </summary>
     [HttpGet("users")]
+    [HasPermission(PermissionCodes.ErpUserView)]
     public async Task<ActionResult<ApiResponse<List<string>>>> GetUsers()
     {
         var users = await _erpBaseService.GetAllUsersAsync();
@@ -38,6 +40,7 @@ public class ERPController : ControllerBase
     /// 校验 ERP 用户(tb_control_user):用户名不存在返回"用户名错误",密码不匹配返回"密码错误"。
     /// </summary>
     [HttpPost("validate")]
+    [HasPermission(PermissionCodes.ErpUserValidate)]
     public async Task<ActionResult<ApiResponse<ERPUserDto?>>> ValidateUser(ERPUserLoginDto dto)
     {
         var (success, message, user) = await _erpBaseService.ValidateUserAsync(dto.Username!, dto.Upwd!);

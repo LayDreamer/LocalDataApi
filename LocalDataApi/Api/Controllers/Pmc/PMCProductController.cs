@@ -4,6 +4,7 @@ using LocalDataApi.Dto;
 using LocalDataApi.Domain.Pmc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers.Pmc;
 
@@ -24,6 +25,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>获取产品信息列表</summary>
     [HttpPost("ProductListInfo")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PMCProductInfo>>>> GetPMCProductInfo(PMCRequestDto requestDto)
     {
         var basicInfo = await _productService.GetPMCProductListInfo(requestDto, HttpContext.RequestAborted);
@@ -38,6 +40,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>根据货号获取产品资料</summary>
     [HttpPost("GetPMCProductData")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> GetPMCProductData(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.货号))
@@ -60,6 +63,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>根据货号获取产品资料装配清单</summary>
     [HttpPost("ProductDataAssemblyList")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> GetProductDataAssemblyList(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.货号))
@@ -101,6 +105,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>根据货号获取产品资料装配清单中中间件等于 0 的记录</summary>
     [HttpPost("ProductDataAssemblyListByItemNo")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> GetProductDataAssemblyListByItemNo(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.货号))
@@ -123,6 +128,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>检查线圈货号是否存在于装配清单中</summary>
     [HttpPost("CheckAssemblyList")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> CheckIsExistInAssemblyList(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.线圈货号))
@@ -145,6 +151,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>按关键字模糊查询产品资料中的线圈(货号包含关键字即可),最多返回 50 条</summary>
     [HttpPost("SearchCoilsByKeyword")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> SearchCoilsByKeyword(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.线圈货号))
@@ -167,6 +174,7 @@ public class PMCProductController : ControllerBase
 
     /// <summary>按货号模糊查询产品资料(不区分线圈),最多返回 50 条</summary>
     [HttpPost("SearchProductDataByKeyword")]
+    [HasPermission(PermissionCodes.ProductView)]
     public async Task<ActionResult<ApiResponse<object>>> SearchProductDataByKeyword(PMCRequestDto requestDto)
     {
         if (string.IsNullOrWhiteSpace(requestDto.货号))

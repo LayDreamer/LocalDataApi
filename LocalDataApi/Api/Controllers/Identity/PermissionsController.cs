@@ -48,6 +48,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         /// 查询全部权限编码(含停用)。公开字典接口,供前端初始化校验/CI检查/权限差异分析使用。
         /// </summary>
         [HttpGet("all")]
+        [HasPermission(PermissionCodes.PermissionView)]
         public async Task<ActionResult<ApiResponse<List<string>>>> GetAllPermissionCodes()
         {
             var codes = await _permissionService.GetAllPermissionCodesAsync(HttpContext.RequestAborted);

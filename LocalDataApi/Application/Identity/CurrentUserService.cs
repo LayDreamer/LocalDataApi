@@ -1,5 +1,6 @@
-using LocalDataApi.Utils;
 using Microsoft.AspNetCore.Http;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace LocalDataApi.Application.Identity
 {
@@ -10,15 +11,9 @@ namespace LocalDataApi.Application.Identity
     public sealed class CurrentUserService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly string _tokenSecret;
-
-        public CurrentUserService(IHttpContextAccessor httpContextAccessor, IConfiguration configuration)
+        public CurrentUserService(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
-            // 注意: IConfiguration[index] 在值为空字符串时返回 "" 而非 null,故用 IsNullOrWhiteSpace 判断回退,
-            // 必须与 UserService 构造函数的取值逻辑保持一致(否则签名密钥不一致导致所有令牌校验失败 → 401)。
-            var secret = configuration["Auth:Secret"];
-            _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
         }
 
         /// <summary>当前请求令牌载荷(未登录为 null)。</summary>
@@ -26,15 +21,19 @@ namespace LocalDataApi.Application.Identity
         {
             get
             {
-                var auth = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
-                if (string.IsNullOrWhiteSpace(auth))
+                var principal = _httpContextAccessor.HttpContext?.User;
+                if (principal?.Identity?.IsAuthenticated != true)
                     return null;
-
-                var token = auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-                    ? auth[7..]
-                    : auth;
-
-                return TokenHelper.TryValidateFull(token, _tokenSecret, out var payload) ? payload : null;
+                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrWhiteSpace(userId))
+                    return null;
+                var permissionVersion = int.TryParse(principal.FindFirstValue("permission_version"), out var value) ? value : 0;
+                return new TokenPayload
+                {
+                    UserId = userId,
+                    UserName = principal.FindFirstValue(ClaimTypes.Name) ?? string.Empty,
+                    PermissionVersion = permissionVersion
+                };
             }
         }
 
@@ -43,5 +42,9 @@ namespace LocalDataApi.Application.Identity
 
         /// <summary>当前用户名(未登录为 null)。</summary>
         public string? UserName => Payload?.UserName;
+
+        public Guid? SessionId => Guid.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Sid), out var sessionId)
+            ? sessionId
+            : null;
     }
 }

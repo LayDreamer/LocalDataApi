@@ -4,6 +4,7 @@ using LocalDataApi.Dto;
 using LocalDataApi.Domain.Pmc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers.Pmc;
 
@@ -24,6 +25,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>批量添加或更新工单销控表数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateWorkOrderSalesControlList")]
+    [HasPermission(PermissionCodes.WorkOrderCreate, PermissionCodes.WorkOrderUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateWorkOrderSalesControlList(List<WorkOrderSalesControl> list)
     {
         var result = await _workOrderService.AddOrUpdateWorkOrderSalesControlList(list);
@@ -37,6 +39,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>获取工单销控表列表</summary>
     [HttpPost("GetWorkOrderSalesControlList")]
+    [HasPermission(PermissionCodes.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderSalesControl>>>> GetWorkOrderSalesControlList(PMCRequestDto requestDto)
     {
         var result = await _workOrderService.GetWorkOrderSalesControlList(requestDto, HttpContext.RequestAborted);
@@ -50,6 +53,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>批量删除工单销控表数据</summary>
     [HttpPost("DeleteWorkOrderSalesControlList")]
+    [HasPermission(PermissionCodes.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteWorkOrderSalesControlList(List<string> ids)
     {
         await _workOrderService.DeleteWorkOrderSalesControlList(ids);
@@ -62,6 +66,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>批量添加或更新工单销控表明细数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateWorkOrderSalesControlDetailList")]
+    [HasPermission(PermissionCodes.WorkOrderCreate, PermissionCodes.WorkOrderUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateWorkOrderSalesControlDetailList(List<WorkOrderSalesControlDetail> list)
     {
         var result = await _workOrderService.AddOrUpdateWorkOrderSalesControlDetailList(list);
@@ -75,6 +80,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>获取工单销控表明细列表</summary>
     [HttpPost("GetWorkOrderSalesControlDetailList")]
+    [HasPermission(PermissionCodes.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkOrderSalesControlDetail>>>> GetWorkOrderSalesControlDetailList(PMCRequestDto requestDto)
     {
         var result = await _workOrderService.GetWorkOrderSalesControlDetailList(requestDto, HttpContext.RequestAborted);
@@ -88,6 +94,7 @@ public class PMCWorkOrderController : ControllerBase
 
     /// <summary>批量删除工单销控表明细数据</summary>
     [HttpPost("DeleteWorkOrderSalesControlDetailList")]
+    [HasPermission(PermissionCodes.WorkOrderDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteWorkOrderSalesControlDetailList(List<string> ids)
     {
         await _workOrderService.DeleteWorkOrderSalesControlDetailList(ids);

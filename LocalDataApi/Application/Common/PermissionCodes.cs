@@ -56,6 +56,15 @@ namespace LocalDataApi.Application.Common
         public const string ExternalProductionUpdate = "PMC.ExternalProduction.Update";
         public const string ExternalProductionDelete = "PMC.ExternalProduction.Delete";
         public const string ExternalProductionApprove = "PMC.ExternalProduction.Approve";
+        public const string ProductView = "PMC.Product.View";
+
+        public const string BlfParameterView = "BLF.Parameter.View";
+        public const string BlfParameterCreate = "BLF.Parameter.Create";
+        public const string BlfParameterUpdate = "BLF.Parameter.Update";
+        public const string BlfParameterDelete = "BLF.Parameter.Delete";
+
+        public const string ErpUserView = "ERP.User.View";
+        public const string ErpUserValidate = "ERP.User.Validate";
 
         // ========== ERP 工单 ==========
         public const string ErpWorkOrderView = "ERP.WorkOrder.View";
@@ -73,6 +82,10 @@ namespace LocalDataApi.Application.Common
         public const string WeChatWorkUserSync = "WeChatWork.User.Sync";
         public const string WeChatWorkSmartSheetView = "WeChatWork.SmartSheet.View";
         public const string WeChatWorkSmartSheetSync = "WeChatWork.SmartSheet.Sync";
+        public const string WeChatWorkUserView = "WeChatWork.User.View";
+        public const string WeChatWorkGroupChatView = "WeChatWork.GroupChat.View";
+        public const string WeChatWorkJsSdkView = "WeChatWork.JsSdk.View";
+        public const string SystemTestAccess = "System.Test.Access";
 
         /// <summary>
         /// 全部权限编码集合(用于系统管理员 Admin 角色授予与初始化)。
@@ -93,12 +106,16 @@ namespace LocalDataApi.Application.Common
                     WorkOrderView, WorkOrderCreate, WorkOrderUpdate, WorkOrderDelete, WorkOrderClose,
                     DeliveryReviewView, DeliveryReviewCreate, DeliveryReviewUpdate, DeliveryReviewApprove, DeliveryReviewReject,
                     ExternalProductionView, ExternalProductionCreate, ExternalProductionUpdate, ExternalProductionDelete, ExternalProductionApprove,
+                    ProductView,
+                    BlfParameterView, BlfParameterCreate, BlfParameterUpdate, BlfParameterDelete,
                     // ERP
                     ErpWorkOrderView, ErpWorkOrderUpdate,
                     ErpMaterialView, ErpMaterialImport, ErpMaterialExport,
+                    ErpUserView, ErpUserValidate,
                     // WeChatWork
                     WeChatWorkMessageSend, WeChatWorkDepartmentView, WeChatWorkDepartmentSync,
                     WeChatWorkUserSync, WeChatWorkSmartSheetView, WeChatWorkSmartSheetSync
+                    , WeChatWorkUserView, WeChatWorkGroupChatView, WeChatWorkJsSdkView, SystemTestAccess
                 };
             }
         }

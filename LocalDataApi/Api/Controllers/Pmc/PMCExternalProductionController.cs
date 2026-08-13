@@ -4,6 +4,7 @@ using LocalDataApi.Dto;
 using LocalDataApi.Domain.Pmc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers.Pmc;
 
@@ -26,6 +27,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量添加或更新外产发运数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateExternalProductionShipmentList")]
+    [HasPermission(PermissionCodes.ExternalProductionCreate, PermissionCodes.ExternalProductionUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionShipmentList(List<ExternalProductionShipment> list)
     {
         var result = await _externalProductionService.AddOrUpdateExternalProductionShipmentList(list);
@@ -39,6 +41,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>获取外产发运列表</summary>
     [HttpPost("GetExternalProductionShipmentList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionShipment>>>> GetExternalProductionShipmentList(PMCRequestDto requestDto)
     {
         var result = await _externalProductionService.GetExternalProductionShipmentList(requestDto, HttpContext.RequestAborted);
@@ -52,6 +55,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量删除外产发运数据</summary>
     [HttpPost("DeleteExternalProductionShipmentList")]
+    [HasPermission(PermissionCodes.ExternalProductionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionShipmentList(List<string> ids)
     {
         await _externalProductionService.DeleteExternalProductionShipmentList(ids);
@@ -68,6 +72,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量添加或更新外产领料数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateExternalProductionPickMaterialList")]
+    [HasPermission(PermissionCodes.ExternalProductionCreate, PermissionCodes.ExternalProductionUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionPickMaterialList(List<ExternalProductionPickMaterial> list)
     {
         var result = await _externalProductionService.AddOrUpdateExternalProductionPickMaterialList(list);
@@ -81,6 +86,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>获取外产领料列表</summary>
     [HttpPost("GetExternalProductionPickMaterialList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionPickMaterial>>>> GetExternalProductionPickMaterialList(PMCRequestDto requestDto)
     {
         var result = await _externalProductionService.GetExternalProductionPickMaterialList(requestDto, HttpContext.RequestAborted);
@@ -94,6 +100,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量删除外产领料数据</summary>
     [HttpPost("DeleteExternalProductionPickMaterialList")]
+    [HasPermission(PermissionCodes.ExternalProductionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionPickMaterialList(List<string> ids)
     {
         await _externalProductionService.DeleteExternalProductionPickMaterialList(ids);
@@ -110,6 +117,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量添加或更新外产生产数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateExternalProductionList")]
+    [HasPermission(PermissionCodes.ExternalProductionCreate, PermissionCodes.ExternalProductionUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionList(List<ExternalProduction> list)
     {
         var result = await _externalProductionService.AddOrUpdateExternalProductionList(list);
@@ -123,6 +131,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>获取外产生产列表</summary>
     [HttpPost("GetExternalProductionList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ExternalProduction>>>> GetExternalProductionList(PMCRequestDto requestDto)
     {
         var result = await _externalProductionService.GetExternalProductionList(requestDto, HttpContext.RequestAborted);
@@ -136,6 +145,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>根据编号查询单条外产生产数据</summary>
     [HttpPost("GetExternalProductionByNo")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<ExternalProduction>>> GetExternalProductionByNo([FromBody] string 编号)
     {
         var result = await _externalProductionService.GetExternalProductionByNo(编号);
@@ -158,6 +168,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量删除外产生产数据</summary>
     [HttpPost("DeleteExternalProductionList")]
+    [HasPermission(PermissionCodes.ExternalProductionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionList(List<string> ids)
     {
         await _externalProductionService.DeleteExternalProductionList(ids);
@@ -174,6 +185,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量添加或更新外产入库数据(存在则覆盖,不存在则新增)</summary>
     [HttpPost("AddOrUpdateExternalProductionWarehousingList")]
+    [HasPermission(PermissionCodes.ExternalProductionCreate, PermissionCodes.ExternalProductionUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> AddOrUpdateExternalProductionWarehousingList(List<ExternalProductionWarehousing> list)
     {
         var result = await _externalProductionService.AddOrUpdateExternalProductionWarehousingList(list);
@@ -187,6 +199,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>获取外产入库列表</summary>
     [HttpPost("GetExternalProductionWarehousingList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionWarehousing>>>> GetExternalProductionWarehousingList(PMCRequestDto requestDto)
     {
         var result = await _externalProductionService.GetExternalProductionWarehousingList(requestDto, HttpContext.RequestAborted);
@@ -200,6 +213,7 @@ public class PMCExternalProductionController : ControllerBase
 
     /// <summary>批量删除外产入库数据</summary>
     [HttpPost("DeleteExternalProductionWarehousingList")]
+    [HasPermission(PermissionCodes.ExternalProductionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionWarehousingList(List<string> ids)
     {
         await _externalProductionService.DeleteExternalProductionWarehousingList(ids);

@@ -52,6 +52,14 @@ namespace LocalDataApi.Infrastructure.Data
         public DbSet<RolePermission> RolePermissions { get; set; }
 
         public DbSet<AuditLog> AuditLogs { get; set; }
+
+        public DbSet<AuthSession> AuthSessions { get; set; }
+
+        public DbSet<LoginLog> LoginLogs { get; set; }
+
+        public DbSet<OperationLog> OperationLogs { get; set; }
+
+        public DbSet<DataChangeLog> DataChangeLogs { get; set; }
         
         public DbSet<SchedulingAnalysis> 排产分析单 { get; set; }
         
@@ -291,6 +299,76 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.HasIndex(e => new { e.CreateTime, e.Action });
             });
 
+            modelBuilder.Entity<AuthSession>(entity =>
+            {
+                entity.ToTable("AuthSession");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.RevokedReason).HasMaxLength(64);
+                entity.Property(e => e.IpAddress).HasMaxLength(128);
+                entity.Property(e => e.UserAgent).HasMaxLength(512);
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => new { e.RevokedAtUtc, e.IdleExpiresAtUtc });
+            });
+
+            modelBuilder.Entity<LoginLog>(entity =>
+            {
+                entity.ToTable("LoginLog");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserId).HasMaxLength(450);
+                entity.Property(e => e.UserName).HasMaxLength(128);
+                entity.Property(e => e.LoginType).HasMaxLength(32);
+                entity.Property(e => e.FailReasonCode).HasMaxLength(64);
+                entity.Property(e => e.FailReason).HasMaxLength(256);
+                entity.Property(e => e.IpAddress).HasMaxLength(128);
+                entity.Property(e => e.UserAgent).HasMaxLength(512);
+                entity.Property(e => e.ClientType).HasMaxLength(32);
+                entity.Property(e => e.Device).HasMaxLength(128);
+                entity.Property(e => e.TraceId).HasMaxLength(64);
+                entity.HasIndex(e => e.LoginTimeUtc);
+                entity.HasIndex(e => new { e.UserId, e.LoginTimeUtc });
+                entity.HasIndex(e => new { e.Success, e.LoginTimeUtc });
+                entity.HasIndex(e => new { e.IpAddress, e.LoginTimeUtc });
+            });
+
+            modelBuilder.Entity<OperationLog>(entity =>
+            {
+                entity.ToTable("OperationLog");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserId).HasMaxLength(450);
+                entity.Property(e => e.UserName).HasMaxLength(128);
+                entity.Property(e => e.Module).HasMaxLength(64);
+                entity.Property(e => e.Action).HasMaxLength(128);
+                entity.Property(e => e.HttpMethod).HasMaxLength(16);
+                entity.Property(e => e.ApiPath).HasMaxLength(256);
+                entity.Property(e => e.ExceptionType).HasMaxLength(256);
+                entity.Property(e => e.ExceptionMessage).HasMaxLength(1024);
+                entity.Property(e => e.TraceId).HasMaxLength(64);
+                entity.Property(e => e.IpAddress).HasMaxLength(128);
+                entity.Property(e => e.UserAgent).HasMaxLength(512);
+                entity.HasIndex(e => e.OperationTimeUtc);
+                entity.HasIndex(e => new { e.UserId, e.OperationTimeUtc });
+                entity.HasIndex(e => new { e.Module, e.OperationTimeUtc });
+                entity.HasIndex(e => e.TraceId);
+                entity.HasIndex(e => new { e.Success, e.OperationTimeUtc });
+            });
+
+            modelBuilder.Entity<DataChangeLog>(entity =>
+            {
+                entity.ToTable("DataChangeLog");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.EntityName).HasMaxLength(128);
+                entity.Property(e => e.EntityId).HasMaxLength(450);
+                entity.Property(e => e.ChangeType).HasMaxLength(16);
+                entity.Property(e => e.OperatorUserId).HasMaxLength(450);
+                entity.Property(e => e.OperatorUserName).HasMaxLength(128);
+                entity.Property(e => e.TraceId).HasMaxLength(64);
+                entity.Property(e => e.Source).HasMaxLength(32);
+                entity.HasIndex(e => e.ChangeTimeUtc);
+                entity.HasIndex(e => new { e.EntityName, e.EntityId, e.ChangeTimeUtc });
+                entity.HasIndex(e => new { e.OperatorUserId, e.ChangeTimeUtc });
+                entity.HasIndex(e => e.TraceId);
+            });
+
             // ========== EF 迁移边界配置(2026-08-08) ==========
             // 本项目为 DB-First 混合模式:仅 BLF 三表与 RBAC 新表由 EF Migration 管理,
             // 其余中文表/视图/用户表等均为数据库预存在实体,必须排除出迁移范围;
@@ -301,7 +379,8 @@ namespace LocalDataApi.Infrastructure.Data
             {
                 typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
                 typeof(Department), typeof(Role), typeof(Permission),
-                typeof(UserRole), typeof(RolePermission), typeof(AuditLog)
+                typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
+                typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog)
             };
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

@@ -54,11 +54,12 @@ namespace LocalDataApi.Api.Attributes
             var userId = currentUser.UserId;
             if (string.IsNullOrWhiteSpace(userId))
             {
+                var code = context.HttpContext.Items["AuthErrorCode"]?.ToString() ?? "AUTH_SESSION_REVOKED";
                 context.Result = new ObjectResult(new ApiResponse<object>
                 {
                     Success = false,
                     Message = "未登录或登录已失效",
-                    Data = new { code = "AUTH_TOKEN_INVALID" }
+                    Data = new { code }
                 })
                 { StatusCode = StatusCodes.Status401Unauthorized };
                 return;

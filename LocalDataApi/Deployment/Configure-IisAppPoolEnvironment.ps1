@@ -119,7 +119,7 @@ $redirectUri = Get-Text -Param $RedirectUri -Key 'RedirectUri' -Prompt 'WeChat W
 
 # ===== 2026-08-10 部署计划新增的机密注入 =====
 $adminPassword = Get-Secret -Param $AdminPassword -Key 'AdminPassword' -Prompt 'Default admin password (Rbac)'
-$corsOrigins = Get-Text -Param $CorsOrigins -Key 'CorsOrigins' -Prompt 'CORS allowed origins (semicolon-separated, e.g. http://www.ycdcf.com:1001;http://192.168.1.18:90)'
+$corsOrigins = Get-Text -Param $CorsOrigins -Key 'CorsOrigins' -Prompt 'CORS allowed origins (semicolon-separated, e.g. http://www.ycdcf.com:1001;http://192.168.1.18:1001)'
 
 # 自动补齐前端来源(保证前后端跨域顺畅):前端部署在 :1001(见 Deploy-Frontend-Iis.ps1),
 # 浏览器访问来源即 http://www.ycdcf.com:1001 或 http://192.168.1.18:1001,缺失则自动补入 CORS。
@@ -158,7 +158,7 @@ $values = [ordered]@{
     'WeChatWork__RedirectUri'               = $redirectUri
     'Auth__Secret'                          = $authSecret
     'Rbac__DefaultAdminPassword'            = $adminPassword
-    'Cors__AllowedOrigins'                  = $corsOrigins
+    'WechatWork__AllowedRedirectHosts'      = 'www.ycdcf.com,192.168.1.18'
     'ASPNETCORE_ENVIRONMENT'                = 'Production'
     'Performance__DatabaseConcurrency'      = '64'
     'Performance__DatabaseQueue'            = '256'
@@ -239,6 +239,11 @@ try {
     }
 
     $environmentVariables = $poolElement.GetCollection('environmentVariables')
+    @($environmentVariables | Where-Object {
+        $_.GetAttributeValue('name') -like 'Cors__AllowedOrigins*'
+    }) | ForEach-Object {
+        [void]$environmentVariables.Remove($_)
+    }
     foreach ($entry in $values.GetEnumerator()) {
         $element = $environmentVariables | Where-Object { $_.GetAttributeValue('name') -eq $entry.Key } | Select-Object -First 1
         if (-not $element) {
@@ -250,6 +255,13 @@ try {
         else {
             $element.SetAttributeValue('value', $entry.Value)
         }
+    }
+
+    for ($index = 0; $index -lt $corsList.Count; $index++) {
+        $element = $environmentVariables.CreateElement('add')
+        $element.SetAttributeValue('name', "Cors__AllowedOrigins__$index")
+        $element.SetAttributeValue('value', $corsList[$index].Trim())
+        [void]$environmentVariables.Add($element)
     }
 
     $serverManager.CommitChanges()

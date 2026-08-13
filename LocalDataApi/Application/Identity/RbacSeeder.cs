@@ -122,6 +122,11 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.ExternalProductionUpdate, "PMC", "ExternalProduction", "Update", "修改外产", "修改外产数据"),
                 (PermissionCodes.ExternalProductionDelete, "PMC", "ExternalProduction", "Delete", "删除外产", "删除外产数据"),
                 (PermissionCodes.ExternalProductionApprove, "PMC", "ExternalProduction", "Approve", "审核外产", "审核外产记录"),
+                (PermissionCodes.ProductView, "PMC", "Product", "View", "查看产品资料", "查看 PMC 产品、装配及搜索数据"),
+                (PermissionCodes.BlfParameterView, "BLF", "Parameter", "View", "查看比例阀参数", "查看比例阀参数"),
+                (PermissionCodes.BlfParameterCreate, "BLF", "Parameter", "Create", "新建比例阀参数", "创建比例阀参数"),
+                (PermissionCodes.BlfParameterUpdate, "BLF", "Parameter", "Update", "修改比例阀参数", "更新比例阀参数"),
+                (PermissionCodes.BlfParameterDelete, "BLF", "Parameter", "Delete", "删除比例阀参数", "删除比例阀参数"),
                 // ===== ERP 工单 =====
                 (PermissionCodes.ErpWorkOrderView, "ERP", "WorkOrder", "View", "查看ERP工单", "查看ERP工单数据"),
                 (PermissionCodes.ErpWorkOrderUpdate, "ERP", "WorkOrder", "Update", "修改ERP工单", "修改ERP工单数据"),
@@ -129,13 +134,19 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.ErpMaterialView, "ERP", "Material", "View", "查看物料", "查看物料数据"),
                 (PermissionCodes.ErpMaterialImport, "ERP", "Material", "Import", "导入物料", "导入物料数据"),
                 (PermissionCodes.ErpMaterialExport, "ERP", "Material", "Export", "导出物料", "导出物料数据"),
+                (PermissionCodes.ErpUserView, "ERP", "User", "View", "查看 ERP 用户", "查看 ERP 用户列表"),
+                (PermissionCodes.ErpUserValidate, "ERP", "User", "Validate", "校验 ERP 用户", "校验 ERP 用户账号"),
                 // ===== WeChatWork =====
                 (PermissionCodes.WeChatWorkMessageSend, "WeChatWork", "Message", "Send", "发送企微消息", "通过企业微信发送消息"),
                 (PermissionCodes.WeChatWorkDepartmentView, "WeChatWork", "Department", "View", "查看企微部门", "查看企业微信部门"),
                 (PermissionCodes.WeChatWorkDepartmentSync, "WeChatWork", "Department", "Sync", "同步企微部门", "同步企业微信部门"),
                 (PermissionCodes.WeChatWorkUserSync, "WeChatWork", "User", "Sync", "同步企微用户", "同步企业微信用户"),
                 (PermissionCodes.WeChatWorkSmartSheetView, "WeChatWork", "SmartSheet", "View", "查看智能表格", "查看企业微信智能表格"),
-                (PermissionCodes.WeChatWorkSmartSheetSync, "WeChatWork", "SmartSheet", "Sync", "同步智能表格", "同步企业微信智能表格")
+                (PermissionCodes.WeChatWorkSmartSheetSync, "WeChatWork", "SmartSheet", "Sync", "同步智能表格", "同步企业微信智能表格"),
+                (PermissionCodes.WeChatWorkUserView, "WeChatWork", "User", "View", "查看企微用户", "查询企业微信用户"),
+                (PermissionCodes.WeChatWorkGroupChatView, "WeChatWork", "GroupChat", "View", "查看企微群聊", "查询企业微信群聊"),
+                (PermissionCodes.WeChatWorkJsSdkView, "WeChatWork", "JsSdk", "View", "获取企微 JS-SDK 配置", "获取企业微信 JS-SDK 签名配置"),
+                (PermissionCodes.SystemTestAccess, "System", "Test", "Access", "访问测试页面", "访问开发测试功能")
             };
         }
 
@@ -198,13 +209,15 @@ namespace LocalDataApi.Application.Identity
                 // PMCAdmin: PMC 模块全部权限
                 ["PMC_ADMIN"] = code => code.StartsWith("PMC.", StringComparison.Ordinal),
                 // Scheduler: 排产查看/新建/修改/导出
-                ["SCHEDULER"] = code => code is PermissionCodes.ScheduleView or PermissionCodes.ScheduleCreate or PermissionCodes.ScheduleUpdate or PermissionCodes.ScheduleExport,
+                ["SCHEDULER"] = code => code is PermissionCodes.ScheduleView or PermissionCodes.ScheduleCreate or PermissionCodes.ScheduleUpdate or PermissionCodes.ScheduleExport
+                    or PermissionCodes.WorkOrderView or PermissionCodes.ProductView or PermissionCodes.ExternalProductionView,
                 // Reviewer: 交期评审查看/审核/驳回
-                ["REVIEWER"] = code => code is PermissionCodes.DeliveryReviewView or PermissionCodes.DeliveryReviewApprove or PermissionCodes.DeliveryReviewReject,
+                ["REVIEWER"] = code => code is PermissionCodes.DeliveryReviewView or PermissionCodes.DeliveryReviewApprove or PermissionCodes.DeliveryReviewReject
+                    or PermissionCodes.ScheduleView or PermissionCodes.WorkOrderView or PermissionCodes.ProductView or PermissionCodes.ExternalProductionView,
                 // Operator: 工单查看/修改
                 ["OPERATOR"] = code => code is PermissionCodes.WorkOrderView or PermissionCodes.WorkOrderUpdate,
                 // Viewer: 全部查看权限
-                ["VIEWER"] = code => code.EndsWith(".View", StringComparison.Ordinal)
+                ["VIEWER"] = code => code.StartsWith("PMC.", StringComparison.Ordinal) && code.EndsWith(".View", StringComparison.Ordinal)
             };
 
             foreach (var (roleCode, matcher) in matrix)

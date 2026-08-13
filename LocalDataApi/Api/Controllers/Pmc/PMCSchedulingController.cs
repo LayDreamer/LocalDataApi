@@ -3,6 +3,7 @@ using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers.Pmc;
 
@@ -23,6 +24,7 @@ public class PMCSchedulingController : ControllerBase
 
     /// <summary>获取排产分析列表</summary>
     [HttpPost("SchedulingAnalysisList")]
+    [HasPermission(PermissionCodes.ScheduleView)]
     public async Task<ActionResult<ApiResponse<object>>> GetSchedulingAnalysisList(PMCRequestDto requestDto)
     {
         var productData = await _schedulingService.GetSchedulingAnalysisList(requestDto);

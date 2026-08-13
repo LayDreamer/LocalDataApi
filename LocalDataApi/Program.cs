@@ -1,4 +1,5 @@
 using LocalDataApi.Api.Attributes;
+using LocalDataApi.Api.Filters;
 using LocalDataApi.Api.Middlewares;
 using LocalDataApi.Application.Blf;
 using LocalDataApi.Application.Common;
@@ -12,13 +13,18 @@ using LocalDataApi.Infrastructure.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using SKIT.FlurlHttpClient.Wechat.Work;
 using SKIT.FlurlHttpClient.Wechat.Work.Settings;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Reflection;
+using System.Security.Claims;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
@@ -54,9 +60,11 @@ catch
     maxBatchSize = 1;
 }
 
+builder.Services.AddSingleton<DataChangeLogInterceptor>();
 builder.Services.AddDbContextPool<AppDbContext>
-    (options =>
+    ((serviceProvider, options) =>
     {
+        options.AddInterceptors(serviceProvider.GetRequiredService<DataChangeLogInterceptor>());
         options.UseSqlServer(connectionString,
             sqlOptions =>
             {
@@ -78,6 +86,7 @@ builder.Services.AddDbContextPool<AppDbContext>
         }
     }, poolSize: 256);
 builder.Services.AddMemoryCache();
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 
 // ========== 3. 数据库密集型接口限流 ==========
 var databaseConcurrency = builder.Configuration.GetValue("Performance:DatabaseConcurrency", 64);
@@ -112,14 +121,80 @@ builder.Services.AddScoped<ERPBaseService>();
 builder.Services.AddSingleton<PermissionCache>();
 builder.Services.AddScoped<IPermissionCacheService, PermissionCacheService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<ILoginLogService, LoginLogService>();
 builder.Services.AddScoped<AuthorizationService>();
 builder.Services.AddScoped<CurrentUserService>();
+builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<RbacSeeder>();
 builder.Services.AddHttpContextAccessor();
+
+var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
+var authSecret = string.IsNullOrWhiteSpace(authOptions.Secret)
+    ? "LocalDataApi-Default-Dev-Secret-Change-Me"
+    : authOptions.Secret;
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authSecret)),
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var sessionIdText = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sid);
+                if (!Guid.TryParse(sessionIdText, out var sessionId) || string.IsNullOrWhiteSpace(userId))
+                {
+                    context.Fail("AUTH_SESSION_REVOKED");
+                    return;
+                }
+
+                var sessions = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionService>();
+                var validation = await sessions.ValidateAccessAsync(userId, sessionId, context.HttpContext.RequestAborted);
+                if (!validation.IsValid)
+                    context.Fail(validation.ErrorCode ?? "AUTH_SESSION_REVOKED");
+            },
+            OnAuthenticationFailed = context =>
+            {
+                if (context.Exception is SecurityTokenExpiredException)
+                    context.HttpContext.Items["AuthErrorCode"] = "AUTH_ACCESS_EXPIRED";
+                return Task.CompletedTask;
+            },
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                var code = context.HttpContext.Items["AuthErrorCode"]?.ToString()
+                    ?? context.AuthenticateFailure?.Message
+                    ?? "AUTH_SESSION_REVOKED";
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = code == "AUTH_ACCESS_EXPIRED" ? "访问令牌已过期" : "未登录或登录已失效",
+                    Data = new { code }
+                });
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // PMC 域
 builder.Services.AddScoped<IPmcProductService, PmcProductService>();
@@ -167,6 +242,7 @@ builder.Services.AddScoped<IWechatWorkUserService, WechatWorkUserService>();
 
 // ========== 6. 控制器与 JSON 序列化 ==========
 builder.Services.AddControllers()
+    .AddMvcOptions(options => options.Filters.Add<OperationLogFilter>())
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null; // 保持属性名不变(前端契约依赖)
@@ -199,7 +275,7 @@ builder.Services.AddSwaggerGen(c =>
 // ========== 8. CORS ==========
 // 允许的来源从配置读取(默认含开发期 5173 与内网地址);生产环境请在 Cors:AllowedOrigins 中加入前端真实域名
 var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                  ?? new[] { "http://localhost:5173", "http://192.168.1.110:1001", "http://192.168.1.110:1002" };
+                  ?? new[] { "http://localhost:5173", "http://localhost:1001", "http://192.168.1.18:1001" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -268,6 +344,7 @@ app.Use(async (context, next) =>
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseRateLimiter();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

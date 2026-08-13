@@ -3,6 +3,8 @@ using System.Linq;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using LocalDataApi.Api.Attributes;
 using Microsoft.Extensions.Configuration;
 
 namespace LocalDataApi.Api.Controllers;
@@ -25,6 +27,7 @@ public class WechatController : ControllerBase
 
     /// <summary>生成授权跳转URL(redirectUri 须为可信域名白名单内)</summary>
     [HttpGet("authorize-url")]
+    [AllowAnonymous]
     public IActionResult GetAuthorizeUrl([FromQuery] string redirectUri, [FromQuery] string state = "STATE")
     {
         if (string.IsNullOrWhiteSpace(redirectUri))
@@ -50,6 +53,7 @@ public class WechatController : ControllerBase
 
     /// <summary>授权回调处理</summary>
     [HttpGet("callback")]
+    [AllowAnonymous]
     public async Task<IActionResult> Callback(string code, string state)
     {
         if (string.IsNullOrEmpty(code))
@@ -84,6 +88,7 @@ public class WechatController : ControllerBase
 
     /// <summary>直接通过userid获取用户信息</summary>
     [HttpGet("user/{userId}")]
+    [HasPermission(PermissionCodes.WeChatWorkUserView)]
     public async Task<IActionResult> GetUserByUserId(string userId)
     {
         if (string.IsNullOrEmpty(userId))

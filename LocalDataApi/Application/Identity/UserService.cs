@@ -6,6 +6,7 @@ using LocalDataApi.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text;
 
 namespace LocalDataApi.Application.Identity;
@@ -19,9 +20,9 @@ public class UserService : IUserService
     private readonly IWechatWorkUserService _wxUserService;
     private readonly IUserRoleService _userRoleService;
     private readonly AuthorizationService _authorization;
-    private readonly string _tokenSecret;
-    private readonly int _tokenExpiryMinutes;
     private readonly string _defaultLoginRole;
+    private readonly IAuthSessionService _sessions;
+    private readonly ILoginLogService _loginLogs;
 
     // 连续登录失败达到该次数后锁定账号
     private const int MaxLoginFailCount = 5;
@@ -33,16 +34,16 @@ public class UserService : IUserService
         IConfiguration configuration,
         IWechatWorkUserService wxUserService,
         IUserRoleService userRoleService,
-        AuthorizationService authorization)
+        AuthorizationService authorization,
+        IAuthSessionService sessions,
+        ILoginLogService loginLogs)
     {
         _context = context;
         _wxUserService = wxUserService;
         _userRoleService = userRoleService;
         _authorization = authorization;
-        // 令牌签名密钥;生产环境必须通过配置注入,缺失或为空时回退开发默认密钥
-        var secret = configuration["Auth:Secret"];
-        _tokenSecret = string.IsNullOrWhiteSpace(secret) ? "LocalDataApi-Default-Dev-Secret-Change-Me" : secret;
-        _tokenExpiryMinutes = configuration.GetValue("Auth:TokenExpiryMinutes", 1440);
+        _sessions = sessions;
+        _loginLogs = loginLogs;
         // 新用户默认角色(企微免登自动建号时绑定)
         _defaultLoginRole = configuration.GetValue("Rbac:DefaultLoginRole", "VIEWER");
     }
@@ -50,13 +51,15 @@ public class UserService : IUserService
     /// <summary>
     /// 用户登录:校验账号密码,返回令牌与用户信息。
     /// </summary>
-    public async Task<LoginResultDto> LoginAsync(LoginRequestDto request, string? ipAddress = null)
+    public async Task<LoginResultDto> LoginAsync(LoginRequestDto request, string? ipAddress = null, string? userAgent = null)
     {
+        var stopwatch = Stopwatch.StartNew();
         var result = new LoginResultDto { Success = false };
 
         if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
         {
             result.Message = "用户名和密码不能为空";
+            await WriteLoginLogAsync(null, request.UserName, "Password", false, "INVALID_REQUEST", result.Message, null, stopwatch);
             return result;
         }
 
@@ -68,18 +71,21 @@ public class UserService : IUserService
         if (user == null)
         {
             result.Message = "用户不存在";
+            await WriteLoginLogAsync(null, request.UserName, "Password", false, "USER_NOT_FOUND", result.Message, null, stopwatch);
             return result;
         }
 
         if (user.IsActive != "true")
         {
             result.Message = "账号已被禁用";
+            await WriteLoginLogAsync(user.Id, user.UserName, "Password", false, "ACCOUNT_DISABLED", result.Message, null, stopwatch);
             return result;
         }
 
         if (!string.IsNullOrEmpty(user.LockoutEnd) && DateTime.Parse(user.LockoutEnd) > DateTime.Now)
         {
             result.Message = "账号已锁定,请稍后再试";
+            await WriteLoginLogAsync(user.Id, user.UserName, "Password", false, "ACCOUNT_LOCKED", result.Message, null, stopwatch);
             return result;
         }
 
@@ -97,6 +103,7 @@ public class UserService : IUserService
             }
 
             await _context.SaveChangesAsync();
+            await WriteLoginLogAsync(user.Id, user.UserName, "Password", false, "PASSWORD_INVALID", result.Message, null, stopwatch);
             return result;
         }
 
@@ -123,8 +130,8 @@ public class UserService : IUserService
 
         result.Success = true;
         result.Message = "登录成功";
-        result.Token = TokenHelper.CreateToken(
-            user.Id!, user.UserName!, freshUser?.PermissionVersion ?? 0, _tokenSecret, _tokenExpiryMinutes);
+        var issue = await _sessions.CreateAsync(user, request.RememberMe, ipAddress, userAgent);
+        result.Token = issue.AccessToken;
         result.User = new UserInfoDto
         {
             Id = user.Id,
@@ -140,19 +147,22 @@ public class UserService : IUserService
         result.Roles = roles;
         result.Permissions = permissions;
         result.MustChangePassword = user.MustChangePassword;
+        await WriteLoginLogAsync(user.Id, user.UserName, "Password", true, null, null, issue.SessionId, stopwatch);
         return result;
     }
 
     /// <summary>
     /// 企业微信工作台免登:通过授权 code 换取企微身份并登录;账号不存在时自动建号绑定。
     /// </summary>
-    public async Task<LoginResultDto> LoginByWeChatWorkAsync(string code, string? ipAddress = null)
+    public async Task<LoginResultDto> LoginByWeChatWorkAsync(string code, string? ipAddress = null, string? userAgent = null)
     {
+        var stopwatch = Stopwatch.StartNew();
         var result = new LoginResultDto { Success = false };
 
         if (string.IsNullOrWhiteSpace(code))
         {
             result.Message = "授权 code 不能为空";
+            await WriteLoginLogAsync(null, null, "WeChatWork", false, "INVALID_REQUEST", result.Message, null, stopwatch);
             return result;
         }
 
@@ -165,12 +175,14 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             result.Message = $"企业微信授权校验失败: {ex.Message}";
+            await WriteLoginLogAsync(null, null, "WeChatWork", false, "WECHAT_AUTH_FAILED", "企业微信授权校验失败", null, stopwatch);
             return result;
         }
 
         if (string.IsNullOrWhiteSpace(wxUser.UserId))
         {
             result.Message = "未获取到企业微信用户身份";
+            await WriteLoginLogAsync(null, null, "WeChatWork", false, "WECHAT_USER_NOT_FOUND", result.Message, null, stopwatch);
             return result;
         }
 
@@ -189,6 +201,7 @@ public class UserService : IUserService
             catch (Exception ex)
             {
                 result.Message = $"获取企业微信用户详情失败: {ex.Message}";
+                await WriteLoginLogAsync(null, wxUser.UserId, "WeChatWork", false, "WECHAT_USER_DETAIL_FAILED", "获取企业微信用户详情失败", null, stopwatch);
                 return result;
             }
 
@@ -223,11 +236,13 @@ public class UserService : IUserService
         if (user.IsActive != "true")
         {
             result.Message = "账号已被禁用";
+            await WriteLoginLogAsync(user.Id, user.UserName, "WeChatWork", false, "ACCOUNT_DISABLED", result.Message, null, stopwatch);
             return result;
         }
         if (!string.IsNullOrEmpty(user.LockoutEnd) && DateTime.Parse(user.LockoutEnd) > DateTime.Now)
         {
             result.Message = "账号已锁定,请稍后再试";
+            await WriteLoginLogAsync(user.Id, user.UserName, "WeChatWork", false, "ACCOUNT_LOCKED", result.Message, null, stopwatch);
             return result;
         }
 
@@ -244,8 +259,8 @@ public class UserService : IUserService
 
         result.Success = true;
         result.Message = "企业微信登录成功";
-        result.Token = TokenHelper.CreateToken(
-            user.Id!, user.UserName!, freshUser?.PermissionVersion ?? 0, _tokenSecret, _tokenExpiryMinutes);
+        var issue = await _sessions.CreateAsync(user, rememberMe: false, ipAddress, userAgent);
+        result.Token = issue.AccessToken;
         result.User = new UserInfoDto
         {
             Id = user.Id,
@@ -261,8 +276,15 @@ public class UserService : IUserService
         result.Roles = roles;
         result.Permissions = permissions;
         result.MustChangePassword = user.MustChangePassword;
+        await WriteLoginLogAsync(user.Id, user.UserName, "WeChatWork", true, null, null, issue.SessionId, stopwatch);
         return result;
     }
+
+    private Task WriteLoginLogAsync(string? userId, string? userName, string loginType, bool success,
+        string? failReasonCode, string? failReason, Guid? sessionId, Stopwatch stopwatch)
+        => _loginLogs.WriteAsync(new LoginLogEntry(
+            userId, userName, loginType, success, failReasonCode, failReason, sessionId,
+            (int)Math.Min(stopwatch.ElapsedMilliseconds, int.MaxValue)));
 
     /// <summary>
     /// 注册新用户。
@@ -333,6 +355,7 @@ public class UserService : IUserService
         user.MustChangePassword = false;
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
+        await _sessions.RevokeAllAsync(user.Id!, "password-changed");
         return (true, "密码修改成功");
     }
 
@@ -352,6 +375,7 @@ public class UserService : IUserService
         if (dto.PhoneNumber != null) user.PhoneNumber = dto.PhoneNumber;
         user.ModifyDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         await _context.SaveChangesAsync();
+        await _sessions.RevokeAllAsync(user.Id!, "password-reset");
         return (true, "资料更新成功");
     }
 

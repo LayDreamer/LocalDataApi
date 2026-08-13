@@ -1,8 +1,9 @@
-using LocalDataApi.Application.Common;
 using LocalDataApi.Application.WeChatWork;
 using LocalDataApi.Dto;
 using LocalDataApi.Domain.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
+using LocalDataApi.Api.Attributes;
+using LocalDataApi.Application.Common;
 
 namespace LocalDataApi.Api.Controllers;
 
@@ -35,6 +36,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>获取指定部门下的成员列表(包含详情)</summary>
     [HttpPost("users")]
+    [HasPermission(PermissionCodes.WeChatWorkUserView)]
     public async Task<ActionResult<ApiResponse<object>>> GetUsers([FromBody] DepartmentRequestDto departmentRequest)
     {
         try
@@ -64,6 +66,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>获取部门列表(树形结构)</summary>
     [HttpGet("departments")]
+    [HasPermission(PermissionCodes.WeChatWorkDepartmentView)]
     public async Task<ActionResult<ApiResponse<object>>> GetDepartments()
     {
         try
@@ -94,6 +97,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>发送文本 / Markdown 消息</summary>
     [HttpPost("send")]
+    [HasPermission(PermissionCodes.WeChatWorkMessageSend)]
     public async Task<ActionResult<ApiResponse<object>>> SendMessage(SendMessageDto dto)
     {
         try
@@ -130,6 +134,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>发送文本卡片消息</summary>
     [HttpPost("sendCardMessage")]
+    [HasPermission(PermissionCodes.WeChatWorkMessageSend)]
     public async Task<ActionResult<ApiResponse<object>>> SendCardMessage(SendMessageDto dto)
     {
         try
@@ -167,6 +172,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>创建智能表格</summary>
     [HttpPost("createSmartSheet")]
+    [HasPermission(PermissionCodes.WeChatWorkSmartSheetSync)]
     public async Task<ActionResult<ApiResponse<object>>> CreateSmartSheet(CreateSmartSheetDto createDto)
     {
         var response = await _smartSheetService.CreateDocumentAsync(createDto.Title, createDto.AdminUserIds);
@@ -188,6 +194,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>向智能表格添加记录</summary>
     [HttpPost("addSmartSheetRecord")]
+    [HasPermission(PermissionCodes.WeChatWorkSmartSheetSync)]
     public async Task<ActionResult<ApiResponse<object>>> AddSmartSheetRecord(string docId, string? sheetId)
     {
         var records = new List<IDictionary<string, object>>
@@ -216,6 +223,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>获取智能表格记录</summary>
     [HttpPost("getSmartSheetRecord")]
+    [HasPermission(PermissionCodes.WeChatWorkSmartSheetView)]
     public async Task<ActionResult<ApiResponse<object>>> getSmartSheetRecord(string docId, string? sheetId)
     {
         var response = await _smartSheetService.GetSmartSheetRecordsAsync(docId, sheetId);
@@ -237,6 +245,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>创建企业微信群聊并发送消息</summary>
     [HttpPost("createChatAndSend")]
+    [HasPermission(PermissionCodes.WeChatWorkMessageSend)]
     public async Task<ActionResult<ApiResponse<object>>> CreateChatAndSendMessage(GroupChatMessageDto dto)
     {
         try
@@ -286,6 +295,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>向已有的企业微信群聊发送消息</summary>
     [HttpPost("sendToGroupChat")]
+    [HasPermission(PermissionCodes.WeChatWorkMessageSend)]
     public async Task<ActionResult<ApiResponse<object>>> SendMessageToGroupChat(GroupChatMessageDto dto)
     {
         try
@@ -345,6 +355,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>获取所有已创建的群聊列表(从数据库查询)</summary>
     [HttpGet("groupChats")]
+    [HasPermission(PermissionCodes.WeChatWorkGroupChatView)]
     public async Task<ActionResult<ApiResponse<object>>> GetGroupChats()
     {
         try
@@ -369,6 +380,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>创建智能表格并发送通知</summary>
     [HttpPost("createSmartSheetAndNotify")]
+    [HasPermission(PermissionCodes.WeChatWorkSmartSheetSync)]
     public async Task<ActionResult<ApiResponse<object>>> CreateSmartSheetAndNotify(CreateAndNotifyDto dto)
     {
         try
@@ -419,6 +431,7 @@ public class WechatWorkController : ControllerBase
 
     /// <summary>获取 JS-SDK 配置(用于前端 wx.config 鉴权,调用扫码等能力)</summary>
     [HttpGet("jssdk-config")]
+    [HasPermission(PermissionCodes.WeChatWorkJsSdkView)]
     public async Task<IActionResult> GetJsSdkConfig([FromQuery] string url)
     {
         try

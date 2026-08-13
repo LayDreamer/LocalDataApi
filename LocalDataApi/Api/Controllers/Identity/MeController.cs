@@ -3,6 +3,7 @@ using LocalDataApi.Application.Identity;
 using LocalDataApi.Dto;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LocalDataApi.Api.Controllers.Identity
 {
@@ -10,8 +11,9 @@ namespace LocalDataApi.Api.Controllers.Identity
     /// 当前用户信息接口(登录态用户查询自身角色与权限)。
     /// </summary>
     [ApiController]
-    [Route("api/identity/[controller]")]
-    [EnableRateLimiting("DatabaseHeavy")]
+[Route("api/identity/[controller]")]
+[Authorize]
+[EnableRateLimiting("DatabaseHeavy")]
     public class MeController : ControllerBase
     {
         private readonly IUserRoleService _userRoleService;

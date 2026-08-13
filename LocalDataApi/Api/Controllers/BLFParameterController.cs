@@ -3,6 +3,7 @@ using LocalDataApi.Application.Common;
 using LocalDataApi.Domain.Blf;
 using LocalDataApi.Dto;
 using Microsoft.AspNetCore.Mvc;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers;
 
@@ -22,6 +23,7 @@ public class BLFParameterController : ControllerBase
 
     /// <summary>查询所有比例阀参数</summary>
     [HttpPost("list")]
+    [HasPermission(PermissionCodes.BlfParameterView)]
     public async Task<ActionResult<IEnumerable<BLFParameter>>> GeBLFParameters()
     {
         var blfParameters = await _blfService.GetAllParameters();
@@ -43,6 +45,7 @@ public class BLFParameterController : ControllerBase
 
     /// <summary>按比例阀编号查询</summary>
     [HttpPost("detail")]
+    [HasPermission(PermissionCodes.BlfParameterView)]
     public async Task<IActionResult> GetBLFParameter([FromBody] GetBLFParameterRequest getBLFParameter)
     {
         var blfParameter = await _blfService.GetBLFParameter(getBLFParameter);
@@ -64,6 +67,7 @@ public class BLFParameterController : ControllerBase
 
     /// <summary>创建比例阀参数</summary>
     [HttpPost("create")]
+    [HasPermission(PermissionCodes.BlfParameterCreate)]
     public async Task<IActionResult> CreateBLFParameter(BLFParameter blfParameter)
     {
         await _blfService.CreateBLFParameter(blfParameter);
@@ -77,6 +81,7 @@ public class BLFParameterController : ControllerBase
 
     /// <summary>更新比例阀参数(局部更新非空字段)</summary>
     [HttpPost("update")]
+    [HasPermission(PermissionCodes.BlfParameterUpdate)]
     public async Task<IActionResult> UpdateBLFParameter(BLFParameter blfParameter)
     {
         await _blfService.UpdateBLFParameter(blfParameter);
@@ -90,6 +95,7 @@ public class BLFParameterController : ControllerBase
 
     /// <summary>批量删除比例阀参数</summary>
     [HttpPost("delete")]
+    [HasPermission(PermissionCodes.BlfParameterDelete)]
     public async Task<IActionResult> DeleteUser(List<string> numbers)
     {
         await _blfService.DeleteBLFParameter(numbers);

@@ -118,4 +118,5 @@ namespace LocalDataApi.Dto
         // 企业微信 OAuth2 授权回调携带的 code
         public string Code { get; set; } = "";
     }
+
 }

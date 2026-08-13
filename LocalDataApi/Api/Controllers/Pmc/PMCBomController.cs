@@ -4,6 +4,7 @@ using LocalDataApi.Dto;
 using LocalDataApi.Domain.Pmc;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using LocalDataApi.Api.Attributes;
 
 namespace LocalDataApi.Api.Controllers.Pmc;
 
@@ -24,6 +25,7 @@ public class PMCBomController : ControllerBase
 
     /// <summary>根据成品货号生成并保存外产BOM结构</summary>
     [HttpPost("SaveExternalProductionBOM")]
+    [HasPermission(PermissionCodes.ExternalProductionCreate, PermissionCodes.ExternalProductionUpdate)]
     public async Task<ActionResult<ApiResponse<object>>> SaveExternalProductionBOM(List<ExternalProductionBOM> bomList, string username, string schedulingNo)
     {
         var savedList = await _bomService.SaveExternalProductionBOM(bomList, username, schedulingNo);
@@ -37,6 +39,7 @@ public class PMCBomController : ControllerBase
 
     /// <summary>获取外产BOM列表</summary>
     [HttpPost("GetExternalProductionBOMList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<PagedResult<ExternalProductionBOM>>>> GetExternalProductionBOMList(PMCRequestDto requestDto)
     {
         var result = await _bomService.GetExternalProductionBOMList(requestDto, HttpContext.RequestAborted);
@@ -50,6 +53,7 @@ public class PMCBomController : ControllerBase
 
     /// <summary>批量删除外产BOM数据</summary>
     [HttpPost("DeleteExternalProductionBOMList")]
+    [HasPermission(PermissionCodes.ExternalProductionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> DeleteExternalProductionBOMList(List<string> ids)
     {
         await _bomService.DeleteExternalProductionBOMList(ids);
@@ -62,6 +66,7 @@ public class PMCBomController : ControllerBase
 
     /// <summary>获取所有BOM结构工序数据</summary>
     [HttpPost("GetBOMStructureProcessList")]
+    [HasPermission(PermissionCodes.ExternalProductionView)]
     public async Task<ActionResult<ApiResponse<object>>> GetBOMStructureProcessList()
     {
         var result = await _bomService.GetBOMStructureProcessList();
