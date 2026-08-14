@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Domain.Blf;
 using LocalDataApi.Domain.Erp;
+using LocalDataApi.Domain.Employee;
 using LocalDataApi.Domain.Identity;
 using LocalDataApi.Domain.WeChatWork;
 namespace LocalDataApi.Infrastructure.Data
@@ -44,6 +46,8 @@ namespace LocalDataApi.Infrastructure.Data
         public DbSet<Department> Departments { get; set; }
 
         public DbSet<Position> Positions { get; set; }
+
+        public DbSet<Employee> Employees { get; set; }
 
         public DbSet<Role> Roles { get; set; }
 
@@ -170,6 +174,10 @@ namespace LocalDataApi.Infrastructure.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.IdentityId)
+                    .HasColumnType("bigint")
+                    .IsRequired();
+                entity.HasIndex(e => e.IdentityId).IsUnique().HasDatabaseName("UX_User_IdentityId");
                 entity.HasIndex(e => e.UserName).IsUnique();
             });
 
@@ -386,7 +394,7 @@ namespace LocalDataApi.Infrastructure.Data
             var typesManagedByMigrations = new HashSet<Type>
             {
                 typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
-                typeof(Department), typeof(Position), typeof(Role), typeof(Permission),
+                typeof(Department), typeof(Position), typeof(Employee), typeof(Role), typeof(Permission),
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
                 typeof(Menu), typeof(MenuPermission)
@@ -405,6 +413,93 @@ namespace LocalDataApi.Infrastructure.Data
             }
 
             base.OnModelCreating(modelBuilder);
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            AssignIdentityIds();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override async Task<int> SaveChangesAsync(
+            bool acceptAllChangesOnSuccess,
+            CancellationToken cancellationToken = default)
+        {
+            await AssignIdentityIdsAsync(cancellationToken);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void AssignIdentityIds()
+        {
+            var users = ChangeTracker.Entries<User>()
+                .Where(entry => entry.State == EntityState.Added && entry.Entity.IdentityId == 0)
+                .ToList();
+
+            if (users.Count == 0)
+                return;
+
+            var connection = Database.GetDbConnection();
+            var closeConnection = connection.State != System.Data.ConnectionState.Open;
+            if (closeConnection)
+                connection.Open();
+
+            try
+            {
+                foreach (var user in users)
+                {
+                    using var command = connection.CreateCommand();
+                    command.Transaction = Database.CurrentTransaction?.GetDbTransaction();
+                    command.CommandText = """
+                        UPDATE [dbo].[UserIdentityIdCounter] WITH (UPDLOCK, HOLDLOCK)
+                        SET [NextValue] = [NextValue] + 1
+                        OUTPUT deleted.[NextValue]
+                        WHERE [CounterKey] = 1;
+                        """;
+                    user.Entity.IdentityId = Convert.ToInt64(command.ExecuteScalar());
+                }
+            }
+            finally
+            {
+                if (closeConnection)
+                    connection.Close();
+            }
+        }
+
+        private async Task AssignIdentityIdsAsync(CancellationToken cancellationToken)
+        {
+            var users = ChangeTracker.Entries<User>()
+                .Where(entry => entry.State == EntityState.Added && entry.Entity.IdentityId == 0)
+                .ToList();
+
+            if (users.Count == 0)
+                return;
+
+            var connection = Database.GetDbConnection();
+            var closeConnection = connection.State != System.Data.ConnectionState.Open;
+            if (closeConnection)
+                await connection.OpenAsync(cancellationToken);
+
+            try
+            {
+                foreach (var user in users)
+                {
+                    await using var command = connection.CreateCommand();
+                    command.Transaction = Database.CurrentTransaction?.GetDbTransaction();
+                    command.CommandText = """
+                        UPDATE [dbo].[UserIdentityIdCounter] WITH (UPDLOCK, HOLDLOCK)
+                        SET [NextValue] = [NextValue] + 1
+                        OUTPUT deleted.[NextValue]
+                        WHERE [CounterKey] = 1;
+                        """;
+                    user.Entity.IdentityId = Convert.ToInt64(
+                        await command.ExecuteScalarAsync(cancellationToken));
+                }
+            }
+            finally
+            {
+                if (closeConnection)
+                    await connection.CloseAsync();
+            }
         }
         //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         //{

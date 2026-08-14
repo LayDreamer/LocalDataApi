@@ -11,6 +11,8 @@ namespace LocalDataApi.Domain.Identity
         // 主键
         public string? Id { get; set; }
 
+        public long IdentityId { get; set; }
+
         // 用户名（登录账号）
         public string? UserName { get; set; }
 

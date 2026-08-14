@@ -128,6 +128,60 @@ namespace LocalDataApi.Migrations
                     b.ToTable("PressureFlowRates");
                 });
 
+            modelBuilder.Entity("LocalDataApi.Domain.Employee.Employee", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("EmployeeNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("PositionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("UserIdentityId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EmployeeNo")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Employee_EmployeeNo");
+
+                    b.HasIndex("PositionId");
+
+                    b.HasIndex("UserIdentityId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Employee_UserIdentityId")
+                        .HasFilter("[UserIdentityId] IS NOT NULL");
+
+                    b.ToTable("Employee", "dbo");
+                });
+
             modelBuilder.Entity("LocalDataApi.Domain.Erp.ERPId", b =>
                 {
                     b.Property<int>("ID")
@@ -779,6 +833,9 @@ namespace LocalDataApi.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long>("IdentityId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("IsActive")
                         .HasColumnType("nvarchar(max)");
 
@@ -834,6 +891,10 @@ namespace LocalDataApi.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdentityId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_User_IdentityId");
 
                     b.HasIndex("UserName")
                         .IsUnique()
@@ -2347,6 +2408,36 @@ namespace LocalDataApi.Migrations
                     b.HasOne("LocalDataApi.Domain.Blf.BLFParameter", null)
                         .WithMany("PressureFlowRateCurve")
                         .HasForeignKey("BLFParameterId");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Employee.Employee", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Employee_Department");
+
+                    b.HasOne("LocalDataApi.Domain.Identity.Position", "Position")
+                        .WithMany()
+                        .HasForeignKey("PositionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Employee_Position");
+
+                    b.HasOne("LocalDataApi.Domain.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserIdentityId")
+                        .HasPrincipalKey("IdentityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Employee_UserIdentity");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Position");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LocalDataApi.Domain.Identity.Menu", b =>

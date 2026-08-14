@@ -203,6 +203,7 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.UserUpdate, "Identity", "User", "Update", "修改用户", "修改用户资料"),
                 (PermissionCodes.UserDelete, "Identity", "User", "Delete", "删除用户", "删除系统用户"),
                 (PermissionCodes.UserAssignRole, "Identity", "User", "AssignRole", "分配用户角色", "为用户分配/调整角色"),
+                (PermissionCodes.EmployeeBindUser, "Identity", "Employee", "BindUser", "绑定员工账号", "为员工绑定或解绑系统账号"),
                 // ===== Identity 角色管理 =====
                 (PermissionCodes.RoleView, "Identity", "Role", "View", "查看角色", "查看角色列表与详情"),
                 (PermissionCodes.RoleCreate, "Identity", "Role", "Create", "新增角色", "创建角色"),

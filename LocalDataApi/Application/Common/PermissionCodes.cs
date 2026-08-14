@@ -13,6 +13,9 @@ namespace LocalDataApi.Application.Common
         public const string UserDelete = "Identity.User.Delete";
         public const string UserAssignRole = "Identity.User.AssignRole";
 
+        // ========== Identity 员工账号绑定 ==========
+        public const string EmployeeBindUser = "Identity.Employee.BindUser";
+
         // ========== Identity 角色管理 ==========
         public const string RoleView = "Identity.Role.View";
         public const string RoleCreate = "Identity.Role.Create";
@@ -112,7 +115,7 @@ namespace LocalDataApi.Application.Common
                 return new[]
                 {
                     // Identity
-                    UserView, UserCreate, UserUpdate, UserDelete, UserAssignRole,
+                    UserView, UserCreate, UserUpdate, UserDelete, UserAssignRole, EmployeeBindUser,
                     RoleView, RoleCreate, RoleUpdate, RoleDelete, RoleAssignPermission,
                     PermissionView, PermissionUpdate,
                     DepartmentView, DepartmentSync,
