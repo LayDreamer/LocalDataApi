@@ -34,6 +34,12 @@ namespace LocalDataApi.Application.Common
         public const string PlatformMenuUpdate = "Platform.Menu.Update";
         public const string PlatformMenuDelete = "Platform.Menu.Delete";
 
+        // ========== Platform 岗位管理 ==========
+        public const string PlatformPositionView = "Platform.Position.View";
+        public const string PlatformPositionCreate = "Platform.Position.Create";
+        public const string PlatformPositionEdit = "Platform.Position.Edit";
+        public const string PlatformPositionDelete = "Platform.Position.Delete";
+
         // ========== PMC 排产管理 ==========
         public const string ScheduleView = "PMC.Schedule.View";
         public const string ScheduleCreate = "PMC.Schedule.Create";
@@ -111,6 +117,7 @@ namespace LocalDataApi.Application.Common
                     PermissionView, PermissionUpdate,
                     DepartmentView, DepartmentSync,
                     PlatformMenuView, PlatformMenuCreate, PlatformMenuUpdate, PlatformMenuDelete,
+                    PlatformPositionView, PlatformPositionCreate, PlatformPositionEdit, PlatformPositionDelete,
                     PlatformLoginLogView, PlatformOperationLogView, PlatformDataChangeLogView,
                     // PMC
                     ScheduleView, ScheduleCreate, ScheduleUpdate, ScheduleDelete, SchedulePublish, ScheduleExport,

@@ -43,6 +43,8 @@ namespace LocalDataApi.Infrastructure.Data
         // ========== RBAC 权限中心(2026-08-08 新增,表落地见 DatabaseScripts/20260808_RbacTables.sql) ==========
         public DbSet<Department> Departments { get; set; }
 
+        public DbSet<Position> Positions { get; set; }
+
         public DbSet<Role> Roles { get; set; }
 
         public DbSet<Permission> Permissions { get; set; }
@@ -384,7 +386,7 @@ namespace LocalDataApi.Infrastructure.Data
             var typesManagedByMigrations = new HashSet<Type>
             {
                 typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
-                typeof(Department), typeof(Role), typeof(Permission),
+                typeof(Department), typeof(Position), typeof(Role), typeof(Permission),
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
                 typeof(Menu), typeof(MenuPermission)
