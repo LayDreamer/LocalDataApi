@@ -439,6 +439,87 @@ namespace LocalDataApi.Migrations
                     b.ToTable("LoginLog", (string)null);
                 });
 
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.Menu", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Component")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Sort")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("UpdatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Path");
+
+                    b.HasIndex("ParentId", "Sort");
+
+                    b.ToTable("Sys_Menu", (string)null);
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.MenuPermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("MenuId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PermissionCode")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PermissionCode");
+
+                    b.HasIndex("MenuId", "PermissionCode")
+                        .IsUnique();
+
+                    b.ToTable("Sys_MenuPermission", (string)null);
+                });
+
             modelBuilder.Entity("LocalDataApi.Domain.Identity.OperationLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2226,11 +2307,39 @@ namespace LocalDataApi.Migrations
                         .HasForeignKey("BLFParameterId");
                 });
 
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.Menu", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.Menu", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.MenuPermission", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.Menu", "Menu")
+                        .WithMany("Permissions")
+                        .HasForeignKey("MenuId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Menu");
+                });
+
             modelBuilder.Entity("LocalDataApi.Domain.Blf.BLFParameter", b =>
                 {
                     b.Navigation("CurrentFlowRateCurve");
 
                     b.Navigation("PressureFlowRateCurve");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.Menu", b =>
+                {
+                    b.Navigation("Children");
+
+                    b.Navigation("Permissions");
                 });
 #pragma warning restore 612, 618
         }

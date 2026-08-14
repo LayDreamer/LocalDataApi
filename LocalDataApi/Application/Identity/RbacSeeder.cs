@@ -36,6 +36,8 @@ namespace LocalDataApi.Application.Identity
                 await EnsureRolePermissionsAsync(roles, ct);
                 await EnsureLegacyAdminUsersAsync(ct);
                 await EnsureDefaultAdminUserAsync(ct);
+                await EnsureMenusAsync(ct);
+                await EnsurePmcMenuIntegrationAsync(ct);
                 _logger.LogInformation("RBAC 初始化数据检查完成。");
             }
             catch (Exception ex)
@@ -46,6 +48,122 @@ namespace LocalDataApi.Application.Identity
         }
 
         // ---------- 1. 权限点初始化(幂等) ----------
+        private async Task EnsureMenusAsync(CancellationToken ct)
+        {
+            var manufacturingCenterId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+            var pmcId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+            var definitions = new[]
+            {
+                new Menu { Id = manufacturingCenterId, Name = "制造中心", Path = "/manufacturing", Icon = "Factory", Type = "Directory", Sort = 10 },
+                new Menu { Id = pmcId, ParentId = manufacturingCenterId, Name = "PMC", Path = "/pmc", Icon = "Calendar", Type = "Directory", Sort = 10 },
+                new Menu { Id = Guid.Parse("10000000-0000-0000-0000-000000000003"), ParentId = pmcId, Name = "生产计划", Path = "production-plan", Component = "pmc/production-plan", Type = "Menu", Sort = 10 },
+                new Menu { Id = Guid.Parse("10000000-0000-0000-0000-000000000004"), ParentId = pmcId, Name = "订单管理", Path = "order-management", Component = "pmc/order-management", Type = "Menu", Sort = 20 },
+                new Menu { Id = Guid.Parse("10000000-0000-0000-0000-000000000005"), ParentId = pmcId, Name = "工单管理", Path = "work-order-management", Component = "pmc/work-order-management", Type = "Menu", Sort = 30 }
+            };
+            var definitionIds = definitions.Select(menu => menu.Id).ToArray();
+            var existingIds = await _context.Menus.AsNoTracking()
+                .Where(menu => definitionIds.Contains(menu.Id))
+                .Select(menu => menu.Id)
+                .ToHashSetAsync(ct);
+            var now = DateTime.Now;
+            foreach (var menu in definitions.Where(menu => !existingIds.Contains(menu.Id)))
+            {
+                menu.CreatedTime = now;
+                menu.UpdatedTime = now;
+                _context.Menus.Add(menu);
+            }
+
+            if (existingIds.Count < definitions.Length)
+            {
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("基础菜单初始化完成：新增 {Count} 条。", definitions.Length - existingIds.Count);
+            }
+        }
+
+        private async Task EnsurePmcMenuIntegrationAsync(CancellationToken ct)
+        {
+            var manufacturingCenterId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+            var pmcId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+            var deliveryReviewId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+            var workOrderTrackingId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+            var obsoleteMenuId = Guid.Parse("10000000-0000-0000-0000-000000000005");
+            var ids = new[] { manufacturingCenterId, pmcId, deliveryReviewId, workOrderTrackingId, obsoleteMenuId };
+            var menus = await _context.Menus.Where(menu => ids.Contains(menu.Id)).ToDictionaryAsync(menu => menu.Id, ct);
+            if (!menus.TryGetValue(manufacturingCenterId, out var manufacturingCenter) ||
+                !menus.TryGetValue(pmcId, out var pmc) ||
+                !menus.TryGetValue(deliveryReviewId, out var deliveryReview) ||
+                !menus.TryGetValue(workOrderTrackingId, out var workOrderTracking))
+            {
+                _logger.LogWarning("PMC menu integration skipped because the base menu seed did not complete.");
+                return;
+            }
+
+            var now = DateTime.Now;
+            manufacturingCenter.Name = "Manufacturing Center";
+            manufacturingCenter.Path = "/manufacturing";
+            manufacturingCenter.Component = null;
+            manufacturingCenter.Icon = "AppstoreOutlined";
+            manufacturingCenter.Type = "Directory";
+            manufacturingCenter.Sort = 10;
+            manufacturingCenter.Status = true;
+            manufacturingCenter.UpdatedTime = now;
+
+            pmc.ParentId = manufacturingCenterId;
+            pmc.Name = "PMC";
+            pmc.Path = "/pmc";
+            pmc.Component = null;
+            pmc.Icon = "LineChartOutlined";
+            pmc.Type = "Directory";
+            pmc.Sort = 10;
+            pmc.Status = true;
+            pmc.UpdatedTime = now;
+
+            deliveryReview.ParentId = pmcId;
+            deliveryReview.Name = "DeliveryReview";
+            deliveryReview.Path = "/pmc/deliveryreview";
+            deliveryReview.Component = "PMC/DeliveryReview/DeliveryReview";
+            deliveryReview.Icon = "FileDoneOutlined";
+            deliveryReview.Type = "Menu";
+            deliveryReview.Sort = 10;
+            deliveryReview.Status = true;
+            deliveryReview.UpdatedTime = now;
+
+            workOrderTracking.ParentId = pmcId;
+            workOrderTracking.Name = "WorkOrderTracking";
+            workOrderTracking.Path = "/pmc/workOrderTracking";
+            workOrderTracking.Component = "PMC/WorkOrderTracking/WorkOrderTracking";
+            workOrderTracking.Icon = "ContainerOutlined";
+            workOrderTracking.Type = "Menu";
+            workOrderTracking.Sort = 20;
+            workOrderTracking.Status = true;
+            workOrderTracking.UpdatedTime = now;
+
+            if (menus.TryGetValue(obsoleteMenuId, out var obsoleteMenu))
+            {
+                obsoleteMenu.Status = false;
+                obsoleteMenu.UpdatedTime = now;
+            }
+            await _context.SaveChangesAsync(ct);
+
+            var expectedBindings = new[]
+            {
+                (MenuId: deliveryReviewId, PermissionCode: PermissionCodes.DeliveryReviewView),
+                (MenuId: workOrderTrackingId, PermissionCode: PermissionCodes.WorkOrderView)
+            };
+            var currentBindings = await _context.MenuPermissions.AsNoTracking()
+                .Where(binding => expectedBindings.Select(expected => expected.MenuId).Contains(binding.MenuId))
+                .Select(binding => new { binding.MenuId, binding.PermissionCode })
+                .ToListAsync(ct);
+            foreach (var expected in expectedBindings.Where(expected => !currentBindings.Any(binding => binding.MenuId == expected.MenuId && binding.PermissionCode == expected.PermissionCode)))
+            {
+                _context.MenuPermissions.Add(new MenuPermission
+                {
+                    Id = Guid.NewGuid(), MenuId = expected.MenuId, PermissionCode = expected.PermissionCode, CreatedTime = now
+                });
+            }
+            await _context.SaveChangesAsync(ct);
+        }
+
         private async Task EnsurePermissionsAsync(CancellationToken ct)
         {
             var defs = BuildPermissionDefinitions();
@@ -97,6 +215,10 @@ namespace LocalDataApi.Application.Identity
                 // ===== Identity 部门管理 =====
                 (PermissionCodes.DepartmentView, "Identity", "Department", "View", "查看部门", "查看组织部门树"),
                 (PermissionCodes.DepartmentSync, "Identity", "Department", "Sync", "同步部门", "从企业微信同步组织架构"),
+                (PermissionCodes.PlatformMenuView, "Platform", "Menu", "View", "查看菜单", "查询后台菜单列表与树"),
+                (PermissionCodes.PlatformMenuCreate, "Platform", "Menu", "Create", "新增菜单", "创建后台菜单"),
+                (PermissionCodes.PlatformMenuUpdate, "Platform", "Menu", "Update", "修改菜单", "修改后台菜单"),
+                (PermissionCodes.PlatformMenuDelete, "Platform", "Menu", "Delete", "删除菜单", "逻辑删除后台菜单"),
                 (PermissionCodes.PlatformLoginLogView, "Platform", "LoginLog", "View", "查看登录日志", "查询登录审计日志"),
                 (PermissionCodes.PlatformOperationLogView, "Platform", "OperationLog", "View", "查看操作日志", "查询操作审计日志"),
                 (PermissionCodes.PlatformDataChangeLogView, "Platform", "DataChangeLog", "View", "查看数据变更日志", "查询数据变更审计日志"),

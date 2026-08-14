@@ -47,6 +47,10 @@ namespace LocalDataApi.Infrastructure.Data
 
         public DbSet<Permission> Permissions { get; set; }
 
+        public DbSet<Menu> Menus { get; set; }
+
+        public DbSet<MenuPermission> MenuPermissions { get; set; }
+
         public DbSet<UserRole> UserRoles { get; set; }
 
         public DbSet<RolePermission> RolePermissions { get; set; }
@@ -94,6 +98,8 @@ namespace LocalDataApi.Infrastructure.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
             // 配置BLFParameter实体
             modelBuilder.Entity<BLFParameter>(entity =>
             {
@@ -380,7 +386,8 @@ namespace LocalDataApi.Infrastructure.Data
                 typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
                 typeof(Department), typeof(Role), typeof(Permission),
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
-                typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog)
+                typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
+                typeof(Menu), typeof(MenuPermission)
             };
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
