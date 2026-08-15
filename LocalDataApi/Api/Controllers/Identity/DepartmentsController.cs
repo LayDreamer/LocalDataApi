@@ -38,7 +38,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.DepartmentSync)]
         public async Task<ActionResult<ApiResponse<DepartmentSyncResultDto>>> SyncDepartments()
         {
-            var result = await _departmentService.SyncFromWeChatWorkAsync(_currentUser.UserId, HttpContext.RequestAborted);
+            var result = await _departmentService.SyncFromWeChatWorkAsync(_currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<DepartmentSyncResultDto> { Success = true, Message = result.Message, Data = result });
         }
     }

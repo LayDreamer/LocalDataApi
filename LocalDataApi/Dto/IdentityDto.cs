@@ -100,12 +100,12 @@ namespace LocalDataApi.Dto
     /// <summary>用户列表项</summary>
     public class UserListItemDto
     {
-        public string? Id { get; set; }
+        public long Id { get; set; }
         public string? UserName { get; set; }
         public string? DisplayName { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
-        public string? IsActive { get; set; }
+        public bool IsActive { get; set; }
         public string? PrimaryDepartmentName { get; set; }
         public string? Position { get; set; }
         /// <summary>角色编码列表(如 ["Scheduler"])</summary>
@@ -116,17 +116,16 @@ namespace LocalDataApi.Dto
     /// <summary>用户详情</summary>
     public class UserDetailDto
     {
-        public string? Id { get; set; }
+        public long Id { get; set; }
         public string? UserName { get; set; }
         public string? DisplayName { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
-        public string? IsActive { get; set; }
+        public bool IsActive { get; set; }
         public string? Position { get; set; }
         public bool IsLeader { get; set; }
         public Guid? PrimaryDepartmentId { get; set; }
         public string? PrimaryDepartmentName { get; set; }
-        public string? WeChatWorkUserId { get; set; }
         public int PermissionVersion { get; set; }
         /// <summary>角色ID列表</summary>
         public List<Guid> RoleIds { get; set; } = new();
@@ -155,7 +154,7 @@ namespace LocalDataApi.Dto
         public string Name { get; set; } = "";
         public Guid? ParentId { get; set; }
         public string? Path { get; set; }
-        public string? LeaderUserId { get; set; }
+        public long? LeaderUserId { get; set; }
         public bool IsActive { get; set; }
     }
 
@@ -185,7 +184,7 @@ namespace LocalDataApi.Dto
     /// <summary>当前用户信息(me 接口)</summary>
     public class MeResultDto
     {
-        public string? Id { get; set; }
+        public long Id { get; set; }
         public string? UserName { get; set; }
         public string? DisplayName { get; set; }
         public string? Department { get; set; }

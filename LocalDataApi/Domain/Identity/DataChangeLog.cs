@@ -12,6 +12,7 @@ public sealed class DataChangeLog
     public string? AfterData { get; set; }
     public string? ChangedProperties { get; set; }
     public string? OperatorUserId { get; set; }
+    public long? PlatformUserId { get; set; }
     public string? OperatorUserName { get; set; }
     public string? TraceId { get; set; }
     public string Source { get; set; } = string.Empty;

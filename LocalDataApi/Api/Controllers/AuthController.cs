@@ -96,8 +96,8 @@ public class AuthController : ControllerBase
     [HttpPost("logout-all")]
     public async Task<IActionResult> LogoutAll()
     {
-        if (!string.IsNullOrWhiteSpace(_currentUser.UserId))
-            await _sessions.RevokeAllAsync(_currentUser.UserId, "logout-all", HttpContext.RequestAborted);
+        if (_currentUser.UserId is { } userId)
+            await _sessions.RevokeAllAsync(userId, "logout-all", HttpContext.RequestAborted);
         return Ok(new ApiResponse<object> { Success = true, Message = "已退出全部设备" });
     }
 

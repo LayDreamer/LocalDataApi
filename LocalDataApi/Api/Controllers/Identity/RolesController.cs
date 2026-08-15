@@ -56,7 +56,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.RoleCreate)]
         public async Task<ActionResult<ApiResponse<RoleDto>>> CreateRole(RoleCreateDto dto)
         {
-            var role = await _roleService.CreateRoleAsync(dto, _currentUser.UserId, HttpContext.RequestAborted);
+            var role = await _roleService.CreateRoleAsync(dto, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<RoleDto> { Success = true, Message = "角色创建成功", Data = role });
         }
 
@@ -65,7 +65,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.RoleCreate)]
         public async Task<ActionResult<ApiResponse<RoleDto>>> CopyRole(Guid id, CopyRoleRequestDto dto)
         {
-            var role = await _roleService.CopyRoleAsync(id, dto, _currentUser.UserId, HttpContext.RequestAborted);
+            var role = await _roleService.CopyRoleAsync(id, dto, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<RoleDto> { Success = true, Message = "角色复制成功", Data = role });
         }
 
@@ -74,7 +74,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.RoleUpdate)]
         public async Task<ActionResult<ApiResponse<RoleDto>>> UpdateRole(Guid id, RoleUpdateDto dto)
         {
-            var role = await _roleService.UpdateRoleAsync(id, dto, _currentUser.UserId, HttpContext.RequestAborted);
+            var role = await _roleService.UpdateRoleAsync(id, dto, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<RoleDto> { Success = true, Message = "角色修改成功", Data = role });
         }
 
@@ -83,7 +83,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.RoleDelete)]
         public async Task<ActionResult<ApiResponse<object>>> DeleteRole(Guid id)
         {
-            await _roleService.DeleteRoleAsync(id, _currentUser.UserId, HttpContext.RequestAborted);
+            await _roleService.DeleteRoleAsync(id, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<object> { Success = true, Message = "角色删除成功" });
         }
 
@@ -92,7 +92,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.RoleAssignPermission)]
         public async Task<ActionResult<ApiResponse<object>>> AssignPermissions(Guid id, AssignPermissionsRequestDto dto)
         {
-            await _roleService.AssignPermissionsAsync(id, dto, _currentUser.UserId, HttpContext.RequestAborted);
+            await _roleService.AssignPermissionsAsync(id, dto, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<object> { Success = true, Message = "角色权限分配成功" });
         }
     }

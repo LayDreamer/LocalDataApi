@@ -4,7 +4,7 @@ namespace LocalDataApi.Domain.Identity;
 public sealed class AuthSession
 {
     public Guid Id { get; set; }
-    public string UserId { get; set; } = string.Empty;
+    public long UserId { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset LastActivityAtUtc { get; set; }
     public DateTimeOffset IdleExpiresAtUtc { get; set; }

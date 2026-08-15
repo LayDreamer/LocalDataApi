@@ -99,6 +99,8 @@ public sealed class DataChangeLogInterceptor(
         try
         {
             var http = httpContextAccessor.HttpContext;
+            var operatorId = http?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var hasPlatformUserId = long.TryParse(operatorId, out var platformUserId);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             foreach (var change in changes)
@@ -109,7 +111,8 @@ public sealed class DataChangeLogInterceptor(
                     EntityName = change.EntityName, EntityId = AuditSanitizer.Truncate(change.EntityId, 450) ?? string.Empty,
                     ChangeType = change.ChangeType, BeforeData = change.BeforeData, AfterData = change.AfterData,
                     ChangedProperties = JsonSerializer.Serialize(change.ChangedProperties),
-                    OperatorUserId = AuditSanitizer.Truncate(http?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, 450),
+                    OperatorUserId = hasPlatformUserId ? null : AuditSanitizer.Truncate(operatorId, 450),
+                    PlatformUserId = hasPlatformUserId ? platformUserId : null,
                     OperatorUserName = AuditSanitizer.Truncate(http?.User.Identity?.Name, 128),
                     TraceId = AuditSanitizer.Truncate(http?.TraceIdentifier, 64),
                     Source = http is null ? "System" : "HttpApi"

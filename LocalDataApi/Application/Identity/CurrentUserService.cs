@@ -1,50 +1,30 @@
-using Microsoft.AspNetCore.Http;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 
-namespace LocalDataApi.Application.Identity
+namespace LocalDataApi.Application.Identity;
+
+public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
 {
-    /// <summary>
-    /// 当前请求用户服务。从 Authorization 请求头解析令牌,提供当前用户ID/用户名。
-    /// 未登录或令牌失效时返回 null(由调用方决定 401 处理)。
-    /// </summary>
-    public sealed class CurrentUserService
+    public TokenPayload? Payload
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+        get
         {
-            _httpContextAccessor = httpContextAccessor;
-        }
+            var principal = httpContextAccessor.HttpContext?.User;
+            if (principal?.Identity?.IsAuthenticated != true ||
+                !long.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) || userId <= 0)
+                return null;
 
-        /// <summary>当前请求令牌载荷(未登录为 null)。</summary>
-        public TokenPayload? Payload
-        {
-            get
+            return new TokenPayload
             {
-                var principal = _httpContextAccessor.HttpContext?.User;
-                if (principal?.Identity?.IsAuthenticated != true)
-                    return null;
-                var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userId))
-                    return null;
-                var permissionVersion = int.TryParse(principal.FindFirstValue("permission_version"), out var value) ? value : 0;
-                return new TokenPayload
-                {
-                    UserId = userId,
-                    UserName = principal.FindFirstValue(ClaimTypes.Name) ?? string.Empty,
-                    PermissionVersion = permissionVersion
-                };
-            }
+                UserId = userId,
+                UserName = principal.FindFirstValue(ClaimTypes.Name) ?? string.Empty,
+                PermissionVersion = int.TryParse(principal.FindFirstValue("permission_version"), out var version) ? version : 0
+            };
         }
-
-        /// <summary>当前用户ID(未登录为 null)。</summary>
-        public string? UserId => Payload?.UserId;
-
-        /// <summary>当前用户名(未登录为 null)。</summary>
-        public string? UserName => Payload?.UserName;
-
-        public Guid? SessionId => Guid.TryParse(_httpContextAccessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Sid), out var sessionId)
-            ? sessionId
-            : null;
     }
+
+    public long? UserId => Payload?.UserId;
+    public string? UserName => Payload?.UserName;
+    public Guid? SessionId => Guid.TryParse(httpContextAccessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Sid), out var id) ? id : null;
 }

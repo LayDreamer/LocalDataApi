@@ -26,7 +26,7 @@ public sealed class PositionController(IPositionService positionService, Current
     {
         Success = true,
         Message = "岗位创建成功",
-        Data = await positionService.CreatePositionAsync(dto, currentUser.UserId, HttpContext.RequestAborted)
+        Data = await positionService.CreatePositionAsync(dto, currentUser.UserId?.ToString(), HttpContext.RequestAborted)
     });
 
     [HttpPut("{id:long}")]
@@ -35,14 +35,14 @@ public sealed class PositionController(IPositionService positionService, Current
     {
         Success = true,
         Message = "岗位修改成功",
-        Data = await positionService.UpdatePositionAsync(id, dto, currentUser.UserId, HttpContext.RequestAborted)
+        Data = await positionService.UpdatePositionAsync(id, dto, currentUser.UserId?.ToString(), HttpContext.RequestAborted)
     });
 
     [HttpDelete("{id:long}")]
     [HasPermission(PermissionCodes.PlatformPositionDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(long id)
     {
-        await positionService.DisablePositionAsync(id, currentUser.UserId, HttpContext.RequestAborted);
+        await positionService.DisablePositionAsync(id, currentUser.UserId?.ToString(), HttpContext.RequestAborted);
         return Ok(new ApiResponse<object> { Success = true, Message = "岗位已停用" });
     }
 }

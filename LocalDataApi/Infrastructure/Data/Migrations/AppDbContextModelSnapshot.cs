@@ -161,7 +161,7 @@ namespace LocalDataApi.Migrations
                     b.Property<DateTime?>("UpdatedTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<long?>("UserIdentityId")
+                    b.Property<long?>("UserId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
@@ -174,10 +174,10 @@ namespace LocalDataApi.Migrations
 
                     b.HasIndex("PositionId");
 
-                    b.HasIndex("UserIdentityId")
+                    b.HasIndex("UserId")
                         .IsUnique()
-                        .HasDatabaseName("UX_Employee_UserIdentityId")
-                        .HasFilter("[UserIdentityId] IS NOT NULL");
+                        .HasDatabaseName("UX_Employee_UserId")
+                        .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("Employee", "dbo");
                 });
@@ -248,6 +248,9 @@ namespace LocalDataApi.Migrations
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("PlatformUserId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("TargetId")
                         .HasColumnType("nvarchar(max)");
 
@@ -301,9 +304,8 @@ namespace LocalDataApi.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -355,6 +357,9 @@ namespace LocalDataApi.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<long?>("PlatformUserId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -393,8 +398,11 @@ namespace LocalDataApi.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<string>("LeaderUserId")
+                    b.Property<string>("LeaderExternalUserId")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("LeaderUserId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime>("ModifyTime")
                         .HasColumnType("datetime2");
@@ -413,6 +421,8 @@ namespace LocalDataApi.Migrations
 
                     b.HasIndex("CorpDepartmentId")
                         .IsUnique();
+
+                    b.HasIndex("LeaderUserId");
 
                     b.HasIndex("ParentId");
 
@@ -460,6 +470,9 @@ namespace LocalDataApi.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("PlatformUserId")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("Success")
                         .HasColumnType("bit");
@@ -620,6 +633,9 @@ namespace LocalDataApi.Migrations
 
                     b.Property<string>("Parameters")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("PlatformUserId")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("StatusCode")
                         .HasColumnType("int");
@@ -821,89 +837,150 @@ namespace LocalDataApi.Migrations
 
             modelBuilder.Entity("LocalDataApi.Domain.Identity.User", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("CreateDate")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DisplayName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Email")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("IdentityId")
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("bigint");
 
-                    b.Property<string>("IsActive")
-                        .HasColumnType("nvarchar(max)");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<bool>("IsLeader")
-                        .HasColumnType("bit");
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("LastLoginAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("LastLoginIp")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
-                    b.Property<string>("LastLoginTime")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime?>("LockoutEndUtc")
+                        .HasColumnType("datetime2");
 
-                    b.Property<string>("LockoutEnd")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LoginFailCount")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ModifyDate")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("LoginFailCount")
+                        .HasColumnType("int");
 
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");
 
+                    b.Property<string>("NormalizedUserName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("PasswordAlgorithm")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("PasswordHash")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<string>("PasswordSalt")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("PasswordUpdatedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("PermissionVersion")
                         .HasColumnType("int");
 
                     b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
-                    b.Property<string>("Position")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
-                    b.Property<Guid?>("PrimaryDepartmentId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
 
-                    b.Property<string>("PrimaryDepartmentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Role")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("UserName")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("WeChatWorkUserId")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdentityId")
+                    b.HasIndex("NormalizedUserName")
                         .IsUnique()
-                        .HasDatabaseName("UX_User_IdentityId");
+                        .HasDatabaseName("UX_Sys_User_NormalizedUserName");
 
-                    b.HasIndex("UserName")
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Sys_User_Status");
+
+                    b.ToTable("Sys_User", "dbo");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.UserExternalIdentity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExternalSubject")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "ExternalSubject")
                         .IsUnique()
-                        .HasFilter("[UserName] IS NOT NULL");
+                        .HasDatabaseName("UX_Sys_UserExternalIdentity_Provider_Subject");
 
-                    b.ToTable("用户管理", t =>
-                        {
-                            t.ExcludeFromMigrations();
-                        });
+                    b.ToTable("Sys_UserExternalIdentity", "dbo");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.UserLegacyMap", b =>
+                {
+                    b.Property<string>("LegacyUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("MigratedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("LegacyUserId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Sys_UserLegacyMap_UserId");
+
+                    b.ToTable("Sys_UserLegacyMap", "dbo");
                 });
 
             modelBuilder.Entity("LocalDataApi.Domain.Identity.UserRole", b =>
@@ -915,8 +992,8 @@ namespace LocalDataApi.Migrations
                     b.Property<DateTime>("AssignedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("AssignedBy")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<long?>("AssignedBy")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -927,9 +1004,8 @@ namespace LocalDataApi.Migrations
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -2428,16 +2504,33 @@ namespace LocalDataApi.Migrations
 
                     b.HasOne("LocalDataApi.Domain.Identity.User", "User")
                         .WithMany()
-                        .HasForeignKey("UserIdentityId")
-                        .HasPrincipalKey("IdentityId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_Employee_UserIdentity");
+                        .HasConstraintName("FK_Employee_SysUser");
 
                     b.Navigation("Department");
 
                     b.Navigation("Position");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.AuthSession", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.Department", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("LeaderUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Department_Sys_User_LeaderUserId");
                 });
 
             modelBuilder.Entity("LocalDataApi.Domain.Identity.Menu", b =>
@@ -2459,6 +2552,37 @@ namespace LocalDataApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Menu");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.UserExternalIdentity", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.UserLegacyMap", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LocalDataApi.Domain.Identity.UserRole", b =>
+                {
+                    b.HasOne("LocalDataApi.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LocalDataApi.Domain.Blf.BLFParameter", b =>

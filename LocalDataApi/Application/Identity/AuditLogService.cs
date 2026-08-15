@@ -31,10 +31,14 @@ namespace LocalDataApi.Application.Identity
 
         public async Task LogAsync(string? userId, string action, string targetType, string? targetId, object? content = null, CancellationToken ct = default)
         {
+            var hasPlatformUserId = long.TryParse(userId, out var platformUserId);
             _context.AuditLogs.Add(new AuditLog
             {
                 Id = Guid.NewGuid(),
-                UserId = userId,
+                // New platform operations use Sys_User.Id.  Keep non-numeric values only
+                // for historical/system callers that have not crossed the cutover yet.
+                UserId = hasPlatformUserId ? null : userId,
+                PlatformUserId = hasPlatformUserId ? platformUserId : null,
                 Action = action,
                 TargetType = targetType,
                 TargetId = targetId,

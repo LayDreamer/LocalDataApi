@@ -8,121 +8,55 @@ namespace LocalDataApi.Application.Identity;
 
 public interface IEmployeeAccountService
 {
-    Task<EmployeeAccountDto> BindUserAsync(long employeeId, BindEmployeeUserRequestDto dto, string? operatorUserId = null, CancellationToken ct = default);
-    Task<EmployeeAccountDto> UnbindUserAsync(long employeeId, string? operatorUserId = null, CancellationToken ct = default);
+    Task<EmployeeAccountDto> BindUserAsync(long employeeId, BindEmployeeUserRequestDto dto, long? operatorUserId = null, CancellationToken ct = default);
+    Task<EmployeeAccountDto> UnbindUserAsync(long employeeId, long? operatorUserId = null, CancellationToken ct = default);
     Task<EmployeeAccountDto> GetAccountAsync(long employeeId, CancellationToken ct = default);
 }
 
 public sealed class EmployeeAccountService(AppDbContext context, IAuditLogService auditLog) : IEmployeeAccountService
 {
-    public async Task<EmployeeAccountDto> BindUserAsync(
-        long employeeId,
-        BindEmployeeUserRequestDto dto,
-        string? operatorUserId = null,
-        CancellationToken ct = default)
+    public async Task<EmployeeAccountDto> BindUserAsync(long employeeId, BindEmployeeUserRequestDto dto, long? operatorUserId = null, CancellationToken ct = default)
     {
-        if (dto.UserIdentityId <= 0)
-            throw new ValidationException("用户身份编号必须大于 0");
-
-        var employee = await context.Employees.FirstOrDefaultAsync(item => item.Id == employeeId, ct)
-            ?? throw new NotFoundException("员工不存在");
-        if (employee.UserIdentityId.HasValue)
-            throw new ConflictException("员工已绑定系统账号");
-
-        var user = await context.用户管理.AsNoTracking()
-            .FirstOrDefaultAsync(item => item.IdentityId == dto.UserIdentityId, ct)
-            ?? throw new NotFoundException("系统账号不存在");
-
-        var userAlreadyBound = await context.Employees.AsNoTracking()
-            .AnyAsync(item => item.UserIdentityId == dto.UserIdentityId, ct);
-        if (userAlreadyBound)
-            throw new ConflictException("系统账号已绑定其他员工");
-
-        employee.UserIdentityId = user.IdentityId;
-        employee.UpdatedTime = DateTime.Now;
-        try
-        {
-            await context.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
-        {
-            throw new ConflictException("系统账号已绑定其他员工");
-        }
-
-        await TryAuditAsync(operatorUserId, "Employee.BindUser", employee.Id, null, user.IdentityId, ct);
-        return ToDto(employee.Id, user.IdentityId, user.Id, user.UserName, user.DisplayName, user.IsActive);
+        if (dto.UserId <= 0) throw new ValidationException("用户 ID 必须大于 0");
+        var employee = await context.Employees.FirstOrDefaultAsync(item => item.Id == employeeId, ct) ?? throw new NotFoundException("员工不存在");
+        if (employee.UserId.HasValue) throw new ConflictException("员工已绑定系统账号");
+        var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(item => item.Id == dto.UserId, ct) ?? throw new NotFoundException("系统账号不存在");
+        if (await context.Employees.AnyAsync(item => item.UserId == dto.UserId, ct)) throw new ConflictException("系统账号已绑定其他员工");
+        employee.UserId = user.Id;
+        employee.UpdatedTime = DateTime.UtcNow;
+        try { await context.SaveChangesAsync(ct); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 }) { throw new ConflictException("系统账号已绑定其他员工"); }
+        await TryAuditAsync(operatorUserId, "Employee.BindUser", employee.Id, null, user.Id, ct);
+        return ToDto(employee.Id, user);
     }
 
-    public async Task<EmployeeAccountDto> UnbindUserAsync(
-        long employeeId,
-        string? operatorUserId = null,
-        CancellationToken ct = default)
+    public async Task<EmployeeAccountDto> UnbindUserAsync(long employeeId, long? operatorUserId = null, CancellationToken ct = default)
     {
-        var employee = await context.Employees.FirstOrDefaultAsync(item => item.Id == employeeId, ct)
-            ?? throw new NotFoundException("员工不存在");
-        var previousUserIdentityId = employee.UserIdentityId;
-
-        if (!previousUserIdentityId.HasValue)
-            return ToDto(employee.Id, null, null, null, null, null);
-
-        employee.UserIdentityId = null;
-        employee.UpdatedTime = DateTime.Now;
+        var employee = await context.Employees.FirstOrDefaultAsync(item => item.Id == employeeId, ct) ?? throw new NotFoundException("员工不存在");
+        var previous = employee.UserId;
+        if (!previous.HasValue) return Unbound(employee.Id);
+        employee.UserId = null;
+        employee.UpdatedTime = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
-        await TryAuditAsync(operatorUserId, "Employee.UnbindUser", employee.Id, previousUserIdentityId, null, ct);
-        return ToDto(employee.Id, null, null, null, null, null);
+        await TryAuditAsync(operatorUserId, "Employee.UnbindUser", employee.Id, previous, null, ct);
+        return Unbound(employee.Id);
     }
 
     public async Task<EmployeeAccountDto> GetAccountAsync(long employeeId, CancellationToken ct = default)
     {
-        var employee = await context.Employees.AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == employeeId, ct)
-            ?? throw new NotFoundException("员工不存在");
-
-        if (!employee.UserIdentityId.HasValue)
-            return ToDto(employee.Id, null, null, null, null, null);
-
-        var user = await context.用户管理.AsNoTracking()
-            .FirstOrDefaultAsync(item => item.IdentityId == employee.UserIdentityId.Value, ct);
-        return user is null
-            ? ToDto(employee.Id, employee.UserIdentityId, null, null, null, null)
-            : ToDto(employee.Id, user.IdentityId, user.Id, user.UserName, user.DisplayName, user.IsActive);
+        var employee = await context.Employees.AsNoTracking().FirstOrDefaultAsync(item => item.Id == employeeId, ct) ?? throw new NotFoundException("员工不存在");
+        if (!employee.UserId.HasValue) return Unbound(employee.Id);
+        var user = await context.Users.AsNoTracking().FirstOrDefaultAsync(item => item.Id == employee.UserId.Value, ct);
+        return user is null ? new EmployeeAccountDto { EmployeeId = employee.Id, IsBound = true, UserId = employee.UserId } : ToDto(employee.Id, user);
     }
 
-    private static EmployeeAccountDto ToDto(
-        long employeeId,
-        long? userIdentityId,
-        string? userId,
-        string? userName,
-        string? displayName,
-        string? isActive) => new()
+    private static EmployeeAccountDto ToDto(long employeeId, Domain.Identity.User user) => new()
     {
-        EmployeeId = employeeId,
-        IsBound = userIdentityId.HasValue,
-        UserIdentityId = userIdentityId,
-        UserId = userId,
-        UserName = userName,
-        DisplayName = displayName,
-        IsActive = isActive
+        EmployeeId = employeeId, IsBound = true, UserId = user.Id, UserName = user.UserName, DisplayName = user.DisplayName, IsActive = user.IsActive
     };
-
-    private async Task TryAuditAsync(string? operatorUserId, string action, long employeeId, long? oldUserIdentityId, long? newUserIdentityId, CancellationToken ct)
+    private static EmployeeAccountDto Unbound(long employeeId) => new() { EmployeeId = employeeId, IsBound = false };
+    private async Task TryAuditAsync(long? operatorId, string action, long employeeId, long? oldUserId, long? newUserId, CancellationToken ct)
     {
-        try
-        {
-            await auditLog.LogAsync(
-                operatorUserId,
-                action,
-                "Employee",
-                employeeId.ToString(),
-                new { EmployeeId = employeeId, OldUserIdentityId = oldUserIdentityId, NewUserIdentityId = newUserIdentityId },
-                ct);
-        }
-        catch
-        {
-            // 审计失败不影响已成功的账号绑定操作。
-        }
+        try { await auditLog.LogAsync(operatorId?.ToString(), action, "Employee", employeeId.ToString(), new { EmployeeId = employeeId, OldUserId = oldUserId, NewUserId = newUserId }, ct); } catch { }
     }
-
-    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
-        exception.InnerException is SqlException { Number: 2601 or 2627 };
 }

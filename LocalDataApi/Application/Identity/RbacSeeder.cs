@@ -392,8 +392,8 @@ namespace LocalDataApi.Application.Identity
                 return;
 
             // 旧系统通过 User.Role="Admin" 标记管理员,迁移后自动绑定 Admin 角色
-            var legacyAdmins = await _context.用户管理.AsNoTracking()
-                .Where(u => u.Role == "Admin")
+            var legacyAdmins = await _context.Users.AsNoTracking()
+                .Where(u => u.NormalizedUserName == "ADMIN")
                 .Select(u => u.Id)
                 .ToListAsync(ct);
 
@@ -406,7 +406,7 @@ namespace LocalDataApi.Application.Identity
             var added = 0;
             foreach (var userId in legacyAdmins)
             {
-                if (userId == null || boundUserIds.Contains(userId))
+                if (boundUserIds.Contains(userId))
                     continue;
                 _context.UserRoles.Add(new UserRole
                 {
@@ -446,8 +446,8 @@ namespace LocalDataApi.Application.Identity
                 return;
 
             // 已存在 admin 用户名但可能未绑角色 → 仅补绑,不重建(防重复账号)
-            var existingAdmin = await _context.用户管理.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.UserName == "admin", ct);
+            var existingAdmin = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.NormalizedUserName == "ADMIN", ct);
             if (existingAdmin != null)
             {
                 _context.UserRoles.Add(new UserRole
@@ -469,22 +469,23 @@ namespace LocalDataApi.Application.Identity
             if (string.IsNullOrEmpty(defaultPassword))
                 defaultPassword = "Yc@Admin2026"; // 开发期回退默认密码;生产务必通过 Rbac__DefaultAdminPassword 注入强密码
             PasswordHelper.CreateHash(defaultPassword, out var hash, out var salt);
-            var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            var now = DateTime.UtcNow;
 
             var admin = new User
             {
-                Id = Guid.NewGuid().ToString(),
                 UserName = "admin",
+                NormalizedUserName = "ADMIN",
                 DisplayName = "系统管理员",
                 PasswordHash = hash,
                 PasswordSalt = salt,
-                Role = "Admin",
-                IsActive = "true",
+                PasswordAlgorithm = "PBKDF2-SHA256-100000",
+                PasswordUpdatedAtUtc = now,
+                Status = UserStatus.Active,
                 MustChangePassword = true,
-                CreateDate = now,
-                ModifyDate = now
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
             };
-            _context.用户管理.Add(admin);
+            _context.Users.Add(admin);
             await _context.SaveChangesAsync(ct);
 
             _context.UserRoles.Add(new UserRole

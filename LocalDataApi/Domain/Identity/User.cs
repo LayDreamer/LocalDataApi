@@ -1,81 +1,34 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+namespace LocalDataApi.Domain.Identity;
 
-namespace LocalDataApi.Domain.Identity
+/// <summary>平台认证账号。Id 是唯一运行时用户标识。</summary>
+public sealed class User
 {
-    /// <summary>
-    /// 系统用户（用于登录页及相关登录逻辑）
-    /// </summary>
-    public class User
-    {
-        // 主键
-        public string? Id { get; set; }
+    public long Id { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string NormalizedUserName { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string? PhoneNumber { get; set; }
+    public byte Status { get; set; } = UserStatus.Active;
+    public string? PasswordHash { get; set; }
+    public string? PasswordSalt { get; set; }
+    public string? PasswordAlgorithm { get; set; }
+    public DateTime? PasswordUpdatedAtUtc { get; set; }
+    public bool MustChangePassword { get; set; }
+    public int LoginFailCount { get; set; }
+    public DateTime? LockoutEndUtc { get; set; }
+    public DateTime? LastLoginAtUtc { get; set; }
+    public string? LastLoginIp { get; set; }
+    public int PermissionVersion { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public bool IsActive => Status == UserStatus.Active;
+}
 
-        public long IdentityId { get; set; }
-
-        // 用户名（登录账号）
-        public string? UserName { get; set; }
-
-        // 密码哈希（不存储明文密码）
-        public string? PasswordHash { get; set; }
-
-        // 密码盐值（用于哈希加盐）
-        public string? PasswordSalt { get; set; }
-
-        // 邮箱
-        public string? Email { get; set; }
-
-        // 手机号
-        public string? PhoneNumber { get; set; }
-
-        // 显示名称
-        public string? DisplayName { get; set; }
-
-        // 角色（如 Admin / User 等）
-        public string? Role { get; set; }
-
-        // 账号是否启用（禁用后不可登录，存储 "true"/"false"）
-        public string? IsActive { get; set; } = "true";
-
-        // 连续登录失败次数（用于防爆破锁定，存储字符串数字）
-        public string? LoginFailCount { get; set; }
-
-        // 锁定截止时间（为空表示未锁定，存储 ISO8601 字符串）
-        public string? LockoutEnd { get; set; }
-
-        // 最后登录时间
-        public string? LastLoginTime { get; set; }
-
-        // 最后登录IP
-        public string? LastLoginIp { get; set; }
-
-        // 创建时间（存储 ISO8601 字符串）
-        public string? CreateDate { get; set; }
-
-        // 修改时间（存储 ISO8601 字符串）
-        public string? ModifyDate { get; set; }
-
-        // 企业微信 UserId（工作台免登绑定，用于识别企微身份对应的系统账号）
-        public string? WeChatWorkUserId { get; set; }
-
-        // ========== RBAC 扩展字段(2026-08-08 新增) ==========
-
-        // 主部门ID(页面展示与默认组织;不作为唯一权限依据)
-        public Guid? PrimaryDepartmentId { get; set; }
-
-        // 主部门名称缓存
-        public string? PrimaryDepartmentName { get; set; }
-
-        // 职位
-        public string? Position { get; set; }
-
-        // 是否部门主管
-        public bool IsLeader { get; set; }
-
-        // 权限版本号(角色/权限变化时 +1,用于令牌失效与权限缓存刷新)
-        public int PermissionVersion { get; set; }
-
-        // 是否需要强制修改密码(种子 admin / 重置密码后置 true,首次登录后改密置 false)
-        public bool MustChangePassword { get; set; } = true;
-    }
+public static class UserStatus
+{
+    public const byte Active = 1;
+    public const byte Disabled = 2;
+    public const byte Archived = 3;
 }

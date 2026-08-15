@@ -29,7 +29,7 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(employee => employee.PositionId)
             .HasColumnType("bigint")
             .IsRequired();
-        builder.Property(employee => employee.UserIdentityId)
+        builder.Property(employee => employee.UserId)
             .HasColumnType("bigint");
         builder.Property(employee => employee.Status)
             .HasColumnType("int")
@@ -44,10 +44,10 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .IsUnique()
             .HasDatabaseName("UX_Employee_EmployeeNo");
 
-        builder.HasIndex(employee => employee.UserIdentityId)
+        builder.HasIndex(employee => employee.UserId)
             .IsUnique()
-            .HasFilter("[UserIdentityId] IS NOT NULL")
-            .HasDatabaseName("UX_Employee_UserIdentityId");
+            .HasFilter("[UserId] IS NOT NULL")
+            .HasDatabaseName("UX_Employee_UserId");
 
         builder.HasOne(employee => employee.Department)
             .WithMany()
@@ -65,9 +65,9 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.HasOne(employee => employee.User)
             .WithMany()
-            .HasForeignKey(employee => employee.UserIdentityId)
-            .HasPrincipalKey(user => user.IdentityId)
-            .HasConstraintName("FK_Employee_UserIdentity")
+            .HasForeignKey(employee => employee.UserId)
+            .HasPrincipalKey(user => user.Id)
+            .HasConstraintName("FK_Employee_SysUser")
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
     }

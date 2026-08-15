@@ -66,7 +66,8 @@ public sealed class OperationLogFilter(
             {
                 Id = Guid.NewGuid(),
                 OperationTimeUtc = startedAt,
-                UserId = AuditSanitizer.Truncate(currentUser.UserId, 450),
+                UserId = null,
+                PlatformUserId = currentUser.UserId,
                 UserName = AuditSanitizer.Truncate(currentUser.UserName, 128),
                 Module = AuditSanitizer.Truncate(descriptor?.ControllerName, 64) ?? "Unknown",
                 Action = AuditSanitizer.Truncate(descriptor?.ActionName, 128) ?? "Unknown",

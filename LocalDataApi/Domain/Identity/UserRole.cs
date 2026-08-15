@@ -9,7 +9,7 @@ namespace LocalDataApi.Domain.Identity
         public Guid Id { get; set; }
 
         /// <summary>用户ID(对应 用户管理.Id)</summary>
-        public string UserId { get; set; } = string.Empty;
+        public long UserId { get; set; }
 
         /// <summary>角色ID</summary>
         public Guid RoleId { get; set; }
@@ -18,7 +18,7 @@ namespace LocalDataApi.Domain.Identity
         public DateTime AssignedAt { get; set; } = DateTime.Now;
 
         /// <summary>分配操作人(用户ID)</summary>
-        public string? AssignedBy { get; set; }
+        public long? AssignedBy { get; set; }
 
         /// <summary>是否有效(撤销后置为 false,保留审计痕迹)</summary>
         public bool IsActive { get; set; } = true;

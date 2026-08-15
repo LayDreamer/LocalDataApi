@@ -17,7 +17,7 @@ public class Employee
 
     public long PositionId { get; set; }
 
-    public long? UserIdentityId { get; set; }
+    public long? UserId { get; set; }
 
     public int Status { get; set; }
 

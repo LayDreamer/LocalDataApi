@@ -52,7 +52,7 @@ namespace LocalDataApi.Api.Attributes
             // 1. 解析当前用户
             var currentUser = services.GetRequiredService<CurrentUserService>();
             var userId = currentUser.UserId;
-            if (string.IsNullOrWhiteSpace(userId))
+            if (!userId.HasValue)
             {
                 var code = context.HttpContext.Items["AuthErrorCode"]?.ToString() ?? "AUTH_SESSION_REVOKED";
                 context.Result = new ObjectResult(new ApiResponse<object>
@@ -67,7 +67,7 @@ namespace LocalDataApi.Api.Attributes
 
             // 2. 权限校验(任一匹配即通过)
             var authorization = services.GetRequiredService<AuthorizationService>();
-            var allowed = await authorization.HasAnyPermissionAsync(userId, _permissionCodes, context.HttpContext.RequestAborted);
+            var allowed = await authorization.HasAnyPermissionAsync(userId.Value, _permissionCodes, context.HttpContext.RequestAborted);
             if (!allowed)
             {
                 context.Result = new ObjectResult(new ApiResponse<object>

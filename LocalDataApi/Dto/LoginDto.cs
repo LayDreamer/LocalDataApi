@@ -33,7 +33,7 @@ namespace LocalDataApi.Dto
     /// </summary>
     public class UserInfoDto
     {
-        public string? Id { get; set; }
+        public long Id { get; set; }
         public string? UserName { get; set; }
         public string? DisplayName { get; set; }
         public string? Role { get; set; }
@@ -64,7 +64,7 @@ namespace LocalDataApi.Dto
         // ========== RBAC 扩展(2026-08-08) ==========
 
         // 用户ID(前端直接使用,无需再从 User 中取)
-        public string? UserId { get; set; }
+        public long UserId { get; set; }
 
         // 用户显示名
         public string? UserName { get; set; }

@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage;
 using LocalDataApi.Domain.Pmc;
 using LocalDataApi.Domain.Blf;
 using LocalDataApi.Domain.Erp;
@@ -40,7 +39,9 @@ namespace LocalDataApi.Infrastructure.Data
 
         public DbSet<ERPId> tb_control_id { get; set; }
 
-        public DbSet<User> 用户管理 { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<UserExternalIdentity> UserExternalIdentities { get; set; }
+        public DbSet<UserLegacyMap> UserLegacyMaps { get; set; }
 
         // ========== RBAC 权限中心(2026-08-08 新增,表落地见 DatabaseScripts/20260808_RbacTables.sql) ==========
         public DbSet<Department> Departments { get; set; }
@@ -173,12 +174,44 @@ namespace LocalDataApi.Infrastructure.Data
 
             modelBuilder.Entity<User>(entity =>
             {
+                entity.ToTable("Sys_User", "dbo");
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.IdentityId)
-                    .HasColumnType("bigint")
-                    .IsRequired();
-                entity.HasIndex(e => e.IdentityId).IsUnique().HasDatabaseName("UX_User_IdentityId");
-                entity.HasIndex(e => e.UserName).IsUnique();
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.UserName).HasMaxLength(128).IsRequired();
+                entity.Property(e => e.NormalizedUserName).HasMaxLength(128).IsRequired();
+                entity.Property(e => e.DisplayName).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Email).HasMaxLength(256);
+                entity.Property(e => e.PhoneNumber).HasMaxLength(32);
+                entity.Property(e => e.PasswordHash).HasMaxLength(512);
+                entity.Property(e => e.PasswordSalt).HasMaxLength(256);
+                entity.Property(e => e.PasswordAlgorithm).HasMaxLength(32);
+                entity.Property(e => e.LastLoginIp).HasMaxLength(64);
+                entity.Property(e => e.RowVersion).IsRowVersion();
+                entity.HasIndex(e => e.NormalizedUserName).IsUnique().HasDatabaseName("UX_Sys_User_NormalizedUserName");
+                entity.HasIndex(e => e.Status).HasDatabaseName("IX_Sys_User_Status");
+            });
+
+            modelBuilder.Entity<UserExternalIdentity>(entity =>
+            {
+                entity.ToTable("Sys_UserExternalIdentity", "dbo");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).ValueGeneratedOnAdd();
+                entity.Property(e => e.Provider).HasMaxLength(32).IsRequired();
+                entity.Property(e => e.ExternalSubject).HasMaxLength(128).IsRequired();
+                entity.HasIndex(e => new { e.Provider, e.ExternalSubject }).IsUnique()
+                    .HasDatabaseName("UX_Sys_UserExternalIdentity_Provider_Subject");
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<UserLegacyMap>(entity =>
+            {
+                entity.ToTable("Sys_UserLegacyMap", "dbo");
+                entity.HasKey(e => e.LegacyUserId);
+                entity.Property(e => e.LegacyUserId).HasMaxLength(450);
+                entity.HasIndex(e => e.UserId).IsUnique().HasDatabaseName("UX_Sys_UserLegacyMap_UserId");
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
 
@@ -275,6 +308,10 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.HasIndex(e => e.CorpDepartmentId).IsUnique();
                 entity.HasIndex(e => e.ParentId);
                 entity.HasIndex(e => e.Path);
+                entity.HasIndex(e => e.LeaderUserId);
+                entity.HasOne<User>().WithMany().HasForeignKey(e => e.LeaderUserId)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("FK_Department_Sys_User_LeaderUserId");
             });
 
             modelBuilder.Entity<Role>(entity =>
@@ -299,6 +336,7 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
                 entity.HasIndex(e => e.RoleId);
+                entity.HasOne<User>().WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<RolePermission>(entity =>
@@ -324,6 +362,7 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.Property(e => e.UserAgent).HasMaxLength(512);
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => new { e.RevokedAtUtc, e.IdleExpiresAtUtc });
+                entity.HasOne<User>().WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<LoginLog>(entity =>
@@ -395,6 +434,7 @@ namespace LocalDataApi.Infrastructure.Data
             {
                 typeof(BLFParameter), typeof(CurrentFlowRate), typeof(PressureFlowRate),
                 typeof(Department), typeof(Position), typeof(Employee), typeof(Role), typeof(Permission),
+                typeof(User), typeof(UserExternalIdentity), typeof(UserLegacyMap),
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
                 typeof(Menu), typeof(MenuPermission)
@@ -415,92 +455,6 @@ namespace LocalDataApi.Infrastructure.Data
             base.OnModelCreating(modelBuilder);
         }
 
-        public override int SaveChanges(bool acceptAllChangesOnSuccess)
-        {
-            AssignIdentityIds();
-            return base.SaveChanges(acceptAllChangesOnSuccess);
-        }
-
-        public override async Task<int> SaveChangesAsync(
-            bool acceptAllChangesOnSuccess,
-            CancellationToken cancellationToken = default)
-        {
-            await AssignIdentityIdsAsync(cancellationToken);
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        }
-
-        private void AssignIdentityIds()
-        {
-            var users = ChangeTracker.Entries<User>()
-                .Where(entry => entry.State == EntityState.Added && entry.Entity.IdentityId == 0)
-                .ToList();
-
-            if (users.Count == 0)
-                return;
-
-            var connection = Database.GetDbConnection();
-            var closeConnection = connection.State != System.Data.ConnectionState.Open;
-            if (closeConnection)
-                connection.Open();
-
-            try
-            {
-                foreach (var user in users)
-                {
-                    using var command = connection.CreateCommand();
-                    command.Transaction = Database.CurrentTransaction?.GetDbTransaction();
-                    command.CommandText = """
-                        UPDATE [dbo].[UserIdentityIdCounter] WITH (UPDLOCK, HOLDLOCK)
-                        SET [NextValue] = [NextValue] + 1
-                        OUTPUT deleted.[NextValue]
-                        WHERE [CounterKey] = 1;
-                        """;
-                    user.Entity.IdentityId = Convert.ToInt64(command.ExecuteScalar());
-                }
-            }
-            finally
-            {
-                if (closeConnection)
-                    connection.Close();
-            }
-        }
-
-        private async Task AssignIdentityIdsAsync(CancellationToken cancellationToken)
-        {
-            var users = ChangeTracker.Entries<User>()
-                .Where(entry => entry.State == EntityState.Added && entry.Entity.IdentityId == 0)
-                .ToList();
-
-            if (users.Count == 0)
-                return;
-
-            var connection = Database.GetDbConnection();
-            var closeConnection = connection.State != System.Data.ConnectionState.Open;
-            if (closeConnection)
-                await connection.OpenAsync(cancellationToken);
-
-            try
-            {
-                foreach (var user in users)
-                {
-                    await using var command = connection.CreateCommand();
-                    command.Transaction = Database.CurrentTransaction?.GetDbTransaction();
-                    command.CommandText = """
-                        UPDATE [dbo].[UserIdentityIdCounter] WITH (UPDLOCK, HOLDLOCK)
-                        SET [NextValue] = [NextValue] + 1
-                        OUTPUT deleted.[NextValue]
-                        WHERE [CounterKey] = 1;
-                        """;
-                    user.Entity.IdentityId = Convert.ToInt64(
-                        await command.ExecuteScalarAsync(cancellationToken));
-                }
-            }
-            finally
-            {
-                if (closeConnection)
-                    await connection.CloseAsync();
-            }
-        }
         //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         //{
         //    optionsBuilder

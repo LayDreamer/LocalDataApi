@@ -60,7 +60,7 @@ namespace LocalDataApi.Api.Controllers.Identity
         [HasPermission(PermissionCodes.PermissionUpdate)]
         public async Task<ActionResult<ApiResponse<PermissionDto>>> UpdatePermission(Guid id, UpdatePermissionRequestDto dto)
         {
-            var permission = await _permissionService.UpdatePermissionAsync(id, dto.Enabled, _currentUser.UserId, HttpContext.RequestAborted);
+            var permission = await _permissionService.UpdatePermissionAsync(id, dto.Enabled, _currentUser.UserId?.ToString(), HttpContext.RequestAborted);
             return Ok(new ApiResponse<PermissionDto> { Success = true, Message = dto.Enabled ? "权限已启用" : "权限已停用", Data = permission });
         }
     }

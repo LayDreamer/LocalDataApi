@@ -18,10 +18,10 @@ public sealed class MenuController(IMenuService menuService, CurrentUserService 
     public async Task<ActionResult<ApiResponse<List<CurrentMenuDto>>>> GetCurrent()
     {
         var userId = currentUser.UserId;
-        if (string.IsNullOrWhiteSpace(userId))
+        if (!userId.HasValue)
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "未登录或登录已失效" });
 
-        var menus = await menuService.GetCurrentUserMenusAsync(userId, HttpContext.RequestAborted);
+        var menus = await menuService.GetCurrentUserMenusAsync(userId.Value, HttpContext.RequestAborted);
         return Ok(new ApiResponse<List<CurrentMenuDto>> { Success = true, Data = menus });
     }
 
@@ -35,17 +35,17 @@ public sealed class MenuController(IMenuService menuService, CurrentUserService 
 
     [HttpPost]
     [HasPermission(PermissionCodes.PlatformMenuCreate)]
-    public async Task<ActionResult<ApiResponse<MenuDto>>> Create(MenuCreateDto dto) => Ok(new ApiResponse<MenuDto> { Success = true, Message = "菜单创建成功", Data = await menuService.CreateMenuAsync(dto, currentUser.UserId, HttpContext.RequestAborted) });
+    public async Task<ActionResult<ApiResponse<MenuDto>>> Create(MenuCreateDto dto) => Ok(new ApiResponse<MenuDto> { Success = true, Message = "菜单创建成功", Data = await menuService.CreateMenuAsync(dto, currentUser.UserId?.ToString(), HttpContext.RequestAborted) });
 
     [HttpPut("{id:guid}")]
     [HasPermission(PermissionCodes.PlatformMenuUpdate)]
-    public async Task<ActionResult<ApiResponse<MenuDto>>> Update(Guid id, MenuUpdateDto dto) => Ok(new ApiResponse<MenuDto> { Success = true, Message = "菜单修改成功", Data = await menuService.UpdateMenuAsync(id, dto, currentUser.UserId, HttpContext.RequestAborted) });
+    public async Task<ActionResult<ApiResponse<MenuDto>>> Update(Guid id, MenuUpdateDto dto) => Ok(new ApiResponse<MenuDto> { Success = true, Message = "菜单修改成功", Data = await menuService.UpdateMenuAsync(id, dto, currentUser.UserId?.ToString(), HttpContext.RequestAborted) });
 
     [HttpDelete("{id:guid}")]
     [HasPermission(PermissionCodes.PlatformMenuDelete)]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {
-        await menuService.DeleteMenuAsync(id, currentUser.UserId, HttpContext.RequestAborted);
+        await menuService.DeleteMenuAsync(id, currentUser.UserId?.ToString(), HttpContext.RequestAborted);
         return Ok(new ApiResponse<object> { Success = true, Message = "菜单删除成功" });
     }
 }

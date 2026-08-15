@@ -2,7 +2,7 @@ namespace LocalDataApi.Application.Identity;
 
 public sealed class TokenPayload
 {
-    public string UserId { get; init; } = string.Empty;
+    public long UserId { get; init; }
 
     public string UserName { get; init; } = string.Empty;
 

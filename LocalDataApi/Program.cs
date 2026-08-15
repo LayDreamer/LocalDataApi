@@ -161,14 +161,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
                 var sessionIdText = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sid);
-                if (!Guid.TryParse(sessionIdText, out var sessionId) || string.IsNullOrWhiteSpace(userId))
+                if (!Guid.TryParse(sessionIdText, out var sessionId) || !long.TryParse(userId, out var platformUserId) || platformUserId <= 0)
                 {
                     context.Fail("AUTH_SESSION_REVOKED");
                     return;
                 }
 
                 var sessions = context.HttpContext.RequestServices.GetRequiredService<IAuthSessionService>();
-                var validation = await sessions.ValidateAccessAsync(userId, sessionId, context.HttpContext.RequestAborted);
+                var validation = await sessions.ValidateAccessAsync(platformUserId, sessionId, context.HttpContext.RequestAborted);
                 if (!validation.IsValid)
                     context.Fail(validation.ErrorCode ?? "AUTH_SESSION_REVOKED");
             },

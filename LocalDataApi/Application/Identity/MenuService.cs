@@ -10,7 +10,7 @@ public interface IMenuService
 {
     Task<List<MenuDto>> GetMenuTreeAsync(CancellationToken ct = default);
     Task<List<MenuDto>> GetMenusAsync(CancellationToken ct = default);
-    Task<List<CurrentMenuDto>> GetCurrentUserMenusAsync(string userId, CancellationToken ct = default);
+    Task<List<CurrentMenuDto>> GetCurrentUserMenusAsync(long userId, CancellationToken ct = default);
     Task<MenuDto> CreateMenuAsync(MenuCreateDto dto, string? operatorId = null, CancellationToken ct = default);
     Task<MenuDto> UpdateMenuAsync(Guid id, MenuUpdateDto dto, string? operatorId = null, CancellationToken ct = default);
     Task DeleteMenuAsync(Guid id, string? operatorId = null, CancellationToken ct = default);
@@ -35,9 +35,9 @@ public sealed class MenuService(AppDbContext context, IAuditLogService auditLog,
 
     public Task<List<MenuDto>> GetMenusAsync(CancellationToken ct = default) => QueryMenus().ToListAsync(ct);
 
-    public async Task<List<CurrentMenuDto>> GetCurrentUserMenusAsync(string userId, CancellationToken ct = default)
+    public async Task<List<CurrentMenuDto>> GetCurrentUserMenusAsync(long userId, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(userId))
+        if (userId <= 0)
             throw new ValidationException("当前用户不能为空");
 
         var (roles, permissions) = await authorization.GetUserRolesAndPermissionsAsync(userId, ct);

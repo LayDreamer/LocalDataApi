@@ -99,7 +99,7 @@ namespace LocalDataApi.Application.Identity
                 if (localByCorpId.TryGetValue(corpId, out var local))
                 {
                     local.Name = wx.Name ?? string.Empty;
-                    local.LeaderUserId = leader;
+                    local.LeaderExternalUserId = leader;
                     local.IsActive = true;
                     local.ModifyTime = now;
                     updated++;
@@ -111,7 +111,7 @@ namespace LocalDataApi.Application.Identity
                         Id = Guid.NewGuid(),
                         CorpDepartmentId = corpId,
                         Name = wx.Name ?? string.Empty,
-                        LeaderUserId = leader,
+                        LeaderExternalUserId = leader,
                         IsActive = true,
                         CreateTime = now,
                         ModifyTime = now

@@ -34,10 +34,12 @@ public sealed class LoginLogService(
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var userAgent = AuditSanitizer.Truncate(context?.Request.Headers.UserAgent.ToString(), 512);
+            var hasPlatformUserId = long.TryParse(entry.UserId, out var platformUserId);
             db.LoginLogs.Add(new LoginLog
             {
                 Id = Guid.NewGuid(),
-                UserId = AuditSanitizer.Truncate(entry.UserId, 450),
+                UserId = hasPlatformUserId ? null : AuditSanitizer.Truncate(entry.UserId, 450),
+                PlatformUserId = hasPlatformUserId ? platformUserId : null,
                 UserName = AuditSanitizer.Truncate(entry.UserName, 128),
                 LoginTimeUtc = DateTimeOffset.UtcNow,
                 LoginType = AuditSanitizer.Truncate(entry.LoginType, 32) ?? "Unknown",

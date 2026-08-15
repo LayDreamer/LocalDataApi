@@ -5,6 +5,7 @@ public sealed class LoginLog
 {
     public Guid Id { get; set; }
     public string? UserId { get; set; }
+    public long? PlatformUserId { get; set; }
     public string? UserName { get; set; }
     public DateTimeOffset LoginTimeUtc { get; set; }
     public string LoginType { get; set; } = string.Empty;

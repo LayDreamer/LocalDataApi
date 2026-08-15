@@ -21,7 +21,9 @@ namespace LocalDataApi.Domain.Identity
         public string? Path { get; set; }
 
         /// <summary>部门负责人(企业微信 UserId)</summary>
-        public string? LeaderUserId { get; set; }
+        public string? LeaderExternalUserId { get; set; }
+
+        public long? LeaderUserId { get; set; }
 
         /// <summary>是否启用(企微删除后置为 false,禁止物理删除)</summary>
         public bool IsActive { get; set; } = true;

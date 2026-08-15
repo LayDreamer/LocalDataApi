@@ -10,6 +10,7 @@ namespace LocalDataApi.Domain.Identity
 
         /// <summary>操作人用户ID(可为空,如系统自动同步)</summary>
         public string? UserId { get; set; }
+        public long? PlatformUserId { get; set; }
 
         /// <summary>行为标识(如 AssignUserRole / AssignRolePermission / SyncDepartment)</summary>
         public string Action { get; set; } = string.Empty;

@@ -30,10 +30,10 @@ namespace LocalDataApi.Api.Controllers.Identity
         public async Task<ActionResult<ApiResponse<MeResultDto>>> Me()
         {
             var userId = _currentUser.UserId;
-            if (string.IsNullOrWhiteSpace(userId))
+            if (!userId.HasValue)
                 return Unauthorized(new ApiResponse<object> { Success = false, Message = "未登录或登录已失效" });
 
-            var me = await _userRoleService.GetCurrentUserInfoAsync(userId);
+            var me = await _userRoleService.GetCurrentUserInfoAsync(userId.Value);
             if (me == null)
                 return NotFound(new ApiResponse<object> { Success = false, Message = "用户不存在" });
 
@@ -45,10 +45,10 @@ namespace LocalDataApi.Api.Controllers.Identity
         public async Task<ActionResult<ApiResponse<MePermissionsDto>>> Permissions()
         {
             var userId = _currentUser.UserId;
-            if (string.IsNullOrWhiteSpace(userId))
+            if (!userId.HasValue)
                 return Unauthorized(new ApiResponse<object> { Success = false, Message = "未登录或登录已失效" });
 
-            var me = await _userRoleService.GetCurrentUserInfoAsync(userId);
+            var me = await _userRoleService.GetCurrentUserInfoAsync(userId.Value);
             if (me == null)
                 return NotFound(new ApiResponse<object> { Success = false, Message = "用户不存在" });
 

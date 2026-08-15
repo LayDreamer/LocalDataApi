@@ -19,21 +19,21 @@ namespace LocalDataApi.Application.Identity
             _cache = cache;
         }
 
-        private static string Key(string userId) => $"rbac:permissions:{userId}";
+        private static string Key(long userId) => $"rbac:permissions:{userId}";
 
         /// <summary>尝试读取用户权限缓存。</summary>
-        public bool TryGet(string userId, out IReadOnlySet<string>? permissions)
+        public bool TryGet(long userId, out IReadOnlySet<string>? permissions)
         {
             permissions = null;
-            if (string.IsNullOrWhiteSpace(userId))
+            if (userId <= 0)
                 return false;
             return _cache.TryGetValue(Key(userId), out permissions);
         }
 
         /// <summary>写入用户权限缓存。</summary>
-        public void Set(string userId, IReadOnlySet<string> permissions)
+        public void Set(long userId, IReadOnlySet<string> permissions)
         {
-            if (string.IsNullOrWhiteSpace(userId))
+            if (userId <= 0)
                 return;
             _cache.Set(Key(userId), permissions, new MemoryCacheEntryOptions
             {
@@ -42,15 +42,15 @@ namespace LocalDataApi.Application.Identity
         }
 
         /// <summary>清除单个用户权限缓存(用户角色变化时调用)。</summary>
-        public void Remove(string userId)
+        public void Remove(long userId)
         {
-            if (string.IsNullOrWhiteSpace(userId))
+            if (userId <= 0)
                 return;
             _cache.Remove(Key(userId));
         }
 
         /// <summary>批量清除用户权限缓存(角色权限变化时调用)。</summary>
-        public void RemoveMany(IEnumerable<string> userIds)
+        public void RemoveMany(IEnumerable<long> userIds)
         {
             foreach (var userId in userIds)
             {
