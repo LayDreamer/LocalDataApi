@@ -39,6 +39,8 @@ public class MenuCreateDto
     public string Type { get; set; } = "Menu";
     public int Sort { get; set; }
     public bool Status { get; set; } = true;
+    /// <summary>菜单可见性绑定的权限码列表(为空则不绑定,仅 ADMIN 可见)。</summary>
+    public List<string> Permissions { get; set; } = new();
 }
 
 /// <summary>Request for updating a management menu. ParentId and Id are immutable.</summary>
@@ -50,6 +52,8 @@ public class MenuUpdateDto
     public string? Icon { get; set; }
     public int? Sort { get; set; }
     public bool? Status { get; set; }
+    /// <summary>菜单可见性绑定的权限码列表(传入即整体覆盖,为空则清空绑定)。</summary>
+    public List<string>? Permissions { get; set; }
 }
 
 /// <summary>Menu item available to the authenticated user for dynamic navigation.</summary>

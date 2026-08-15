@@ -30,6 +30,9 @@ node_modules/
 *.g.cs
 *.g.i.cs
 
+# EF Core Migration 的 Designer.cs 必须进入版本管理(EF 靠 [Migration] 特性识别迁移)
+!**/Migrations/*.Designer.cs
+
 ## 测试结果
 TestResults/
 [Tt]est[Rr]esult*/

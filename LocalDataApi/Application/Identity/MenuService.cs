@@ -89,6 +89,7 @@ public sealed class MenuService(AppDbContext context, IAuditLogService auditLog,
     {
         ValidateRequired(dto.Name, dto.Path);
         await ValidateParentAsync(dto.ParentId, ct);
+        var permissionCodes = await ResolveValidPermissionCodesAsync(dto.Permissions, ct);
         var now = DateTime.Now;
         var menu = new Menu
         {
@@ -99,6 +100,14 @@ public sealed class MenuService(AppDbContext context, IAuditLogService auditLog,
         };
         context.Menus.Add(menu);
         await context.SaveChangesAsync(ct);
+        if (permissionCodes.Count > 0)
+        {
+            context.MenuPermissions.AddRange(permissionCodes.Select(code => new MenuPermission
+            {
+                Id = Guid.NewGuid(), MenuId = menu.Id, PermissionCode = code, CreatedTime = now
+            }));
+            await context.SaveChangesAsync(ct);
+        }
         await TryAuditAsync(operatorId, "CreateMenu", menu, ct);
         return ToDto(menu);
     }
@@ -123,6 +132,23 @@ public sealed class MenuService(AppDbContext context, IAuditLogService auditLog,
         if (dto.Status.HasValue) menu.Status = dto.Status.Value;
         menu.UpdatedTime = DateTime.Now;
         await context.SaveChangesAsync(ct);
+
+        // Permissions 传入即整体覆盖(允许清空),用于菜单可见性权限闭环
+        if (dto.Permissions is not null)
+        {
+            var permissionCodes = await ResolveValidPermissionCodesAsync(dto.Permissions, ct);
+            var existing = await context.MenuPermissions.Where(binding => binding.MenuId == id).ToListAsync(ct);
+            context.MenuPermissions.RemoveRange(existing);
+            if (permissionCodes.Count > 0)
+            {
+                context.MenuPermissions.AddRange(permissionCodes.Select(code => new MenuPermission
+                {
+                    Id = Guid.NewGuid(), MenuId = id, PermissionCode = code, CreatedTime = DateTime.Now
+                }));
+            }
+            await context.SaveChangesAsync(ct);
+        }
+
         await TryAuditAsync(operatorId, "UpdateMenu", menu, ct);
         return ToDto(menu);
     }
@@ -157,6 +183,31 @@ public sealed class MenuService(AppDbContext context, IAuditLogService auditLog,
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ValidationException("菜单名称不能为空");
         if (string.IsNullOrWhiteSpace(path)) throw new ValidationException("菜单路径不能为空");
+    }
+
+    /// <summary>
+    /// 校验权限码列表:去空、去重,并确认全部存在于 Permission 字典,否则抛出校验异常。
+    /// 返回规范化后的权限码列表(用于菜单-权限绑定)。
+    /// </summary>
+    private async Task<List<string>> ResolveValidPermissionCodesAsync(IEnumerable<string>? codes, CancellationToken ct)
+    {
+        var requested = (codes ?? Enumerable.Empty<string>())
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (requested.Count == 0)
+            return requested;
+
+        var existing = await context.Permissions.AsNoTracking()
+            .Where(permission => requested.Contains(permission.Code))
+            .Select(permission => permission.Code)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existing, StringComparer.Ordinal);
+        var unknown = requested.Where(code => !existingSet.Contains(code)).ToList();
+        if (unknown.Count > 0)
+            throw new ValidationException($"权限码不存在: {string.Join(", ", unknown)}");
+        return requested;
     }
 
     private static string? TrimOrNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

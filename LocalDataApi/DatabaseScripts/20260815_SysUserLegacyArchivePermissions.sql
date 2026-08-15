@@ -2,6 +2,9 @@
   Run once by the DBA after moving LocalDataApi off the sysadmin (sa) login.
   This script deliberately does not create a login or change the connection string:
   its account name, secret storage and required PMC/ERP grants are deployment decisions.
+
+  NOTE: 本脚本与 EF Migration 20260815024709_MarkLegacyUserTableArchived 逻辑重复。
+  以 EF 迁移为准;本脚本仅作 DBA 在最小权限切换后的手动兜底(迁移默认不执行 GRANT/DENY 的运行时依赖)。
 */
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
