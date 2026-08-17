@@ -7,6 +7,7 @@ using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Erp;
 using LocalDataApi.Application.Identity;
 using LocalDataApi.Application.Dictionary;
+using LocalDataApi.Application.Platform;
 using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Application.Pmc.Services;
 using LocalDataApi.Application.WeChatWork;
@@ -136,7 +137,9 @@ builder.Services.AddScoped<IPositionService, PositionService>();
 builder.Services.AddScoped<IEmployeeAccountService, EmployeeAccountService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IDictionaryService, DictionaryService>();
+builder.Services.AddScoped<INumberRuleService, NumberRuleService>();
 builder.Services.AddScoped<RbacSeeder>();
+builder.Services.AddScoped<NumberRuleSeeder>();
 builder.Services.AddHttpContextAccessor();
 
 var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
@@ -301,6 +304,13 @@ using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<LocalDataApi.Application.Identity.RbacSeeder>();
     await seeder.SeedAsync();
+}
+
+// ========== 8.6 默认编码规则初始化(启动时执行,幂等) ==========
+using (var scope = app.Services.CreateScope())
+{
+    var numberRuleSeeder = scope.ServiceProvider.GetRequiredService<NumberRuleSeeder>();
+    await numberRuleSeeder.SeedAsync();
 }
 
 // ========== 9. 中间件管道 ==========

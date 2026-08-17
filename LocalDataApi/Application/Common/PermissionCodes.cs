@@ -49,6 +49,11 @@ namespace LocalDataApi.Application.Common
         public const string SystemDictionaryUpdate = "System.Dictionary.Update";
         public const string SystemDictionaryDelete = "System.Dictionary.Delete";
 
+        // ========== Platform 统一编码规则(NumberRule) ==========
+        public const string PlatformNumberRuleView = "Platform.NumberRule.View";
+        public const string PlatformNumberRuleCreate = "Platform.NumberRule.Create";
+        public const string PlatformNumberRuleUpdate = "Platform.NumberRule.Update";
+
         // ========== PMC 排产管理 ==========
         public const string ScheduleView = "PMC.Schedule.View";
         public const string ScheduleCreate = "PMC.Schedule.Create";
@@ -128,6 +133,7 @@ namespace LocalDataApi.Application.Common
                     PlatformMenuView, PlatformMenuCreate, PlatformMenuUpdate, PlatformMenuDelete,
                     PlatformPositionView, PlatformPositionCreate, PlatformPositionEdit, PlatformPositionDelete,
                     SystemDictionaryView, SystemDictionaryCreate, SystemDictionaryUpdate, SystemDictionaryDelete,
+                    PlatformNumberRuleView, PlatformNumberRuleCreate, PlatformNumberRuleUpdate,
                     PlatformLoginLogView, PlatformOperationLogView, PlatformDataChangeLogView,
                     // PMC
                     ScheduleView, ScheduleCreate, ScheduleUpdate, ScheduleDelete, SchedulePublish, ScheduleExport,

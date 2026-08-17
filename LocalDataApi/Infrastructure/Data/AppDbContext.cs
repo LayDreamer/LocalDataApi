@@ -6,6 +6,7 @@ using LocalDataApi.Domain.Erp;
 using LocalDataApi.Domain.Employee;
 using LocalDataApi.Domain.Identity;
 using LocalDataApi.Domain.Dictionary;
+using LocalDataApi.Domain.Platform;
 using LocalDataApi.Domain.WeChatWork;
 namespace LocalDataApi.Infrastructure.Data
 {
@@ -106,6 +107,7 @@ namespace LocalDataApi.Infrastructure.Data
 
         public DbSet<DictionaryType> DictionaryTypes { get; set; }
         public DbSet<DictionaryItem> DictionaryItems { get; set; }
+        public DbSet<NumberRule> NumberRules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -115,6 +117,18 @@ namespace LocalDataApi.Infrastructure.Data
             modelBuilder.Entity<BLFParameter>(entity =>
             {
                 entity.HasKey(e => e.Id);
+            });
+
+            // 配置 NumberRule 统一编码规则
+            modelBuilder.Entity<NumberRule>(entity =>
+            {
+                entity.ToTable("Sys_NumberRule", "dbo");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.RuleCode).HasMaxLength(64).IsRequired();
+                entity.Property(e => e.RuleName).HasMaxLength(128).IsRequired();
+                entity.Property(e => e.Prefix).HasMaxLength(32);
+                entity.Property(e => e.DateFormat).HasMaxLength(16);
+                entity.HasIndex(e => e.RuleCode).IsUnique().HasDatabaseName("UX_Sys_NumberRule_RuleCode");
             });
 
             // 配置CurrentFlowRate实体
@@ -442,7 +456,8 @@ namespace LocalDataApi.Infrastructure.Data
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
                 typeof(Menu), typeof(MenuPermission),
-                typeof(DictionaryType), typeof(DictionaryItem)
+                typeof(DictionaryType), typeof(DictionaryItem),
+                typeof(NumberRule)
             };
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

@@ -22,6 +22,9 @@ namespace LocalDataApi.Api.Attributes
             _permissionCodes = permissionCodes ?? Array.Empty<string>();
         }
 
+        /// <summary>声明的权限码(只读,供测试/工具校验闭环)。</summary>
+        public IReadOnlyList<string> PermissionCodes => _permissionCodes;
+
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             var services = context.HttpContext.RequestServices;

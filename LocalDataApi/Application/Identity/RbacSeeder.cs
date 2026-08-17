@@ -39,6 +39,7 @@ namespace LocalDataApi.Application.Identity
                 await EnsureMenusAsync(ct);
                 await EnsurePmcMenuIntegrationAsync(ct);
                 await EnsureDictionaryMenuAsync(ct);
+                await EnsureNumberRuleMenuAsync(ct);
                 _logger.LogInformation("RBAC 初始化数据检查完成。");
             }
             catch (Exception ex)
@@ -222,6 +223,64 @@ namespace LocalDataApi.Application.Identity
             }
         }
 
+        /// <summary>
+        /// 统一编码规则中心菜单种子(顶级菜单,绑定 Platform.NumberRule.View 权限)。
+        /// 页面路由 /system/number-rule,前端组件 System/NumberRule。
+        /// 注意: 具体业务默认规则(如 DeliveryReview)由 NumberRuleSeeder 播种,不在此处。
+        /// </summary>
+        private async Task EnsureNumberRuleMenuAsync(CancellationToken ct)
+        {
+            var numberRuleId = Guid.Parse("20000000-0000-0000-0000-000000000002");
+            var numberRule = await _context.Menus.FirstOrDefaultAsync(menu => menu.Id == numberRuleId, ct);
+            var now = DateTime.Now;
+            if (numberRule is null)
+            {
+                numberRule = new Menu
+                {
+                    Id = numberRuleId,
+                    Name = "编码规则中心",
+                    Path = "/system/number-rule",
+                    Component = "System/NumberRule",
+                    Icon = "NumberOutlined",
+                    Type = "Menu",
+                    Sort = 60,
+                    Status = true,
+                    CreatedTime = now,
+                    UpdatedTime = now
+                };
+                _context.Menus.Add(numberRule);
+            }
+            else
+            {
+                numberRule.Name = "编码规则中心";
+                numberRule.Path = "/system/number-rule";
+                numberRule.Component = "System/NumberRule";
+                numberRule.Icon = "NumberOutlined";
+                numberRule.Type = "Menu";
+                numberRule.Sort = 60;
+                numberRule.Status = true;
+                numberRule.UpdatedTime = now;
+            }
+            await _context.SaveChangesAsync(ct);
+
+            // 绑定菜单-权限(Platform.NumberRule.View,普通用户需此权限才可见)
+            var expectedPermissionCode = PermissionCodes.PlatformNumberRuleView;
+            var hasBinding = await _context.MenuPermissions.AsNoTracking()
+                .AnyAsync(binding => binding.MenuId == numberRuleId && binding.PermissionCode == expectedPermissionCode, ct);
+            if (!hasBinding)
+            {
+                _context.MenuPermissions.Add(new MenuPermission
+                {
+                    Id = Guid.NewGuid(),
+                    MenuId = numberRuleId,
+                    PermissionCode = expectedPermissionCode,
+                    CreatedTime = now
+                });
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("编码规则中心菜单权限已绑定: Platform.NumberRule.View");
+            }
+        }
+
         private async Task EnsurePermissionsAsync(CancellationToken ct)
         {
             var defs = BuildPermissionDefinitions();
@@ -286,6 +345,9 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.SystemDictionaryCreate, "System", "Dictionary", "Create", "新增字典", "创建字典类型/字典项"),
                 (PermissionCodes.SystemDictionaryUpdate, "System", "Dictionary", "Update", "修改字典", "修改字典类型/字典项"),
                 (PermissionCodes.SystemDictionaryDelete, "System", "Dictionary", "Delete", "删除字典", "删除字典类型/字典项"),
+                (PermissionCodes.PlatformNumberRuleView, "Platform", "NumberRule", "View", "查看编码规则", "查询统一业务编码规则配置"),
+                (PermissionCodes.PlatformNumberRuleCreate, "Platform", "NumberRule", "Create", "新增编码规则", "创建编码规则"),
+                (PermissionCodes.PlatformNumberRuleUpdate, "Platform", "NumberRule", "Update", "修改编码规则", "修改编码规则配置或重置流水号"),
                 (PermissionCodes.PlatformLoginLogView, "Platform", "LoginLog", "View", "查看登录日志", "查询登录审计日志"),
                 (PermissionCodes.PlatformOperationLogView, "Platform", "OperationLog", "View", "查看操作日志", "查询操作审计日志"),
                 (PermissionCodes.PlatformDataChangeLogView, "Platform", "DataChangeLog", "View", "查看数据变更日志", "查询数据变更审计日志"),

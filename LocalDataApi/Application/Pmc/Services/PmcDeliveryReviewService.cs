@@ -1,4 +1,5 @@
 using LocalDataApi.Application.Common;
+using LocalDataApi.Application.Platform;
 using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Dto;
 using LocalDataApi.Domain.Pmc;
@@ -14,8 +15,11 @@ namespace LocalDataApi.Application.Pmc.Services;
 /// </summary>
 public class PmcDeliveryReviewService : PmcServiceBase, IPmcDeliveryReviewService
 {
-    public PmcDeliveryReviewService(AppDbContext context) : base(context)
+    private readonly INumberRuleService _numberRuleService;
+
+    public PmcDeliveryReviewService(AppDbContext context, INumberRuleService numberRuleService) : base(context)
     {
+        _numberRuleService = numberRuleService;
     }
 
     /// <summary>获取外销合同客户产品列表(排除已评审订单,支持生产类型过滤)</summary>
@@ -305,7 +309,8 @@ public class PmcDeliveryReviewService : PmcServiceBase, IPmcDeliveryReviewServic
         }
         else
         {
-            deliveryReview.编号 = Guid.NewGuid().ToString();
+            // 新增: 统一编码中心生成评审单号(不再使用 Guid)
+            deliveryReview.编号 = await _numberRuleService.GetNextCodeAsync("DeliveryReview", ct: default);
             deliveryReview.创建时间 = now;
             // 新增
             await _context.外产_订单.AddAsync(deliveryReview);
