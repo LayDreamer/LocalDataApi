@@ -33,11 +33,15 @@ namespace LocalDataApi.Dto
     /// </summary>
     public class UserInfoDto
     {
-        public string? Id { get; set; }
+        public long Id { get; set; }
         public string? UserName { get; set; }
         public string? DisplayName { get; set; }
         public string? Role { get; set; }
         public string? Email { get; set; }
+        /// <summary>主部门名称(RBAC)</summary>
+        public string? PrimaryDepartmentName { get; set; }
+        /// <summary>职位(RBAC)</summary>
+        public string? Position { get; set; }
     }
 
     /// <summary>
@@ -56,6 +60,23 @@ namespace LocalDataApi.Dto
 
         // 登录用户信息
         public UserInfoDto? User { get; set; }
+
+        // ========== RBAC 扩展(2026-08-08) ==========
+
+        // 用户ID(前端直接使用,无需再从 User 中取)
+        public long UserId { get; set; }
+
+        // 用户显示名
+        public string? UserName { get; set; }
+
+        // 角色编码列表(如 ["Viewer"])
+        public List<string> Roles { get; set; } = new();
+
+        // 有效权限编码列表(如 ["PMC.Schedule.View"])
+        public List<string> Permissions { get; set; } = new();
+
+        // 是否需要强制修改密码(种子 admin / 被重置后为真,前端据此跳转改密页)
+        public bool MustChangePassword { get; set; }
     }
 
     /// <summary>
@@ -88,4 +109,14 @@ namespace LocalDataApi.Dto
         public string? Username { get; set; }
         public string? Upwd { get; set; }
     }
+
+    /// <summary>
+    /// 企业微信工作台免登请求(携带网页授权 code)
+    /// </summary>
+    public class WeChatWorkLoginDto
+    {
+        // 企业微信 OAuth2 授权回调携带的 code
+        public string Code { get; set; } = "";
+    }
+
 }

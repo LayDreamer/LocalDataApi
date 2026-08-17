@@ -1,5 +1,4 @@
-﻿using LocalDataApi.Models;
-
+﻿
 namespace LocalDataApi.Dto
 {
     public class BLFParameterCreateDto
