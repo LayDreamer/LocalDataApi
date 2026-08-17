@@ -38,6 +38,7 @@ namespace LocalDataApi.Application.Identity
                 await EnsureDefaultAdminUserAsync(ct);
                 await EnsureMenusAsync(ct);
                 await EnsurePmcMenuIntegrationAsync(ct);
+                await EnsureDictionaryMenuAsync(ct);
                 _logger.LogInformation("RBAC 初始化数据检查完成。");
             }
             catch (Exception ex)
@@ -164,6 +165,63 @@ namespace LocalDataApi.Application.Identity
             await _context.SaveChangesAsync(ct);
         }
 
+        /// <summary>
+        /// 数据字典中心菜单种子(顶级菜单,绑定 System.Dictionary.View 权限)。
+        /// Guid 前缀 20000000- 与 PMC 菜单(10000000-)区分,避免冲突。
+        /// </summary>
+        private async Task EnsureDictionaryMenuAsync(CancellationToken ct)
+        {
+            var dictionaryId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+            var dictionary = await _context.Menus.FirstOrDefaultAsync(menu => menu.Id == dictionaryId, ct);
+            var now = DateTime.Now;
+            if (dictionary is null)
+            {
+                dictionary = new Menu
+                {
+                    Id = dictionaryId,
+                    Name = "数据字典中心",
+                    Path = "/system/dictionary",
+                    Component = "System/Dictionary",
+                    Icon = "DatabaseOutlined",
+                    Type = "Menu",
+                    Sort = 50,
+                    Status = true,
+                    CreatedTime = now,
+                    UpdatedTime = now
+                };
+                _context.Menus.Add(dictionary);
+            }
+            else
+            {
+                dictionary.Name = "数据字典中心";
+                dictionary.Path = "/system/dictionary";
+                dictionary.Component = "System/Dictionary";
+                dictionary.Icon = "DatabaseOutlined";
+                dictionary.Type = "Menu";
+                dictionary.Sort = 50;
+                dictionary.Status = true;
+                dictionary.UpdatedTime = now;
+            }
+            await _context.SaveChangesAsync(ct);
+
+            // 绑定菜单-权限(System.Dictionary.View,普通用户需此权限才可见)
+            var expectedPermissionCode = PermissionCodes.SystemDictionaryView;
+            var hasBinding = await _context.MenuPermissions.AsNoTracking()
+                .AnyAsync(binding => binding.MenuId == dictionaryId && binding.PermissionCode == expectedPermissionCode, ct);
+            if (!hasBinding)
+            {
+                _context.MenuPermissions.Add(new MenuPermission
+                {
+                    Id = Guid.NewGuid(),
+                    MenuId = dictionaryId,
+                    PermissionCode = expectedPermissionCode,
+                    CreatedTime = now
+                });
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("数据字典菜单权限已绑定: System.Dictionary.View");
+            }
+        }
+
         private async Task EnsurePermissionsAsync(CancellationToken ct)
         {
             var defs = BuildPermissionDefinitions();
@@ -224,6 +282,10 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.PlatformPositionCreate, "Platform", "Position", "Create", "新增岗位", "创建岗位"),
                 (PermissionCodes.PlatformPositionEdit, "Platform", "Position", "Edit", "修改岗位", "修改岗位信息或启停状态"),
                 (PermissionCodes.PlatformPositionDelete, "Platform", "Position", "Delete", "停用岗位", "停用岗位"),
+                (PermissionCodes.SystemDictionaryView, "System", "Dictionary", "View", "查看字典", "查询数据字典类型与字典项"),
+                (PermissionCodes.SystemDictionaryCreate, "System", "Dictionary", "Create", "新增字典", "创建字典类型/字典项"),
+                (PermissionCodes.SystemDictionaryUpdate, "System", "Dictionary", "Update", "修改字典", "修改字典类型/字典项"),
+                (PermissionCodes.SystemDictionaryDelete, "System", "Dictionary", "Delete", "删除字典", "删除字典类型/字典项"),
                 (PermissionCodes.PlatformLoginLogView, "Platform", "LoginLog", "View", "查看登录日志", "查询登录审计日志"),
                 (PermissionCodes.PlatformOperationLogView, "Platform", "OperationLog", "View", "查看操作日志", "查询操作审计日志"),
                 (PermissionCodes.PlatformDataChangeLogView, "Platform", "DataChangeLog", "View", "查看数据变更日志", "查询数据变更审计日志"),

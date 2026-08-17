@@ -5,6 +5,7 @@ using LocalDataApi.Domain.Blf;
 using LocalDataApi.Domain.Erp;
 using LocalDataApi.Domain.Employee;
 using LocalDataApi.Domain.Identity;
+using LocalDataApi.Domain.Dictionary;
 using LocalDataApi.Domain.WeChatWork;
 namespace LocalDataApi.Infrastructure.Data
 {
@@ -102,6 +103,9 @@ namespace LocalDataApi.Infrastructure.Data
        public DbSet<InTransitQuantity> 在途数 { get; set; }
 
         public DbSet<WechatWorkGroupChat> 企业微信群聊 { get; set; }
+
+        public DbSet<DictionaryType> DictionaryTypes { get; set; }
+        public DbSet<DictionaryItem> DictionaryItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -437,7 +441,8 @@ namespace LocalDataApi.Infrastructure.Data
                 typeof(User), typeof(UserExternalIdentity), typeof(UserLegacyMap),
                 typeof(UserRole), typeof(RolePermission), typeof(AuditLog), typeof(AuthSession),
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
-                typeof(Menu), typeof(MenuPermission)
+                typeof(Menu), typeof(MenuPermission),
+                typeof(DictionaryType), typeof(DictionaryItem)
             };
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

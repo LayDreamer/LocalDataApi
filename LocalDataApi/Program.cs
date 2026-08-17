@@ -6,6 +6,7 @@ using LocalDataApi.Application.Audit;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Erp;
 using LocalDataApi.Application.Identity;
+using LocalDataApi.Application.Dictionary;
 using LocalDataApi.Application.Pmc.Contracts;
 using LocalDataApi.Application.Pmc.Services;
 using LocalDataApi.Application.WeChatWork;
@@ -134,6 +135,7 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<IPositionService, PositionService>();
 builder.Services.AddScoped<IEmployeeAccountService, EmployeeAccountService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
+builder.Services.AddScoped<IDictionaryService, DictionaryService>();
 builder.Services.AddScoped<RbacSeeder>();
 builder.Services.AddHttpContextAccessor();
 

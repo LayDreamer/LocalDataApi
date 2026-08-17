@@ -43,6 +43,12 @@ namespace LocalDataApi.Application.Common
         public const string PlatformPositionEdit = "Platform.Position.Edit";
         public const string PlatformPositionDelete = "Platform.Position.Delete";
 
+        // ========== System 数据字典中心 ==========
+        public const string SystemDictionaryView = "System.Dictionary.View";
+        public const string SystemDictionaryCreate = "System.Dictionary.Create";
+        public const string SystemDictionaryUpdate = "System.Dictionary.Update";
+        public const string SystemDictionaryDelete = "System.Dictionary.Delete";
+
         // ========== PMC 排产管理 ==========
         public const string ScheduleView = "PMC.Schedule.View";
         public const string ScheduleCreate = "PMC.Schedule.Create";
@@ -121,6 +127,7 @@ namespace LocalDataApi.Application.Common
                     DepartmentView, DepartmentSync,
                     PlatformMenuView, PlatformMenuCreate, PlatformMenuUpdate, PlatformMenuDelete,
                     PlatformPositionView, PlatformPositionCreate, PlatformPositionEdit, PlatformPositionDelete,
+                    SystemDictionaryView, SystemDictionaryCreate, SystemDictionaryUpdate, SystemDictionaryDelete,
                     PlatformLoginLogView, PlatformOperationLogView, PlatformDataChangeLogView,
                     // PMC
                     ScheduleView, ScheduleCreate, ScheduleUpdate, ScheduleDelete, SchedulePublish, ScheduleExport,
