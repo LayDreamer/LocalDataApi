@@ -28,6 +28,8 @@ public sealed class OperationLogQueryDto : AuditLogQueryDtoBase
     public string? Action { get; set; }
     public string? ApiPath { get; set; }
     public bool? Success { get; set; }
+    public string? BusinessType { get; set; }
+    public string? BusinessId { get; set; }
 }
 
 public sealed class DataChangeLogQueryDto : AuditLogQueryDtoBase
@@ -37,6 +39,8 @@ public sealed class DataChangeLogQueryDto : AuditLogQueryDtoBase
     public string? EntityName { get; set; }
     public string? EntityId { get; set; }
     public string? ChangeType { get; set; }
+    public string? BusinessType { get; set; }
+    public string? BusinessId { get; set; }
 }
 
 public sealed class LoginLogListItemDto
@@ -74,6 +78,8 @@ public sealed class OperationLogListItemDto
     public int DurationMs { get; init; }
     public string TraceId { get; init; } = string.Empty;
     public string? IpAddress { get; init; }
+    public string? BusinessType { get; init; }
+    public string? BusinessId { get; init; }
 }
 
 public sealed class DataChangeLogListItemDto
@@ -90,4 +96,6 @@ public sealed class DataChangeLogListItemDto
     public string? OperatorUserName { get; init; }
     public string? TraceId { get; init; }
     public string Source { get; init; } = string.Empty;
+    public string? BusinessType { get; init; }
+    public string? BusinessId { get; init; }
 }

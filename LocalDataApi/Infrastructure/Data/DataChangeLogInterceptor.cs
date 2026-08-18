@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Domain.Identity;
+using LocalDataApi.Domain.Platform;
+using LocalDataApi.Domain.Pmc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -79,8 +81,32 @@ public sealed class DataChangeLogInterceptor(
         var after = entry.State == EntityState.Deleted ? null : BuildSnapshot(entry, changed, original: false);
         var entityId = entry.Properties.FirstOrDefault(property => property.Metadata.IsPrimaryKey())?.CurrentValue
             ?? entry.Properties.FirstOrDefault(property => property.Metadata.IsPrimaryKey())?.OriginalValue;
-        return new PendingChange(entityName, entityId?.ToString() ?? string.Empty, entry.State.ToString(), before, after, changed);
+        var (businessType, businessId) = ResolveBusinessKeys(entry);
+        return new PendingChange(entityName, entityId?.ToString() ?? string.Empty, entry.State.ToString(), before, after, changed, businessType, businessId);
     }
+
+    /// <summary>
+    /// 计算业务追溯键(WP05)。普通制造实体取 <see cref="BusinessTypes"/> 常量 + 主键字符串化；
+    /// Attachment 取其所属业务对象(与 WP04 约定一致，不使用 Attachment.Id)。
+    /// </summary>
+    private static (string? BusinessType, string? BusinessId) ResolveBusinessKeys(EntityEntry entry) =>
+        ResolveBusinessKeys(entry.Entity, PrimaryKeyValue(entry));
+
+    /// <summary>
+    /// 计算业务追溯键(WP05)。普通制造实体取 <see cref="BusinessTypes"/> 常量 + 主键字符串化;
+    /// Attachment 取其所属业务对象(与 WP04 约定一致，不使用 Attachment.Id)。internal 以便单元测试。
+    /// </summary>
+    internal static (string? BusinessType, string? BusinessId) ResolveBusinessKeys(object entity, string? primaryKey) => entity switch
+    {
+        PMCDeliveryReview => (BusinessTypes.DeliveryReview, primaryKey),
+        WorkOrderSalesControl => (BusinessTypes.WorkOrder, primaryKey),
+        SchedulingAnalysis => (BusinessTypes.Scheduling, primaryKey),
+        Attachment attachment => (attachment.BusinessType, attachment.BusinessId),
+        _ => (null, null)
+    };
+
+    private static string? PrimaryKeyValue(EntityEntry entry) =>
+        entry.Properties.FirstOrDefault(property => property.Metadata.IsPrimaryKey())?.CurrentValue?.ToString();
 
     private static string BuildSnapshot(EntityEntry entry, IEnumerable<string> propertyNames, bool original)
     {
@@ -115,7 +141,9 @@ public sealed class DataChangeLogInterceptor(
                     PlatformUserId = hasPlatformUserId ? platformUserId : null,
                     OperatorUserName = AuditSanitizer.Truncate(http?.User.Identity?.Name, 128),
                     TraceId = AuditSanitizer.Truncate(http?.TraceIdentifier, 64),
-                    Source = http is null ? "System" : "HttpApi"
+                    Source = http is null ? "System" : "HttpApi",
+                    BusinessType = AuditSanitizer.Truncate(change.BusinessType, 64),
+                    BusinessId = AuditSanitizer.Truncate(change.BusinessId, 64)
                 });
             }
             await db.SaveChangesAsync(cancellationToken);
@@ -131,11 +159,20 @@ public sealed class DataChangeLogInterceptor(
         if (context is not null) _pending.TryRemove(context.ContextId.InstanceId, out _);
     }
 
-    private static string? GetEntityName(object entity) => entity switch
+    internal static string? GetEntityName(object entity) => entity switch
     {
-        User => "User", Role => "Role", Permission => "Permission", Department => "Department", _ => null
+        User => "User",
+        Role => "Role",
+        Permission => "Permission",
+        Department => "Department",
+        PMCDeliveryReview => "PMCDeliveryReview",
+        WorkOrderSalesControl => "WorkOrderSalesControl",
+        SchedulingAnalysis => "SchedulingAnalysis",
+        Attachment => "Attachment",
+        DataChangeLog => null,
+        _ => null
     };
 
     private sealed record PendingChange(string EntityName, string EntityId, string ChangeType,
-        string? BeforeData, string? AfterData, IReadOnlyCollection<string> ChangedProperties);
+        string? BeforeData, string? AfterData, IReadOnlyCollection<string> ChangedProperties, string? BusinessType, string? BusinessId);
 }

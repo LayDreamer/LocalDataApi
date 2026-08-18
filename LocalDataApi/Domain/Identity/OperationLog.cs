@@ -21,4 +21,10 @@ public sealed class OperationLog
     public string TraceId { get; set; } = string.Empty;
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+
+    /// <summary>业务追溯类型(WP05)。取值见 <see cref="BusinessTypes"/>；历史/未关联行可为 NULL。</summary>
+    public string? BusinessType { get; set; }
+
+    /// <summary>业务对象字符串化稳定主键(WP05)。与 WP04 Attachment.BusinessId 长度约定一致(nvarchar(64))；可为 NULL。</summary>
+    public string? BusinessId { get; set; }
 }

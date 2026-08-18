@@ -435,11 +435,14 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.Property(e => e.TraceId).HasMaxLength(64);
                 entity.Property(e => e.IpAddress).HasMaxLength(128);
                 entity.Property(e => e.UserAgent).HasMaxLength(512);
+                entity.Property(e => e.BusinessType).HasMaxLength(64);
+                entity.Property(e => e.BusinessId).HasMaxLength(64);
                 entity.HasIndex(e => e.OperationTimeUtc);
                 entity.HasIndex(e => new { e.UserId, e.OperationTimeUtc });
                 entity.HasIndex(e => new { e.Module, e.OperationTimeUtc });
                 entity.HasIndex(e => e.TraceId);
                 entity.HasIndex(e => new { e.Success, e.OperationTimeUtc });
+                entity.HasIndex(e => new { e.BusinessType, e.BusinessId }).HasDatabaseName("IX_OperationLog_BusinessType_BusinessId");
             });
 
             modelBuilder.Entity<DataChangeLog>(entity =>
@@ -453,10 +456,13 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.Property(e => e.OperatorUserName).HasMaxLength(128);
                 entity.Property(e => e.TraceId).HasMaxLength(64);
                 entity.Property(e => e.Source).HasMaxLength(32);
+                entity.Property(e => e.BusinessType).HasMaxLength(64);
+                entity.Property(e => e.BusinessId).HasMaxLength(64);
                 entity.HasIndex(e => e.ChangeTimeUtc);
                 entity.HasIndex(e => new { e.EntityName, e.EntityId, e.ChangeTimeUtc });
                 entity.HasIndex(e => new { e.OperatorUserId, e.ChangeTimeUtc });
                 entity.HasIndex(e => e.TraceId);
+                entity.HasIndex(e => new { e.BusinessType, e.BusinessId }).HasDatabaseName("IX_DataChangeLog_BusinessType_BusinessId");
             });
 
             // ========== EF 迁移边界配置(2026-08-08) ==========

@@ -13,7 +13,7 @@ DECLARE @failCount INT = 0;
 DECLARE @sectionHeader NVARCHAR(200);
 
 /* =============================================================================
-   1. 迁移历史比对:本地 19 个迁移 ID 与 __EFMigrationsHistory 核对
+   1. 迁移历史比对:本地 20 个迁移 ID 与 __EFMigrationsHistory 核对
    ============================================================================= */
 SET @sectionHeader = N'=== 1. 迁移历史比对 (__EFMigrationsHistory) ===';
 PRINT @sectionHeader;
@@ -25,7 +25,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    -- 预期迁移 ID 清单(与 Migrations 目录 19 个迁移一一对应)
+    -- 预期迁移 ID 清单(与 Migrations 目录 20 个迁移一一对应)
     CREATE TABLE #ExpectedMigrations (MigrationId NVARCHAR(150) PRIMARY KEY);
     INSERT INTO #ExpectedMigrations (MigrationId) VALUES
         (N'20260120044605_InitialCreate'),
@@ -46,7 +46,8 @@ BEGIN
         (N'20260815024709_MarkLegacyUserTableArchived'),
         (N'20260815083751_AddDictionaryCenter'),
         (N'20260817071524_AddNumberRule'),
-        (N'20260818014041_AddAttachment');
+        (N'20260818014041_AddAttachment'),
+        (N'20260818025752_AddBusinessTraceColumns');
 
     -- 清单中存在但历史表缺失的迁移
     SELECT '   [FAIL] 缺失迁移: ' + e.MigrationId AS Result
@@ -55,7 +56,7 @@ BEGIN
     WHERE h.MigrationId IS NULL;
 
     IF @@ROWCOUNT = 0
-        PRINT '   [OK] 19 个预期迁移全部存在';
+        PRINT '   [OK] 20 个预期迁移全部存在';
     ELSE
         SET @failCount = @failCount + 1;
 
@@ -278,10 +279,75 @@ BEGIN
 END
 
 /* =============================================================================
-   8. 统一汇总
+   8. WP05 业务追溯列抽查:OperationLog / DataChangeLog 业务键列 + 组合索引
+      (20260818025752_AddBusinessTraceColumns)
+   ============================================================================= */
+SET @sectionHeader = N'=== 8. WP05 业务追溯列 (BusinessTrace) ===';
+PRINT @sectionHeader;
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = N'dbo' AND TABLE_NAME = N'OperationLog'
+             AND COLUMN_NAME = N'BusinessType' AND DATA_TYPE = N'nvarchar' AND CHARACTER_MAXIMUM_LENGTH = 64)
+    PRINT '   [OK] OperationLog.BusinessType = nvarchar(64)';
+ELSE
+BEGIN
+    PRINT '   [FAIL] OperationLog.BusinessType 类型/长度不符';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = N'dbo' AND TABLE_NAME = N'OperationLog'
+             AND COLUMN_NAME = N'BusinessId' AND DATA_TYPE = N'nvarchar' AND CHARACTER_MAXIMUM_LENGTH = 64)
+    PRINT '   [OK] OperationLog.BusinessId = nvarchar(64)';
+ELSE
+BEGIN
+    PRINT '   [FAIL] OperationLog.BusinessId 类型/长度不符';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = N'dbo' AND TABLE_NAME = N'DataChangeLog'
+             AND COLUMN_NAME = N'BusinessType' AND DATA_TYPE = N'nvarchar' AND CHARACTER_MAXIMUM_LENGTH = 64)
+    PRINT '   [OK] DataChangeLog.BusinessType = nvarchar(64)';
+ELSE
+BEGIN
+    PRINT '   [FAIL] DataChangeLog.BusinessType 类型/长度不符';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = N'dbo' AND TABLE_NAME = N'DataChangeLog'
+             AND COLUMN_NAME = N'BusinessId' AND DATA_TYPE = N'nvarchar' AND CHARACTER_MAXIMUM_LENGTH = 64)
+    PRINT '   [OK] DataChangeLog.BusinessId = nvarchar(64)';
+ELSE
+BEGIN
+    PRINT '   [FAIL] DataChangeLog.BusinessId 类型/长度不符';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM sys.indexes
+           WHERE object_id = OBJECT_ID(N'dbo.OperationLog') AND name = N'IX_OperationLog_BusinessType_BusinessId')
+    PRINT '   [OK] IX_OperationLog_BusinessType_BusinessId 索引存在';
+ELSE
+BEGIN
+    PRINT '   [FAIL] IX_OperationLog_BusinessType_BusinessId 索引缺失';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM sys.indexes
+           WHERE object_id = OBJECT_ID(N'dbo.DataChangeLog') AND name = N'IX_DataChangeLog_BusinessType_BusinessId')
+    PRINT '   [OK] IX_DataChangeLog_BusinessType_BusinessId 索引存在';
+ELSE
+BEGIN
+    PRINT '   [FAIL] IX_DataChangeLog_BusinessType_BusinessId 索引缺失';
+    SET @failCount = @failCount + 1;
+END
+
+/* =============================================================================
+   9. 统一汇总
    ============================================================================= */
 PRINT N'';
-PRINT N'=== 8. 校验汇总 ===';
+PRINT N'=== 9. 校验汇总 ===';
 PRINT N'   失败项总数 = ' + CAST(@failCount AS NVARCHAR(10));
 IF @failCount = 0
     PRINT N'   [PASS] 全部校验通过';

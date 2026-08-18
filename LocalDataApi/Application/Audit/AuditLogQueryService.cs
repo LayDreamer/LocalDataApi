@@ -36,10 +36,12 @@ public sealed class AuditLogQueryService(AppDbContext context) : IAuditLogQueryS
         if (!string.IsNullOrWhiteSpace(query.ApiPath)) source = source.Where(x => x.ApiPath.Contains(query.ApiPath.Trim()));
         if (query.Success.HasValue) source = source.Where(x => x.Success == query.Success.Value);
         if (!string.IsNullOrWhiteSpace(query.TraceId)) source = source.Where(x => x.TraceId.Contains(query.TraceId.Trim()));
+        if (!string.IsNullOrWhiteSpace(query.BusinessType)) source = source.Where(x => x.BusinessType == query.BusinessType.Trim());
+        if (!string.IsNullOrWhiteSpace(query.BusinessId)) source = source.Where(x => x.BusinessId == query.BusinessId.Trim());
         var total = await source.CountAsync(ct);
         var items = await source
             .OrderByDescending(x => x.OperationTimeUtc)
-            .Select(x => new OperationLogListItemDto { Id = x.Id, OperationTimeUtc = x.OperationTimeUtc, UserId = x.UserId, UserName = x.UserName, Module = x.Module, Action = x.Action, HttpMethod = x.HttpMethod, ApiPath = x.ApiPath, Parameters = x.Parameters, Success = x.Success, StatusCode = x.StatusCode, ExceptionType = x.ExceptionType, ExceptionMessage = x.ExceptionMessage, DurationMs = x.DurationMs, TraceId = x.TraceId, IpAddress = x.IpAddress })
+            .Select(x => new OperationLogListItemDto { Id = x.Id, OperationTimeUtc = x.OperationTimeUtc, UserId = x.UserId, UserName = x.UserName, Module = x.Module, Action = x.Action, HttpMethod = x.HttpMethod, ApiPath = x.ApiPath, Parameters = x.Parameters, Success = x.Success, StatusCode = x.StatusCode, ExceptionType = x.ExceptionType, ExceptionMessage = x.ExceptionMessage, DurationMs = x.DurationMs, TraceId = x.TraceId, IpAddress = x.IpAddress, BusinessType = x.BusinessType, BusinessId = x.BusinessId })
             .ToPageItemsAsync(query, ct);
         return new PagedResult<OperationLogListItemDto> { Items = items, Total = total, Page = query.Page, PageSize = query.PageSize };
     }
@@ -55,10 +57,12 @@ public sealed class AuditLogQueryService(AppDbContext context) : IAuditLogQueryS
         if (!string.IsNullOrWhiteSpace(query.EntityId)) source = source.Where(x => x.EntityId == query.EntityId.Trim());
         if (!string.IsNullOrWhiteSpace(query.ChangeType)) source = source.Where(x => x.ChangeType == query.ChangeType.Trim());
         if (!string.IsNullOrWhiteSpace(query.TraceId)) source = source.Where(x => x.TraceId != null && x.TraceId.Contains(query.TraceId.Trim()));
+        if (!string.IsNullOrWhiteSpace(query.BusinessType)) source = source.Where(x => x.BusinessType == query.BusinessType.Trim());
+        if (!string.IsNullOrWhiteSpace(query.BusinessId)) source = source.Where(x => x.BusinessId == query.BusinessId.Trim());
         var total = await source.CountAsync(ct);
         var items = await source
             .OrderByDescending(x => x.ChangeTimeUtc)
-            .Select(x => new DataChangeLogListItemDto { Id = x.Id, ChangeTimeUtc = x.ChangeTimeUtc, EntityName = x.EntityName, EntityId = x.EntityId, ChangeType = x.ChangeType, BeforeData = x.BeforeData, AfterData = x.AfterData, ChangedProperties = x.ChangedProperties, OperatorUserId = x.OperatorUserId, OperatorUserName = x.OperatorUserName, TraceId = x.TraceId, Source = x.Source })
+            .Select(x => new DataChangeLogListItemDto { Id = x.Id, ChangeTimeUtc = x.ChangeTimeUtc, EntityName = x.EntityName, EntityId = x.EntityId, ChangeType = x.ChangeType, BeforeData = x.BeforeData, AfterData = x.AfterData, ChangedProperties = x.ChangedProperties, OperatorUserId = x.OperatorUserId, OperatorUserName = x.OperatorUserName, TraceId = x.TraceId, Source = x.Source, BusinessType = x.BusinessType, BusinessId = x.BusinessId })
             .ToPageItemsAsync(query, ct);
         return new PagedResult<DataChangeLogListItemDto> { Items = items, Total = total, Page = query.Page, PageSize = query.PageSize };
     }
