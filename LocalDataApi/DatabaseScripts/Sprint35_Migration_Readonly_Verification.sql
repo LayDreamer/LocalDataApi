@@ -13,7 +13,7 @@ DECLARE @failCount INT = 0;
 DECLARE @sectionHeader NVARCHAR(200);
 
 /* =============================================================================
-   1. 迁移历史比对:本地 16 个迁移 ID 与 __EFMigrationsHistory 核对
+   1. 迁移历史比对:本地 18 个迁移 ID 与 __EFMigrationsHistory 核对
    ============================================================================= */
 SET @sectionHeader = N'=== 1. 迁移历史比对 (__EFMigrationsHistory) ===';
 PRINT @sectionHeader;
@@ -25,7 +25,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    -- 预期迁移 ID 清单(与 Migrations 目录 16 个迁移一一对应)
+    -- 预期迁移 ID 清单(与 Migrations 目录 18 个迁移一一对应)
     CREATE TABLE #ExpectedMigrations (MigrationId NVARCHAR(150) PRIMARY KEY);
     INSERT INTO #ExpectedMigrations (MigrationId) VALUES
         (N'20260120044605_InitialCreate'),
@@ -43,7 +43,9 @@ BEGIN
         (N'20260814075431_AddEmployeeUserIdentityIdUniqueConstraint'),
         (N'20260815014530_SysUserNumericPrimaryKeyCutover'),
         (N'20260815024044_DropLegacyUserIdentityIdCounter'),
-        (N'20260815024709_MarkLegacyUserTableArchived');
+        (N'20260815024709_MarkLegacyUserTableArchived'),
+        (N'20260815083751_AddDictionaryCenter'),
+        (N'20260817071524_AddNumberRule');
 
     -- 清单中存在但历史表缺失的迁移
     SELECT '   [FAIL] 缺失迁移: ' + e.MigrationId AS Result
@@ -52,7 +54,7 @@ BEGIN
     WHERE h.MigrationId IS NULL;
 
     IF @@ROWCOUNT = 0
-        PRINT '   [OK] 16 个预期迁移全部存在';
+        PRINT '   [OK] 18 个预期迁移全部存在';
     ELSE
         SET @failCount = @failCount + 1;
 

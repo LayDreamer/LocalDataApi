@@ -368,7 +368,7 @@ app.MapControllers();
 
 // ========== 10. Controller 权限覆盖检查(启动扫描,仅输出警告,不阻断启动) ==========
 // 目的:发现新增接口未声明权限控制(HasPermission),避免接口意外暴露。
-// 注意:PMC/ERP/WeChatWork 业务接口处于"权限未接入阶段"(Task-012/013 未执行),会集中告警,属预期。
+// 注意:业务接口(含 PMC/ERP/WeChatWork)已全部接入 HasPermission(2026-08-13 起),如出现告警即为新增接口遗漏,请及时补挂。
 using (var scanScope = app.Services.CreateScope())
 {
     var scanLogger = scanScope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -404,7 +404,7 @@ static void ScanControllersForMissingPermissionAttributes(ILogger logger)
     if (missing > 0)
     {
         logger.LogWarning(
-            "[RBAC] 权限覆盖检查: {Missing}/{Total} 个接口缺少权限声明(含业务接口未接入阶段,属预期;新增接口请注意补加 [HasPermission])\n{List}",
+            "[RBAC] 权限覆盖检查: {Missing}/{Total} 个接口缺少权限声明(请为新增接口补加 [HasPermission])\n{List}",
             missing, controllerTypes.Sum(c => c.GetMethods(BindingFlags.Public | BindingFlags.Instance).Count(m => !m.IsSpecialName && m.GetCustomAttributes<HttpMethodAttribute>(true).Any())),
             string.Join("\n", missingList.Take(30)));
     }
