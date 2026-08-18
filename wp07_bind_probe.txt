@@ -1,2 +1,0 @@
-﻿PMC.ExternalProduction.View
-ExternalProduction 菜单权限绑定数: 1

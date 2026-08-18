@@ -1,8 +1,0 @@
-﻿10000000-0000-0000-0000-000000000001|Manufacturing Center|/manufacturing||Directory|True|10
-10000000-0000-0000-0000-000000000002|PMC|/pmc||Directory|True|10
-10000000-0000-0000-0000-000000000003|DeliveryReview|/pmc/deliveryreview|PMC/DeliveryReview/DeliveryReview|Menu|True|10
-10000000-0000-0000-0000-000000000004|WorkOrderTracking|/pmc/workOrderTracking|PMC/WorkOrderTracking/WorkOrderTracking|Menu|True|20
-10000000-0000-0000-0000-000000000005|工单管理|work-order-management|pmc/work-order-management|Menu|False|30
-10000000-0000-0000-0000-000000000006|ExternalProduction|/pmc/externalproduction|PMC/ExternalProduction/index|Menu|True|30
-ROWS: 6
-ERR: 使用“0”个参数调用“ExecuteScalar”时发生异常:“对象名 'dbo.MenuPermission' 无效。”
