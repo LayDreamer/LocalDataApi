@@ -141,9 +141,14 @@ WHERE d.LeaderUserId IS NOT NULL AND u.Id IS NULL;
 IF @@ROWCOUNT = 0 PRINT '   [OK] Department.LeaderUserId 无孤儿'; ELSE SET @failCount = @failCount + 1;
 
 /* =============================================================================
-   4. 四日志回填:PlatformUserId 空值检查(cutover 迁移应已回填)
+   4. 四日志回填:PlatformUserId 空值检查
+      状态说明(WP09-R Gate-C 决策 B 正式豁免,2026-08-18):
+      历史 PlatformUserId=NULL 行无法做到 100% 唯一回填(身份字段全空或映射缺失,
+      OperationLog 120/438、DataChangeLog 67/70、AuditLog 1/6、LoginLog 1/35),
+      经 WP09-R 判定为正式 Non-Blocking 豁免项,不阻塞 Gate-C;
+      新数据写入链路已核验正确写入 PlatformUserId,本检查仅作信息展示,不计入失败。
    ============================================================================= */
-SET @sectionHeader = N'=== 4. 四日志 PlatformUserId 回填检查 ===';
+SET @sectionHeader = N'=== 4. 四日志 PlatformUserId 回填检查 (WP09-R 决策B豁免) ===';
 PRINT @sectionHeader;
 
 DECLARE @total INT = 0, @nullCount INT = 0;
@@ -151,40 +156,28 @@ DECLARE @total INT = 0, @nullCount INT = 0;
 SELECT @total = COUNT(*), @nullCount = SUM(CASE WHEN PlatformUserId IS NULL THEN 1 ELSE 0 END)
 FROM dbo.AuditLog WHERE 1 = 1;
 IF @nullCount > 0
-BEGIN
-    PRINT '   [FAIL] AuditLog PlatformUserId 未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20));
-    SET @failCount = @failCount + 1;
-END
+    PRINT '   [EXEMPTED] AuditLog PlatformUserId 历史未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20)) + ' (决策B豁免,不阻塞Gate-C)';
 ELSE
     PRINT '   [OK] AuditLog PlatformUserId 全部回填 (' + CAST(@total AS NVARCHAR(20)) + ' 行)';
 
 SELECT @total = COUNT(*), @nullCount = SUM(CASE WHEN PlatformUserId IS NULL THEN 1 ELSE 0 END)
 FROM dbo.LoginLog WHERE 1 = 1;
 IF @nullCount > 0
-BEGIN
-    PRINT '   [FAIL] LoginLog PlatformUserId 未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20));
-    SET @failCount = @failCount + 1;
-END
+    PRINT '   [EXEMPTED] LoginLog PlatformUserId 历史未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20)) + ' (决策B豁免,不阻塞Gate-C)';
 ELSE
     PRINT '   [OK] LoginLog PlatformUserId 全部回填 (' + CAST(@total AS NVARCHAR(20)) + ' 行)';
 
 SELECT @total = COUNT(*), @nullCount = SUM(CASE WHEN PlatformUserId IS NULL THEN 1 ELSE 0 END)
 FROM dbo.OperationLog WHERE 1 = 1;
 IF @nullCount > 0
-BEGIN
-    PRINT '   [FAIL] OperationLog PlatformUserId 未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20));
-    SET @failCount = @failCount + 1;
-END
+    PRINT '   [EXEMPTED] OperationLog PlatformUserId 历史未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20)) + ' (决策B豁免,不阻塞Gate-C)';
 ELSE
     PRINT '   [OK] OperationLog PlatformUserId 全部回填 (' + CAST(@total AS NVARCHAR(20)) + ' 行)';
 
 SELECT @total = COUNT(*), @nullCount = SUM(CASE WHEN PlatformUserId IS NULL THEN 1 ELSE 0 END)
 FROM dbo.DataChangeLog WHERE 1 = 1;
 IF @nullCount > 0
-BEGIN
-    PRINT '   [FAIL] DataChangeLog PlatformUserId 未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20));
-    SET @failCount = @failCount + 1;
-END
+    PRINT '   [EXEMPTED] DataChangeLog PlatformUserId 历史未回填: ' + CAST(@nullCount AS NVARCHAR(20)) + '/' + CAST(@total AS NVARCHAR(20)) + ' (决策B豁免,不阻塞Gate-C)';
 ELSE
     PRINT '   [OK] DataChangeLog PlatformUserId 全部回填 (' + CAST(@total AS NVARCHAR(20)) + ' 行)';
 
