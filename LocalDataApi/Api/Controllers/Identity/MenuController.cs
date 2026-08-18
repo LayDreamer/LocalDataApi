@@ -15,6 +15,7 @@ public sealed class MenuController(IMenuService menuService, CurrentUserService 
 {
     [HttpGet("current")]
     [Authorize]
+    [AuthenticatedOnly]
     public async Task<ActionResult<ApiResponse<List<CurrentMenuDto>>>> GetCurrent()
     {
         var userId = currentUser.UserId;

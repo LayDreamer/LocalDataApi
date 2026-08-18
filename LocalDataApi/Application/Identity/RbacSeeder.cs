@@ -90,7 +90,8 @@ namespace LocalDataApi.Application.Identity
             var deliveryReviewId = Guid.Parse("10000000-0000-0000-0000-000000000003");
             var workOrderTrackingId = Guid.Parse("10000000-0000-0000-0000-000000000004");
             var obsoleteMenuId = Guid.Parse("10000000-0000-0000-0000-000000000005");
-            var ids = new[] { manufacturingCenterId, pmcId, deliveryReviewId, workOrderTrackingId, obsoleteMenuId };
+            var externalProductionId = Guid.Parse("10000000-0000-0000-0000-000000000006");
+            var ids = new[] { manufacturingCenterId, pmcId, deliveryReviewId, workOrderTrackingId, obsoleteMenuId, externalProductionId };
             var menus = await _context.Menus.Where(menu => ids.Contains(menu.Id)).ToDictionaryAsync(menu => menu.Id, ct);
             if (!menus.TryGetValue(manufacturingCenterId, out var manufacturingCenter) ||
                 !menus.TryGetValue(pmcId, out var pmc) ||
@@ -141,6 +142,22 @@ namespace LocalDataApi.Application.Identity
             workOrderTracking.Status = true;
             workOrderTracking.UpdatedTime = now;
 
+            // WP07:ExternalProduction 外产管理正式页(测试页正式化收口,不形成两套入口)
+            if (!menus.TryGetValue(externalProductionId, out var externalProduction))
+            {
+                externalProduction = new Menu { Id = externalProductionId, CreatedTime = now };
+                _context.Menus.Add(externalProduction);
+            }
+            externalProduction.ParentId = pmcId;
+            externalProduction.Name = "ExternalProduction";
+            externalProduction.Path = "/pmc/externalproduction";
+            externalProduction.Component = "PMC/ExternalProduction/index";
+            externalProduction.Icon = "ExportOutlined";
+            externalProduction.Type = "Menu";
+            externalProduction.Sort = 30;
+            externalProduction.Status = true;
+            externalProduction.UpdatedTime = now;
+
             if (menus.TryGetValue(obsoleteMenuId, out var obsoleteMenu))
             {
                 obsoleteMenu.Status = false;
@@ -151,7 +168,8 @@ namespace LocalDataApi.Application.Identity
             var expectedBindings = new[]
             {
                 (MenuId: deliveryReviewId, PermissionCode: PermissionCodes.DeliveryReviewView),
-                (MenuId: workOrderTrackingId, PermissionCode: PermissionCodes.WorkOrderView)
+                (MenuId: workOrderTrackingId, PermissionCode: PermissionCodes.WorkOrderView),
+                (MenuId: externalProductionId, PermissionCode: PermissionCodes.ExternalProductionView)
             };
             var currentBindings = await _context.MenuPermissions.AsNoTracking()
                 .Where(binding => expectedBindings.Select(expected => expected.MenuId).Contains(binding.MenuId))

@@ -16,18 +16,21 @@ public sealed class DictionaryController(IDictionaryService dictionaryService) :
     /// <summary>获取全部字典类型列表(管理用)。</summary>
     [HttpGet("list")]
     [Authorize]
+    [AuthenticatedOnly]
     public async Task<ActionResult<ApiResponse<List<DictionaryTypeDto>>>> GetList()
         => Ok(new ApiResponse<List<DictionaryTypeDto>> { Success = true, Data = await dictionaryService.GetTypesAsync(HttpContext.RequestAborted) });
 
     /// <summary>按字典编码获取字典(含字典项,业务下拉动态加载)。</summary>
     [HttpGet("{code}")]
     [Authorize]
+    [AuthenticatedOnly]
     public async Task<ActionResult<ApiResponse<DictionaryDataDto?>>> GetByCode(string code)
         => Ok(new ApiResponse<DictionaryDataDto?> { Success = true, Data = await dictionaryService.GetByCodeAsync(code, HttpContext.RequestAborted) });
 
     /// <summary>批量获取字典(code1,code2 或 ?codes=a&codes=b)。</summary>
     [HttpGet("batch")]
     [Authorize]
+    [AuthenticatedOnly]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<DictionaryItemDto>>>>> GetBatch([FromQuery] string? codes)
     {
         var list = (codes ?? string.Empty)

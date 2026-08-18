@@ -1,3 +1,4 @@
+using LocalDataApi.Api.Attributes;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Identity;
 using LocalDataApi.Dto;
@@ -27,6 +28,7 @@ namespace LocalDataApi.Api.Controllers.Identity
 
         /// <summary>获取当前用户信息(含角色与权限)。</summary>
         [HttpGet]
+        [AuthenticatedOnly]
         public async Task<ActionResult<ApiResponse<MeResultDto>>> Me()
         {
             var userId = _currentUser.UserId;
@@ -42,6 +44,7 @@ namespace LocalDataApi.Api.Controllers.Identity
 
         /// <summary>获取当前用户角色与权限编码。</summary>
         [HttpGet("permissions")]
+        [AuthenticatedOnly]
         public async Task<ActionResult<ApiResponse<MePermissionsDto>>> Permissions()
         {
             var userId = _currentUser.UserId;

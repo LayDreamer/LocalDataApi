@@ -1,3 +1,4 @@
+using LocalDataApi.Api.Attributes;
 using LocalDataApi.Application.Common;
 using LocalDataApi.Application.Identity;
 using LocalDataApi.Dto;
@@ -49,6 +50,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [AuthenticatedOnly]
     [HttpPost("change-password")]
     public async Task<ActionResult<ApiResponse<object>>> ChangePassword(ChangePasswordDto dto)
     {
@@ -61,6 +63,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [AuthenticatedOnly]
     [HttpPost("update-profile")]
     public async Task<ActionResult<ApiResponse<object>>> UpdateProfile(UpdateProfileDto dto)
     {
@@ -84,6 +87,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [AuthenticatedOnly]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
@@ -93,6 +97,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [AuthenticatedOnly]
     [HttpPost("logout-all")]
     public async Task<IActionResult> LogoutAll()
     {
