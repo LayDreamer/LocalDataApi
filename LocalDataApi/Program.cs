@@ -16,6 +16,7 @@ using LocalDataApi.Infrastructure.WeChatWork;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -138,9 +139,17 @@ builder.Services.AddScoped<IEmployeeAccountService, EmployeeAccountService>();
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IDictionaryService, DictionaryService>();
 builder.Services.AddScoped<INumberRuleService, NumberRuleService>();
+builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<RbacSeeder>();
 builder.Services.AddScoped<NumberRuleSeeder>();
 builder.Services.AddHttpContextAccessor();
+
+// ========== 2.5 附件上传大小限制(AttachmentStorage:MaxSizeBytes,默认 20MB) ==========
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = builder.Configuration.GetValue<long?>("AttachmentStorage:MaxSizeBytes") ?? 20L * 1024 * 1024;
+});
 
 var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
 var authSecret = string.IsNullOrWhiteSpace(authOptions.Secret)

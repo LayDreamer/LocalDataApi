@@ -108,6 +108,7 @@ namespace LocalDataApi.Infrastructure.Data
         public DbSet<DictionaryType> DictionaryTypes { get; set; }
         public DbSet<DictionaryItem> DictionaryItems { get; set; }
         public DbSet<NumberRule> NumberRules { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +130,22 @@ namespace LocalDataApi.Infrastructure.Data
                 entity.Property(e => e.Prefix).HasMaxLength(32);
                 entity.Property(e => e.DateFormat).HasMaxLength(16);
                 entity.HasIndex(e => e.RuleCode).IsUnique().HasDatabaseName("UX_Sys_NumberRule_RuleCode");
+            });
+
+            // 配置 Attachment 统一附件
+            modelBuilder.Entity<Attachment>(entity =>
+            {
+                entity.ToTable("Sys_Attachment", "dbo");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BusinessType).HasMaxLength(64).IsRequired();
+                entity.Property(e => e.BusinessId).HasMaxLength(64).IsRequired();
+                entity.Property(e => e.FileName).HasMaxLength(256).IsRequired();
+                entity.Property(e => e.Extension).HasMaxLength(16);
+                entity.Property(e => e.ContentType).HasMaxLength(128).IsRequired();
+                entity.Property(e => e.StorageKey).HasMaxLength(512);
+                entity.Property(e => e.ExternalUrl).HasMaxLength(1024);
+                entity.Property(e => e.Remark).HasMaxLength(256);
+                entity.HasIndex(e => new { e.BusinessType, e.BusinessId }).HasDatabaseName("IX_Sys_Attachment_Business");
             });
 
             // 配置CurrentFlowRate实体
@@ -457,7 +474,8 @@ namespace LocalDataApi.Infrastructure.Data
                 typeof(LoginLog), typeof(OperationLog), typeof(DataChangeLog),
                 typeof(Menu), typeof(MenuPermission),
                 typeof(DictionaryType), typeof(DictionaryItem),
-                typeof(NumberRule)
+                typeof(NumberRule),
+                typeof(Attachment)
             };
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

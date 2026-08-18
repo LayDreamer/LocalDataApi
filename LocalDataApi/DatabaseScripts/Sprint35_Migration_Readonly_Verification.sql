@@ -13,7 +13,7 @@ DECLARE @failCount INT = 0;
 DECLARE @sectionHeader NVARCHAR(200);
 
 /* =============================================================================
-   1. 迁移历史比对:本地 18 个迁移 ID 与 __EFMigrationsHistory 核对
+   1. 迁移历史比对:本地 19 个迁移 ID 与 __EFMigrationsHistory 核对
    ============================================================================= */
 SET @sectionHeader = N'=== 1. 迁移历史比对 (__EFMigrationsHistory) ===';
 PRINT @sectionHeader;
@@ -25,7 +25,7 @@ BEGIN
 END
 ELSE
 BEGIN
-    -- 预期迁移 ID 清单(与 Migrations 目录 18 个迁移一一对应)
+    -- 预期迁移 ID 清单(与 Migrations 目录 19 个迁移一一对应)
     CREATE TABLE #ExpectedMigrations (MigrationId NVARCHAR(150) PRIMARY KEY);
     INSERT INTO #ExpectedMigrations (MigrationId) VALUES
         (N'20260120044605_InitialCreate'),
@@ -45,7 +45,8 @@ BEGIN
         (N'20260815024044_DropLegacyUserIdentityIdCounter'),
         (N'20260815024709_MarkLegacyUserTableArchived'),
         (N'20260815083751_AddDictionaryCenter'),
-        (N'20260817071524_AddNumberRule');
+        (N'20260817071524_AddNumberRule'),
+        (N'20260818014041_AddAttachment');
 
     -- 清单中存在但历史表缺失的迁移
     SELECT '   [FAIL] 缺失迁移: ' + e.MigrationId AS Result
@@ -54,7 +55,7 @@ BEGIN
     WHERE h.MigrationId IS NULL;
 
     IF @@ROWCOUNT = 0
-        PRINT '   [OK] 18 个预期迁移全部存在';
+        PRINT '   [OK] 19 个预期迁移全部存在';
     ELSE
         SET @failCount = @failCount + 1;
 
@@ -244,10 +245,43 @@ BEGIN
 END
 
 /* =============================================================================
-   7. 统一汇总
+   7. WP04 附件中心结构抽查:Sys_Attachment 表 + 业务索引 (20260818014041_AddAttachment)
+   ============================================================================= */
+SET @sectionHeader = N'=== 7. WP04 附件中心 (Sys_Attachment) ===';
+PRINT @sectionHeader;
+
+IF OBJECT_ID(N'dbo.Sys_Attachment', N'U') IS NOT NULL
+    PRINT '   [OK] Sys_Attachment 表存在';
+ELSE
+BEGIN
+    PRINT '   [FAIL] Sys_Attachment 表缺失 (未执行 AddAttachment 迁移)';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM sys.indexes
+           WHERE object_id = OBJECT_ID(N'dbo.Sys_Attachment') AND name = N'IX_Sys_Attachment_Business')
+    PRINT '   [OK] IX_Sys_Attachment_Business 索引存在';
+ELSE
+BEGIN
+    PRINT '   [FAIL] IX_Sys_Attachment_Business 索引缺失';
+    SET @failCount = @failCount + 1;
+END
+
+IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = N'dbo' AND TABLE_NAME = N'Sys_Attachment'
+             AND COLUMN_NAME = N'StorageKey' AND DATA_TYPE = N'nvarchar' AND CHARACTER_MAXIMUM_LENGTH = 512)
+    PRINT '   [OK] Sys_Attachment.StorageKey = nvarchar(512)';
+ELSE
+BEGIN
+    PRINT '   [FAIL] Sys_Attachment.StorageKey 类型/长度不符';
+    SET @failCount = @failCount + 1;
+END
+
+/* =============================================================================
+   8. 统一汇总
    ============================================================================= */
 PRINT N'';
-PRINT N'=== 7. 校验汇总 ===';
+PRINT N'=== 8. 校验汇总 ===';
 PRINT N'   失败项总数 = ' + CAST(@failCount AS NVARCHAR(10));
 IF @failCount = 0
     PRINT N'   [PASS] 全部校验通过';

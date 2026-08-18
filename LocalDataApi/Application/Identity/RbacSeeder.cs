@@ -40,6 +40,7 @@ namespace LocalDataApi.Application.Identity
                 await EnsurePmcMenuIntegrationAsync(ct);
                 await EnsureDictionaryMenuAsync(ct);
                 await EnsureNumberRuleMenuAsync(ct);
+                await EnsureAttachmentMenuAsync(ct);
                 _logger.LogInformation("RBAC 初始化数据检查完成。");
             }
             catch (Exception ex)
@@ -281,6 +282,64 @@ namespace LocalDataApi.Application.Identity
             }
         }
 
+        /// <summary>
+        /// 统一附件中心菜单种子(顶级菜单,绑定 Platform.Attachment.View 权限)。
+        /// 页面路由 /system/attachment,前端组件 System/Attachment。
+        /// 仅在实现管理页时播种(本工作包已实现 Attachment.vue)。
+        /// </summary>
+        private async Task EnsureAttachmentMenuAsync(CancellationToken ct)
+        {
+            var attachmentId = Guid.Parse("20000000-0000-0000-0000-000000000003");
+            var attachmentMenu = await _context.Menus.FirstOrDefaultAsync(menu => menu.Id == attachmentId, ct);
+            var now = DateTime.Now;
+            if (attachmentMenu is null)
+            {
+                attachmentMenu = new Menu
+                {
+                    Id = attachmentId,
+                    Name = "附件中心",
+                    Path = "/system/attachment",
+                    Component = "System/Attachment",
+                    Icon = "PaperClipOutlined",
+                    Type = "Menu",
+                    Sort = 70,
+                    Status = true,
+                    CreatedTime = now,
+                    UpdatedTime = now
+                };
+                _context.Menus.Add(attachmentMenu);
+            }
+            else
+            {
+                attachmentMenu.Name = "附件中心";
+                attachmentMenu.Path = "/system/attachment";
+                attachmentMenu.Component = "System/Attachment";
+                attachmentMenu.Icon = "PaperClipOutlined";
+                attachmentMenu.Type = "Menu";
+                attachmentMenu.Sort = 70;
+                attachmentMenu.Status = true;
+                attachmentMenu.UpdatedTime = now;
+            }
+            await _context.SaveChangesAsync(ct);
+
+            // 绑定菜单-权限(Platform.Attachment.View,普通用户需此权限才可见)
+            var expectedPermissionCode = PermissionCodes.PlatformAttachmentView;
+            var hasBinding = await _context.MenuPermissions.AsNoTracking()
+                .AnyAsync(binding => binding.MenuId == attachmentId && binding.PermissionCode == expectedPermissionCode, ct);
+            if (!hasBinding)
+            {
+                _context.MenuPermissions.Add(new MenuPermission
+                {
+                    Id = Guid.NewGuid(),
+                    MenuId = attachmentId,
+                    PermissionCode = expectedPermissionCode,
+                    CreatedTime = now
+                });
+                await _context.SaveChangesAsync(ct);
+                _logger.LogInformation("附件中心菜单权限已绑定: Platform.Attachment.View");
+            }
+        }
+
         private async Task EnsurePermissionsAsync(CancellationToken ct)
         {
             var defs = BuildPermissionDefinitions();
@@ -348,6 +407,9 @@ namespace LocalDataApi.Application.Identity
                 (PermissionCodes.PlatformNumberRuleView, "Platform", "NumberRule", "View", "查看编码规则", "查询统一业务编码规则配置"),
                 (PermissionCodes.PlatformNumberRuleCreate, "Platform", "NumberRule", "Create", "新增编码规则", "创建编码规则"),
                 (PermissionCodes.PlatformNumberRuleUpdate, "Platform", "NumberRule", "Update", "修改编码规则", "修改编码规则配置或重置流水号"),
+                (PermissionCodes.PlatformAttachmentView, "Platform", "Attachment", "View", "查看附件", "查询统一附件列表与下载"),
+                (PermissionCodes.PlatformAttachmentUpload, "Platform", "Attachment", "Upload", "上传附件", "上传本地附件到统一附件中心"),
+                (PermissionCodes.PlatformAttachmentDelete, "Platform", "Attachment", "Delete", "删除附件", "删除附件记录与物理文件"),
                 (PermissionCodes.PlatformLoginLogView, "Platform", "LoginLog", "View", "查看登录日志", "查询登录审计日志"),
                 (PermissionCodes.PlatformOperationLogView, "Platform", "OperationLog", "View", "查看操作日志", "查询操作审计日志"),
                 (PermissionCodes.PlatformDataChangeLogView, "Platform", "DataChangeLog", "View", "查看数据变更日志", "查询数据变更审计日志"),
